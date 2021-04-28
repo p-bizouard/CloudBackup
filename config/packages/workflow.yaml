@@ -1,0 +1,43 @@
+framework:
+    workflows:
+        backup:
+            type: "state_machine"
+            audit_trail:
+                enabled: true
+            marking_store:
+                type: "method"
+                property: "currentPlace"
+            supports:
+                - App\Entity\Backup
+            initial_marking: initialized
+            places:
+                - initialized
+                - start
+                - dump
+                - download
+                - upload
+                - cleanup
+                - backuped
+                - failed
+            transitions:
+                start:
+                    from: initialized
+                    to: start
+                dump:
+                    from: start
+                    to: dump
+                download:
+                    from: dump
+                    to: download
+                upload:
+                    from: [start, download]
+                    to: upload
+                cleanup:
+                    from: upload
+                    to: cleanup
+                backuped:
+                    from: cleanup
+                    to: backuped
+                failed:
+                    from: [initialized, start, dump, download, upload, cleanup]
+                    to: failed

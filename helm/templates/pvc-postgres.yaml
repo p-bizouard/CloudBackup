@@ -1,0 +1,28 @@
+{{- if .Values.postgres.persistentVolume.enabled -}}
+{{- if not .Values.postgres.persistentVolume.existingClaim -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  {{- if .Values.postgres.persistentVolume.annotations }}
+  annotations:
+{{ toYaml .Values.postgres.persistentVolume.annotations | indent 4 }}
+  {{- end }}
+  name: pvc-postgres
+spec:
+  accessModes:
+{{ toYaml .Values.postgres.persistentVolume.accessModes | indent 4 }}
+{{- if .Values.postgres.persistentVolume.storageClass }}
+{{- if (eq "-" .Values.postgres.persistentVolume.storageClass) }}
+  storageClassName: ""
+{{- else }}
+  storageClassName: "{{ .Values.postgres.persistentVolume.storageClass }}"
+{{- end }}
+{{- end }}
+{{- if .Values.postgres.persistentVolume.volumeBindingMode }}
+  volumeBindingModeName: "{{ .Values.postgres.persistentVolume.volumeBindingMode }}"
+{{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistentVolume.size }}
+{{- end -}}
+{{- end -}}

@@ -1,0 +1,38 @@
+{% extends '@!EasyAdmin/crud/detail.html.twig' %}
+
+{% block main %}
+    {{ parent() }}
+    
+    <h3>Restic</h3>
+    <div class="content-panel">
+        <div class="content-panel-body without-header without-footer without-padding">
+            <dl class="datalist">
+                <div class="data-row">
+                    <dd>Copy env</dd>
+                    <dl class="mb-0">
+                        <pre class="mb-0">    
+                            {%- for envName, envValue in (entity.instance.backupConfiguration.storage.osEnv | merge(entity.instance.backupConfiguration.resticEnv)) -%}
+                                export {{ envName }}={{ envValue }}{{ "\n" }}
+                            {%- endfor -%}
+
+                            restic snapshots</pre>
+                    </dl>
+                </pre>
+            </dl>
+        </div>
+    </div>
+    
+    <h3>Logs</h3>
+    <div class="content-panel">
+        <div class="content-panel-body without-header without-footer without-padding">
+            <dl class="datalist">
+                {% for log in entity.instance.logs %}
+                    <div class="data-row {{ loop.index is even ? 'with-background' }}">
+                        <dd>{{ log.createdAt | date('Y-m-d H:i:s') }} <span class="badge badge-{{ log.bootstrapColor }}">{{ log.level }}</span></dd>
+                        <dl>{{ log.message }}</dl>
+                    </div>
+                {% endfor %}
+            </dl>
+        </div>
+    </div>
+{% endblock %}

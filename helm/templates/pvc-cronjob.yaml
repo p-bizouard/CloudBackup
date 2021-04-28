@@ -1,0 +1,28 @@
+{{- if .Values.cronjob.persistentVolume.enabled -}}
+{{- if not .Values.cronjob.persistentVolume.existingClaim -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  {{- if .Values.cronjob.persistentVolume.annotations }}
+  annotations:
+{{ toYaml .Values.cronjob.persistentVolume.annotations | indent 4 }}
+  {{- end }}
+  name: pvc-cronjob
+spec:
+  accessModes:
+{{ toYaml .Values.cronjob.persistentVolume.accessModes | indent 4 }}
+{{- if .Values.cronjob.persistentVolume.storageClass }}
+{{- if (eq "-" .Values.cronjob.persistentVolume.storageClass) }}
+  storageClassName: ""
+{{- else }}
+  storageClassName: "{{ .Values.cronjob.persistentVolume.storageClass }}"
+{{- end }}
+{{- end }}
+{{- if .Values.cronjob.persistentVolume.volumeBindingMode }}
+  volumeBindingModeName: "{{ .Values.cronjob.persistentVolume.volumeBindingMode }}"
+{{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.cronjob.persistentVolume.size }}
+{{- end -}}
+{{- end -}}

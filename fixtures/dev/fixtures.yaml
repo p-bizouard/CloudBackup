@@ -1,0 +1,9 @@
+parameters:
+    hash: $argon2id$v=19$m=65536,t=4,p=1$SM0i/lRHseD4E2nq4RR5Kg$LB/HV7sLdNYWEBd/0tw71gygrWPVFB7pgL45I8gDlBc
+
+App\Entity\User:
+    paul:
+        email: dev@example.com
+        password: <{hash}>
+        plainPassword: dev
+        roles: [ROLE_ADMIN]

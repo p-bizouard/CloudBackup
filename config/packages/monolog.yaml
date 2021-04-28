@@ -1,0 +1,7 @@
+monolog:
+    channels: [database]
+    handlers:
+        database:
+            type: service
+            channels: [database]
+            id: app.handler.monolog_doctrine_handler

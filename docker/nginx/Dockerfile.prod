@@ -1,0 +1,20 @@
+# build production assets
+FROM node:14-alpine3.13 AS assets-prod
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+COPY . /app/
+# RUN npm rebuild node-sass && \
+#     npm run build
+
+# run production web server
+FROM nginx:1.19-alpine AS nginx
+ARG PHP_BACKEND=php
+
+WORKDIR /app/public
+
+COPY ./docker/nginx/default.conf /tmp/nginx-default.conf
+RUN envsubst '${PHP_BACKEND}' < /tmp/nginx-default.conf > /etc/nginx/conf.d/default.conf && rm -f /tmp/nginx-default.conf
+COPY --from=assets-prod /app/public /app/public

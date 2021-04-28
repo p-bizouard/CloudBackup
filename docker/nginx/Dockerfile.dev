@@ -1,0 +1,21 @@
+# build dev assets
+FROM node:14-alpine3.13 AS assets-dev
+ARG NODE_ENV=dev
+ENV NODE_ENV=dev
+
+WORKDIR /app
+ENV PATH /app/node_modules/.bin:$PATH
+
+ENTRYPOINT  ["/bin/sh", "-c"]
+
+# Install on launch, build to produce entrypoints and manifest.json, then watch for changes
+CMD ["npm install && npm run build && npm run watch"]
+
+# run dev web server
+FROM nginx:1.19-alpine AS nginx-dev
+ARG PHP_BACKEND="php"
+
+WORKDIR /app/public
+
+COPY ./docker/nginx/default.conf /tmp/nginx-default.conf
+RUN envsubst '${PHP_BACKEND}' < /tmp/nginx-default.conf > /etc/nginx/conf.d/default.conf && rm -f /tmp/nginx-default.conf

@@ -1,0 +1,92 @@
+version: "3.7"
+services:
+    postgres:
+        container_name: postgres
+        image: postgres:12
+        restart: on-failure
+        environment:
+            POSTGRES_USER: db
+            POSTGRES_PASSWORD: db
+            POSTGRES_DB: db
+        ports:
+            - "${DATABASE_PORT:-5432}:5432"
+
+    postgres_test:
+        container_name: phppgadmin_test
+        image: postgres:12
+        restart: on-failure
+        environment:
+            POSTGRES_USER: db_test
+            POSTGRES_PASSWORD: db_test
+            POSTGRES_DB: db_test
+        ports:
+            - ${DATABASE_TEST_PORT:-8432}:5432
+
+    phppgadmin:
+        container_name: phppgadmin
+        image: bitnami/phppgadmin
+        restart: on-failure
+        environment:
+            DATABASE_HOST: postgres
+        ports:
+            - "${DATABASE_PORT:-9080}:8080"
+
+    redis:
+        container_name: redis
+        image: redis:5.0.8
+        restart: on-failure
+        command: >
+            --requirepass redis_password
+        ports:
+            - "${REDIS_PORT:-6379}:6379"
+
+    mailhog:
+        container_name: mailhog
+        image: mailhog/mailhog
+        restart: always
+        ports:
+            - ${MAILHOG_PORT_SMTP:-1025}:1025
+            - ${MAILHOG_PORT_HTTP:-8025}:8025
+
+    assets:
+        container_name: assets
+        user: $UID:$GID
+        build:
+            context: .
+            dockerfile: ./docker/nginx/Dockerfile.dev
+            target: assets-dev
+        volumes:
+            - ".:/app:rw"
+            - "build:/data/public/build/"
+        ports:
+            - ${ENCORE_PORT_HTTP:-8080}:8080
+
+    php:
+        container_name: php
+        user: $UID:$GID
+        build:
+            context: .
+            dockerfile: ./docker/php/Dockerfile
+            target: dev
+        depends_on:
+            - postgres
+            - assets
+        volumes:
+            - ".:/app:rw"
+
+    nginx:
+        container_name: nginx
+        build:
+            context: .
+            dockerfile: ./docker/nginx/Dockerfile.dev
+            target: nginx-dev
+        depends_on:
+            - php
+        volumes:
+            - ".:/app:ro"
+            - "build:/data/public/build/"
+        ports:
+            - ${PHP_PORT_HTTP:-80}:80
+
+volumes:
+    build:

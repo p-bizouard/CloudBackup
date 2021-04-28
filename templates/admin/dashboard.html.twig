@@ -1,0 +1,34 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_content %}
+    {{ parent() }}
+    
+    <h3>Programmations</h3>
+    <div class="content-panel">
+        <div class="content-panel-body without-header without-footer without-padding">
+            <table class="table datagrid with-rounded-top">
+                <tr>
+                    <th>Programmation</th>
+                    <th>Dernier backup</th>
+                    <th>Statut</th>
+                </tr>
+                {% for backupConfiguration in backupConfigurations %}
+                    <tr class="data-row {{ loop.index is even ? 'with-background' }}">
+                        <th>{{ backupConfiguration.name }}</th>
+                        {% if backupConfiguration.backups.first %}
+                            <td>
+                                <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
+                                    {{ backupConfiguration.backups.first.createdAt | date('Y-m-d H:i') }}
+                                </span>
+                            </td>
+                            <td><span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">{{ backupConfiguration.backups.first.currentPlace }}</span></td>
+                        {% else %}
+                            <td><span class="badge badge-danger">N/A</span></td>
+                            <td><span class="badge badge-danger">N/A</span></td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+{% endblock %}

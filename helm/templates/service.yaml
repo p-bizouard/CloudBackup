@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    {{- include "openstack-backup.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: nginx
+  selector:
+    app: nginx
+    {{- include "openstack-backup.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php
+  labels:
+    {{- include "openstack-backup.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: php
+  selector:
+    app: php
+    {{- include "openstack-backup.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    {{- include "openstack-backup.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: postgres
+    {{- include "openstack-backup.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    {{- include "openstack-backup.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+      name: redis
+  selector:
+    app: redis
+    {{- include "openstack-backup.selectorLabels" . | nindent 4 }}

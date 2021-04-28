@@ -1,0 +1,18 @@
+{% extends '@!EasyAdmin/crud/detail.html.twig' %}
+
+{% block main %}
+    {{ parent() }}
+    
+    <h3>Backups</h3>
+    <div class="content-panel">
+        <div class="content-panel-body without-header without-footer without-padding">
+            <dl class="datalist">
+                {% for backup in entity.instance.backups %}
+                    <div class="data-row {{ loop.index is even ? 'with-background' }}">
+                        <dd>{{ backup.createdAt | date('Y-m-d H:i') }} <span class="badge badge-{{ backup.bootstrapColor }}">{{ backup.currentPlace }}</span></dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        </div>
+    </div>
+{% endblock %}
