@@ -28,12 +28,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         if ($backup->getBackupConfiguration()->getStorage()->isRestic()) {
-            try {
-                $this->backupService->resticInitRepo($backup);
-                throw new Exception();
-            } catch (Exception $e) {
-                $event->getWorkflow()->apply($backup, 'failed');
-            }
+            $this->backupService->resticInitRepo($backup);
         }
     }
 
@@ -44,20 +39,12 @@ class BackupSubscriber implements EventSubscriberInterface
 
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        try {
-            switch ($backup->getBackupConfiguration()->getType()) {
-                case BackupConfiguration::TYPE_OS_INSTANCE:
-                        $this->backupService->snapshotOSInstance($backup);
-                    break;
-                case BackupConfiguration::TYPE_MYSQL:
-                    break;
-                default:
-                    throw new Exception(sprintf('Backup configuration type not found : %s', $backup->getBackupConfiguration()->getType()));
-                    break;
-            }
-        } catch (Exception $e) {
-            $event->getWorkflow()->apply($backup, 'failed');
-            throw $e;
+        switch ($backup->getBackupConfiguration()->getType()) {
+            case BackupConfiguration::TYPE_OS_INSTANCE:
+                    $this->backupService->snapshotOSInstance($backup);
+                break;
+            default:
+                break;
         }
     }
 
@@ -68,23 +55,7 @@ class BackupSubscriber implements EventSubscriberInterface
 
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        try {
-            switch ($backup->getBackupConfiguration()->getType()) {
-                case BackupConfiguration::TYPE_OS_INSTANCE:
-                    $this->backupService->downloadOSSnapshot($backup);
-                    break;
-                case BackupConfiguration::TYPE_MYSQL:
-                    case BackupConfiguration::TYPE_OS_INSTANCE:
-                        $this->backupService->downloadCommandResult($backup);
-                    break;
-                default:
-                    throw new Exception(sprintf('Backup configuration type not found : %s', $backup->getBackupConfiguration()->getType()));
-                    break;
-            }
-        } catch (Exception $e) {
-            $event->getWorkflow()->apply($backup, 'failed');
-            throw $e;
-        }
+        $this->backupService->downloadBackup($backup);
     }
 
     public function onUpload(Event $event)
@@ -94,22 +65,7 @@ class BackupSubscriber implements EventSubscriberInterface
 
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        try {
-            switch ($backup->getBackupConfiguration()->getType()) {
-                case BackupConfiguration::TYPE_OS_INSTANCE:
-                    $this->backupService->uploadBackup($backup);
-                    break;
-                case BackupConfiguration::TYPE_MYSQL:
-                    $this->backupService->uploadBackup($backup);
-                    break;
-                default:
-                    throw new Exception(sprintf('Backup configuration type not found : %s', $backup->getBackupConfiguration()->getType()));
-                    break;
-            }
-        } catch (Exception $e) {
-            $event->getWorkflow()->apply($backup, 'failed');
-            throw $e;
-        }
+        $this->backupService->uploadBackup($backup);
     }
 
     public function onCleanup(Event $event)
@@ -119,12 +75,17 @@ class BackupSubscriber implements EventSubscriberInterface
 
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        try {
-            $this->backupService->cleanBackup($backup);
-        } catch (Exception $e) {
-            $event->getWorkflow()->apply($backup, 'failed');
-            throw $e;
-        }
+        $this->backupService->cleanBackup($backup);
+    }
+
+    public function onHealthCheck(Event $event)
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        $this->backupService->healhCheckBackup($backup);
     }
 
     public function onFailed(Event $event)
@@ -168,18 +129,13 @@ class BackupSubscriber implements EventSubscriberInterface
                         $this->backupService->log($backup, Log::LOG_NOTICE, $message);
                     }
                     break;
-                case BackupConfiguration::TYPE_MYSQL:
-                    break;
                 default:
-                    throw new Exception(sprintf('Backup configuration type not found : %s', $backup->getBackupConfiguration()->getType()));
                     break;
             }
         } catch (Exception $e) {
-            $this->backupService->log($backup, Log::LOG_ERROR, $e->getMessage());
+            $this->backupService->log($backup, Log::LOG_WARNING, sprintf('Guard download error : ', $e->getMessage()));
 
             $event->setBlocked(true, $e->getMessage());
-            $event->getWorkflow()->apply($backup, 'failed');
-            throw $e;
         }
     }
 
@@ -197,21 +153,24 @@ class BackupSubscriber implements EventSubscriberInterface
                         $message = 'Download not completed';
 
                         $event->setBlocked(true, $message);
-                        $this->backupService->log($backup, Log::LOG_ERROR, $message);
+                        $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     }
                     break;
-                case BackupConfiguration::TYPE_MYSQL:
+                case BackupConfiguration::TYPE_SSHFS:
+                    if (!$this->backupService->checkDownloadedSSHFS($backup)) {
+                        $message = 'Download not completed';
+
+                        $event->setBlocked(true, $message);
+                        $this->backupService->log($backup, Log::LOG_WARNING, $message);
+                    }
                     break;
                 default:
-                    throw new Exception(sprintf('Backup configuration type not found : %s', $backup->getBackupConfiguration()->getType()));
                     break;
             }
         } catch (Exception $e) {
-            $message = 'Cannot upload, download not completed';
+            $this->backupService->log($backup, Log::LOG_ERROR, sprintf('Guard upload error : ', $e->getMessage()));
 
-            $event->setBlocked(true, $message);
-            $this->backupService->log($backup, Log::LOG_ERROR, $message);
-            throw $e;
+            $event->setBlocked(true, $e->getMessage());
         }
     }
 
@@ -227,7 +186,7 @@ class BackupSubscriber implements EventSubscriberInterface
          */
     }
 
-    public function guardBackuped(GuardEvent $event)
+    public function guardHealhCheck(GuardEvent $event)
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -253,6 +212,7 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.enter.download' => 'onDownload',
             'workflow.backup.enter.upload' => 'onUpload',
             'workflow.backup.enter.cleanup' => 'onCleanup',
+            'workflow.backup.enter.health_check' => 'onHealthCheck',
             'workflow.backup.enter.failed' => 'onFailed',
 
             'workflow.backup.enter' => 'onEnterAll',
@@ -260,7 +220,7 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.guard.download' => 'guardDownload',
             'workflow.backup.guard.upload' => 'guardUpload',
             'workflow.backup.guard.cleanup' => 'guardCleanup',
-            'workflow.backup.guard.backuped' => 'guardBackuped',
+            'workflow.backup.guard.health_check' => 'guardHealhCheck',
         ];
     }
 }

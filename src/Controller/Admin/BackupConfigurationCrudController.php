@@ -54,12 +54,13 @@ class BackupConfigurationCrudController extends AbstractCrudController
             BooleanField::new('enabled'),
             IntegerField::new('keepDaily'),
             IntegerField::new('keepWeekly'),
-            TextField::new('subPath')->hideOnIndex(),
             DateTimeField::new('createdAt')->hideOnForm()->hideOnIndex(),
             DateTimeField::new('updatedAt')->hideOnForm()->hideOnIndex(),
             AssociationField::new('osInstance'),
             AssociationField::new('host'),
+            TextField::new('remotePath')->hideOnIndex(),
             AssociationField::new('storage'),
+            TextField::new('storageSubPath')->hideOnIndex(),
             TextField::new('dumpCommand')->hideOnIndex(),
         ];
     }

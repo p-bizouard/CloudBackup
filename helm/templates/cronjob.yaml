@@ -28,9 +28,16 @@ spec:
                   subPath: ".env"
                 - name: pvc-cronjob
                   mountPath:  /mnt/volume
+                - mountPath: /dev/fuse
+                  name: dev-fuse
               command:
                 - /app/bin/console
                 - app:backup:start 
+              securityContext:
+                privileged: true
+                capabilities:
+                  add:
+                    - SYS_ADMIN
           initContainers:
             - name: volume-mount
               image: busybox
@@ -45,4 +52,7 @@ spec:
             - name: pvc-cronjob
               persistentVolumeClaim:
                 claimName: pvc-cronjob
+            - name: dev-fuse
+              hostPath:
+                path: /dev/fuse
           restartPolicy: OnFailure

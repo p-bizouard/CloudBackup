@@ -73,7 +73,10 @@ services:
             - assets
         volumes:
             - ".:/app:rw"
-
+        devices:
+            - /dev/fuse
+        cap_add:
+            - SYS_ADMIN
     nginx:
         container_name: nginx
         build:

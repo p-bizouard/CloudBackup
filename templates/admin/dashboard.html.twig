@@ -9,12 +9,14 @@
             <table class="table datagrid with-rounded-top">
                 <tr>
                     <th>Programmation</th>
+                    <th>Type</th>
                     <th>Dernier backup</th>
                     <th>Statut</th>
                 </tr>
                 {% for backupConfiguration in backupConfigurations %}
                     <tr class="data-row {{ loop.index is even ? 'with-background' }}">
                         <th>{{ backupConfiguration.name }}</th>
+                        <td>{{ backupConfiguration.type | trans }}</td>
                         {% if backupConfiguration.backups.first %}
                             <td>
                                 <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">

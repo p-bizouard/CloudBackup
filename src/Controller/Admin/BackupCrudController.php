@@ -52,7 +52,14 @@ class BackupCrudController extends AbstractCrudController
     {
         return [
             AssociationField::new('backupConfiguration')->setLabel('Programmation'),
-            ChoiceField::new('backupConfiguration.type')->setChoices(array_flip(BackupConfiguration::getAvailableTypes()))->hideOnForm(),
+            ChoiceField::new('backupConfiguration.type')->setChoices(function () {
+                $return = [];
+                foreach (BackupConfiguration::getAvailableTypes() as $type) {
+                    $return[$type] = $type;
+                }
+
+                return $return;
+            }),
             TextField::new('currentPlace'),
             AssociationField::new('logs')->hideOnForm(),
             DateTimeField::new('createdAt')->hideOnForm(),

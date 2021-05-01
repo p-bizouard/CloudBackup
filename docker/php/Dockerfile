@@ -12,6 +12,7 @@ RUN apt update \
         software-properties-common \
         git unzip procps \
         locales \
+        sshfs \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,6 +48,7 @@ COPY --from=symfonycorp/cli /symfony /usr/local/bin/symfony
 CMD  ["php-fpm"]
 
 RUN echo "user:user:1000:1000:Dev user:/:/sbin/nologin" >> /etc/passwd
+RUN mkdir /.ssh && chown 1000:1000 /.ssh
 
 # Test image
 FROM dev AS test

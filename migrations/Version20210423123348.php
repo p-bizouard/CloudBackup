@@ -12,12 +12,12 @@ use Doctrine\Migrations\AbstractMigration;
  */
 final class Version20210423123348 extends AbstractMigration
 {
-    public function getDescription() : string
+    public function getDescription(): string
     {
         return '';
     }
 
-    public function up(Schema $schema) : void
+    public function up(Schema $schema): void
     {
         // this up() migration is auto-generated, please modify it to your needs
         $this->addSql('CREATE SEQUENCE backup_id_seq INCREMENT BY 1 MINVALUE 1 START 1');
@@ -28,7 +28,7 @@ final class Version20210423123348 extends AbstractMigration
         $this->addSql('CREATE SEQUENCE "user_id_seq" INCREMENT BY 1 MINVALUE 1 START 1');
         $this->addSql('CREATE TABLE backup (id INT NOT NULL, backup_configuration_id INT DEFAULT NULL, current_place VARCHAR(255) NOT NULL, os_image_id VARCHAR(255) DEFAULT NULL, checksum VARCHAR(255) DEFAULT NULL, size INT DEFAULT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, PRIMARY KEY(id))');
         $this->addSql('CREATE INDEX IDX_3FF0D1AC5450A77B ON backup (backup_configuration_id)');
-        $this->addSql('CREATE TABLE backup_configuration (id INT NOT NULL, storage_id INT NOT NULL, os_instance_id UUID DEFAULT NULL, name VARCHAR(255) NOT NULL, slug VARCHAR(255) NOT NULL, type VARCHAR(255) NOT NULL, periodicity VARCHAR(255) NOT NULL, keep_daily INT DEFAULT NULL, keep_weekly INT DEFAULT NULL, sub_path VARCHAR(255) DEFAULT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, PRIMARY KEY(id))');
+        $this->addSql('CREATE TABLE backup_configuration (id INT NOT NULL, storage_id INT NOT NULL, os_instance_id UUID DEFAULT NULL, name VARCHAR(255) NOT NULL, slug VARCHAR(255) NOT NULL, type VARCHAR(255) NOT NULL, periodicity VARCHAR(255) NOT NULL, keep_daily INT DEFAULT NULL, keep_weekly INT DEFAULT NULL, storage_sub_path VARCHAR(255) DEFAULT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, PRIMARY KEY(id))');
         $this->addSql('CREATE UNIQUE INDEX UNIQ_E53979C3989D9B62 ON backup_configuration (slug)');
         $this->addSql('CREATE INDEX IDX_E53979C35CC5DB90 ON backup_configuration (storage_id)');
         $this->addSql('CREATE INDEX IDX_E53979C313F554DE ON backup_configuration (os_instance_id)');
@@ -53,7 +53,7 @@ final class Version20210423123348 extends AbstractMigration
         $this->addSql('ALTER TABLE storage ADD CONSTRAINT FK_547A1B346B8244E5 FOREIGN KEY (os_project_id) REFERENCES osproject (id) NOT DEFERRABLE INITIALLY IMMEDIATE');
     }
 
-    public function down(Schema $schema) : void
+    public function down(Schema $schema): void
     {
         // this down() migration is auto-generated, please modify it to your needs
         $this->addSql('CREATE SCHEMA public');

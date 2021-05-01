@@ -67,7 +67,7 @@ class BackupConfiguration
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $subPath;
+    private $storageSubPath;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSInstance::class, inversedBy="backupConfigurations")
@@ -95,11 +95,18 @@ class BackupConfiguration
      */
     private $host;
 
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $remotePath;
+
     const PERIODICITY_DAILY = 'daily';
 
     const TYPE_OS_INSTANCE = 'os-instance';
     const TYPE_MYSQL = 'mysql';
     const TYPE_POSTGRESQL = 'postgresql';
+    const TYPE_SSHFS = 'sshfs';
+    const TYPE_SSH_RESTIC = 'ssh-restic';
 
     public function __construct()
     {
@@ -133,6 +140,8 @@ class BackupConfiguration
             self::TYPE_OS_INSTANCE,
             self::TYPE_MYSQL,
             self::TYPE_POSTGRESQL,
+            self::TYPE_SSHFS,
+            self::TYPE_SSH_RESTIC,
         ];
     }
 
@@ -148,7 +157,7 @@ class BackupConfiguration
     {
         return [
             'RESTIC_PASSWORD' => $this->getStorage()->getResticPassword(),
-            'RESTIC_REPOSITORY' => sprintf('%s/%s', trim($this->getStorage()->getResticRepo(), '/'), trim($this->getSubPath(), '/')),
+            'RESTIC_REPOSITORY' => sprintf('%s/%s', trim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
         ];
     }
 
@@ -235,14 +244,14 @@ class BackupConfiguration
         return $this;
     }
 
-    public function getSubPath(): ?string
+    public function getStorageSubPath(): ?string
     {
-        return $this->subPath;
+        return $this->storageSubPath;
     }
 
-    public function setSubPath(?string $subPath): self
+    public function setStorageSubPath(?string $subPath): self
     {
-        $this->subPath = $subPath;
+        $this->storageSubPath = $subPath;
 
         return $this;
     }
@@ -345,6 +354,18 @@ class BackupConfiguration
     public function setHost(?Host $host): self
     {
         $this->host = $host;
+
+        return $this;
+    }
+
+    public function getRemotePath(): ?string
+    {
+        return $this->remotePath;
+    }
+
+    public function setRemotePath(?string $remotePath): self
+    {
+        $this->remotePath = $remotePath;
 
         return $this;
     }

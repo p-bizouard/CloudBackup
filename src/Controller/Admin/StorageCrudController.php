@@ -6,6 +6,7 @@ use App\Entity\Storage;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
@@ -30,7 +31,14 @@ class StorageCrudController extends AbstractCrudController
     {
         return [
             TextField::new('name'),
-            TextField::new('type'),
+            ChoiceField::new('type')->setChoices(function () {
+                $return = [];
+                foreach (Storage::getAvailableTypes() as $type) {
+                    $return[$type] = $type;
+                }
+
+                return $return;
+            }),
             AssociationField::new('osProject'),
             AssociationField::new('backupConfigurations'),
             TextField::new('osRegionName'),

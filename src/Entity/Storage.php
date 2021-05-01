@@ -3,11 +3,9 @@
 namespace App\Entity;
 
 use App\Repository\StorageRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 
 /**
@@ -74,6 +72,8 @@ class Storage
      */
     private $backupConfigurations;
 
+    const TYPE_RESTIC = 'restic';
+
     public function __construct()
     {
         $this->backupConfigurations = new ArrayCollection();
@@ -95,13 +95,20 @@ class Storage
             'OS_TENANT_NAME' => $this->getOSProject()->getTenantName(),
             'OS_USERNAME' => $this->getOSProject()->getUsername(),
             'OS_PASSWORD' => $this->getOSProject()->getPassword(),
-            'OS_REGION_NAME' => $this->getOSRegionName()
+            'OS_REGION_NAME' => $this->getOSRegionName(),
+        ];
+    }
+
+    public static function getAvailableTypes(): array
+    {
+        return [
+            self::TYPE_RESTIC,
         ];
     }
 
     public function isRestic(): bool
     {
-        return $this->getResticRepo() !== null && $this->getResticRepo() !== '';
+        return null !== $this->getResticRepo() && '' !== $this->getResticRepo();
     }
 
     public function getId(): ?int

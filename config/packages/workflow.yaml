@@ -17,6 +17,7 @@ framework:
                 - download
                 - upload
                 - cleanup
+                - health_check
                 - backuped
                 - failed
             transitions:
@@ -35,9 +36,21 @@ framework:
                 cleanup:
                     from: upload
                     to: cleanup
-                backuped:
+                health_check:
                     from: cleanup
+                    to: health_check
+                backuped:
+                    from: health_check
                     to: backuped
                 failed:
-                    from: [initialized, start, dump, download, upload, cleanup]
+                    from:
+                        [
+                            initialized,
+                            start,
+                            dump,
+                            download,
+                            upload,
+                            health_check,
+                            cleanup,
+                        ]
                     to: failed
