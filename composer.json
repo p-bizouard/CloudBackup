@@ -83,7 +83,7 @@
         "post-update-cmd": [
             "@auto-scripts"
         ],
-        "workflow-dump": "php bin/console workflow:dump backup | dot -Tsvg -o graph.svg"
+        "workflow-dump": "php bin/console workflow:dump backup | dot -Tsvg -o doc/graph.svg"
     },
     "conflict": {
         "symfony/symfony": "*"

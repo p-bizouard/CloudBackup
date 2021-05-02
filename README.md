@@ -5,7 +5,10 @@
 CloudBackup is a backup software for cloud data. It can backup:
 
 -   Openstack servers
--   MySQL databases with ssh gateway
+-   MySQL databases (direct connection or with ssh gateway)
+-   Custom remote command by ssh
+-   Remote directory mounted with sshfs
+-   Remote directory backuped by restic if restic is locally available
 
 CloudBackup can store data with Restic
 
@@ -13,9 +16,9 @@ CloudBackup can store data with Restic
 
 ## Todo
 
--   [ ] Source - Remote directory
--   [ ] Source - PostgreSQL
+-   [x] Source - Remote directory
 -   [ ] Email reports
+-   [ ] Source - PostgreSQL
 -   [ ] Source - Openstack volume
 -   [ ] Destination - Rsync or scp
 -   [ ] Destination - FTP
@@ -64,54 +67,12 @@ docker-compose exec php bin/console hautelook:fixtures:load --env=dev
 -   phpPgAdmin : http://localhost:9080/
 -   Webapp : http://localhost/
 
-## Useful commands - execute if needed
+### Useful commands - Symfony with docker cheatsheet
 
-### To fix lint errors (this is automaticaly executed on commit, and should be executed in your IDE on save):
+See the [Symfony with docker cheatsheet](doc/symfony-docker.md)
 
-```
-docker-compose exec php vendor/bin/php-cs-fixer fix
-```
-
-### To add a composer dependency
+### To update graph in README.md
 
 ```
-docker-compose exec php composer require YOUR_PACKAGE
-```
-
-### To update composer dependencies (if someone updated composer.json):
-
-```
-docker-compose exec php composer install YOUR_PACKAGE
-```
-
-### To add an asset dependency
-
-```
-docker-compose exec node_assets npm install YOUR_PACKAGE
-```
-
-### To update asset dependencies (if someone updated packages.json):
-
-```
-docker-compose exec php composer install
-```
-
-### To add properties in your entities :
-
-1. Update your entity :
-
-```
-docker-compose run --rm php php bin/console make:entity
-```
-
-2. Create a migration file :
-
-```
-docker-compose run --rm php php bin/console make:migration
-```
-
-3. Execute the migration
-
-```
-docker-compose run --rm php php bin/console doctrine:migrations:migrate
+docker-compose run php bash -c "bin/console workflow:dump backup | dot -Tsvg -o doc/graph.svg"
 ```
