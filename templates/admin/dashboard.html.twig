@@ -1,36 +1,42 @@
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
-{% block page_content %}
-    {{ parent() }}
-    
-    <h3>Programmations</h3>
-    <div class="content-panel">
-        <div class="content-panel-body without-header without-footer without-padding">
-            <table class="table datagrid with-rounded-top">
-                <tr>
-                    <th>Programmation</th>
-                    <th>Type</th>
-                    <th>Dernier backup</th>
-                    <th>Statut</th>
-                </tr>
-                {% for backupConfiguration in backupConfigurations %}
-                    <tr class="data-row {{ loop.index is even ? 'with-background' }}">
-                        <th>{{ backupConfiguration.name }}</th>
-                        <td>{{ backupConfiguration.type | trans }}</td>
-                        {% if backupConfiguration.backups.first %}
-                            <td>
-                                <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
-                                    {{ backupConfiguration.backups.first.createdAt | date('Y-m-d H:i') }}
-                                </span>
-                            </td>
-                            <td><span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">{{ backupConfiguration.backups.first.currentPlace }}</span></td>
-                        {% else %}
-                            <td><span class="badge badge-danger">N/A</span></td>
-                            <td><span class="badge badge-danger">N/A</span></td>
-                        {% endif %}
-                    </tr>
-                {% endfor %}
-            </table>
-        </div>
+{% block page_title %}Programmations{% endblock %}
+
+{% block main %}    
+    <div class="row">
+        {% for currentType in backupConfigurationTypes | filter(currentType => currentType in (backupConfigurations | map(backupConfiguration => backupConfiguration.type))) %}
+            <div class="col-md-6">
+                <h3>{{ currentType | trans }}</h3>
+                <div class="content-panel">
+                    <div class="content-panel-body without-header without-footer without-padding">
+                        <table class="table with-rounded-top">
+                            <tr>
+                                <th>Programmation</th>
+                                <th>Dernier backup</th>
+                                <th>Statut</th>
+                            </tr>
+                            {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => backupConfiguration.type is same as(currentType)) %}
+                                <tr class="data-row {{ loop.index is even ? 'with-background' }}">
+                                    <td>{{ backupConfiguration.name }}</td>
+                                    {% if backupConfiguration.backups.first %}
+                                        <td>
+                                            <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
+                                                {{ backupConfiguration.backups.first.updatedAt | date('Y-m-d H:i') }}
+                                            </span>
+                                        </td>
+                                        <td><span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">{{ backupConfiguration.backups.first.currentPlace }}</span></td>
+                                    {% else %}
+                                        <td><span class="badge badge-danger">N/A</span></td>
+                                        <td><span class="badge badge-danger">N/A</span></td>
+                                    {% endif %}
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="3">-</td></tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
     </div>
 {% endblock %}

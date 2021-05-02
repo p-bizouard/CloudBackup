@@ -171,17 +171,17 @@ class BackupConfiguration
      */
     public function validate(ExecutionContextInterface $context, $payload)
     {
-        if (null !== $this->getOsInstance()) {
-            return;
-        }
-        if (null !== $this->getHost()) {
-            return;
-        }
+        // if (null !== $this->getOsInstance()) {
+        //     return;
+        // }
+        // if (null !== $this->getHost()) {
+        //     return;
+        // }
 
-        $context->buildViolation('One of field OS Instance or Host is mandatory')
-            ->atPath('osInstance')
-            ->atPath('host')
-            ->addViolation();
+        // $context->buildViolation('One of field OS Instance or Host is mandatory')
+        //     ->atPath('osInstance')
+        //     ->atPath('host')
+        //     ->addViolation();
     }
 
     public function getId(): ?int

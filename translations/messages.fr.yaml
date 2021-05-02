@@ -1,4 +1,5 @@
 daily: Backup quotidien
 mysql: MySQL
-os-instance: Instance Openstack
+os-instance: VM Openstack
 postgresql: PostgreSQL
+ssh-restic: Fichiers via Restic SSH
