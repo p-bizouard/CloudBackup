@@ -8,19 +8,28 @@
         <div class="content-panel-body without-header without-footer without-padding">
             <dl class="datalist">
                 <div class="data-row">
-                    <dd>Copy env</dd>
-                    <dl class="mb-0">
+                    <dd>Help</dd>
+                    <dl>
                         <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet" target="_blank">Restic cheatsheet <i class="fas fa-external-link-alt"></i></a>
-                        
-                        <pre class="mb-3 mt-3">    
+                    </dl>
+                </div>
+                <div class="data-row">
+                    <dd>Copy env</dd>
+                    <dl>
+                        <pre class="mb-0">
                             {%- for envName, envValue in (entity.instance.backupConfiguration.storage.osEnv | merge(entity.instance.backupConfiguration.resticEnv)) -%}
                                 export {{ envName }}={{ envValue }}{{ "\n" }}
                             {%- endfor -%}
 
                             restic snapshots</pre>
-                        <pre class="mb-0">mkdir /mnt/restic ; restic mount /mnt/restic</pre>
                     </dl>
-                </pre>
+                </div>
+                <div class="data-row">
+                    <dd>Restore</dd>
+                    <dl>
+                        <pre class="mb-0">restic mount /mnt/restic</pre>
+                    </dl>
+                </div>
             </dl>
         </div>
     </div>
