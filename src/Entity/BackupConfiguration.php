@@ -100,6 +100,11 @@ class BackupConfiguration
      */
     private $remotePath;
 
+    /**
+     * @ORM\Column(type="bigint", nullable=true)
+     */
+    private $minimumBackupSize;
+
     const PERIODICITY_DAILY = 'daily';
 
     const TYPE_OS_INSTANCE = 'os-instance';
@@ -366,6 +371,18 @@ class BackupConfiguration
     public function setRemotePath(?string $remotePath): self
     {
         $this->remotePath = $remotePath;
+
+        return $this;
+    }
+
+    public function getMinimumBackupSize(): ?string
+    {
+        return $this->minimumBackupSize;
+    }
+
+    public function setMinimumBackupSize(?string $minimumBackupSize): self
+    {
+        $this->minimumBackupSize = $minimumBackupSize;
 
         return $this;
     }

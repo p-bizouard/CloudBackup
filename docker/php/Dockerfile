@@ -12,7 +12,9 @@ RUN apt update \
         software-properties-common \
         git unzip procps \
         locales \
-        sshfs \
+        sshfs sshpass \
+        postgresql-client \
+        mariadb-client \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -108,6 +110,8 @@ COPY docker/php/conf/opcache.ini "$PHP_INI_DIR/conf.d/opcache.ini"
 
 # php-fpm is run with www-data
 RUN mkdir var && chown -R www-data:www-data var/
+RUN mkdir /var/www/.cache/ && chown -R www-data:www-data /var/www/.cache/
+
 USER www-data
 
 

@@ -164,6 +164,14 @@ class BackupSubscriber implements EventSubscriberInterface
                         $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     }
                     break;
+                case BackupConfiguration::TYPE_MYSQL:
+                    if (!$this->backupService->checkDownloadedDump($backup)) {
+                        $message = 'Download not completed';
+
+                        $event->setBlocked(true, $message);
+                        $this->backupService->log($backup, Log::LOG_WARNING, $message);
+                    }
+                    break;
                 default:
                     break;
             }

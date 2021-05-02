@@ -205,18 +205,39 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         $filesystem = new Filesystem();
-        $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
         $backupDestination = $this->getTemporaryBackupDestination($backup);
-        $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
 
-        $command = sprintf(
-            'ssh %s@%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s "%s | gzip -9" | gunzip > %s',
-            $backup->getBackupConfiguration()->getHost()->getLogin(),
-            $backup->getBackupConfiguration()->getHost()->getIp(),
-            $privateKeypath,
-            $backup->getBackupConfiguration()->getDumpCommand(),
-            $backupDestination
-        );
+        if (null !== $backup->getBackupConfiguration()->getHost()) {
+            if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
+                $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
+                $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+                $privateKeyString = sprintf('-i %s', $privateKeypath);
+            } else {
+                $privateKeyString = '';
+            }
+
+            if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
+                $sshpass = sprintf('sshpass -p %s', $backup->getBackupConfiguration()->getHost()->getPassword());
+            } else {
+                $sshpass = '';
+            }
+
+            $command = sprintf(
+                '%s ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "%s | gzip -9" | gunzip > %s',
+                $sshpass,
+                $backup->getBackupConfiguration()->getHost()->getLogin(),
+                $backup->getBackupConfiguration()->getHost()->getIp(),
+                $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+                $privateKeyString,
+                $backup->getBackupConfiguration()->getDumpCommand(),
+                $backupDestination
+            );
+        } else {
+            $command = sprintf('%s > %s',
+                $backup->getBackupConfiguration()->getDumpCommand(),
+                $backupDestination
+            );
+        }
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
         $process = Process::fromShellCommandline($command);
@@ -319,14 +340,51 @@ class BackupService
         }
     }
 
+    public function checkDownloadedDump(Backup $backup): bool
+    {
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        $dumpDestination = $this->getTemporaryBackupDestination($backup);
+        dump($dumpDestination);
+        dump(filesize($dumpDestination));
+        dump($backup->getBackupConfiguration()->getMinimumBackupSize());
+        if (file_exists($dumpDestination) && filesize($dumpDestination) >= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
+            $this->log($backup, Log::LOG_NOTICE, 'Backup downloaded');
+
+            return true;
+        } else {
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Backup not downloaded : %s < %s', filesize($dumpDestination), $backup->getBackupConfiguration()->getMinimumBackupSize()));
+
+            return false;
+        }
+    }
+
+    public function checkDownloadedOSSnapshot(Backup $backup): bool
+    {
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        $imageDestination = $this->getTemporaryBackupDestination($backup);
+
+        if (file_exists($imageDestination) && filesize($imageDestination) === $backup->getSize()) {
+            $this->log($backup, Log::LOG_NOTICE, 'Openstack image downloaded');
+
+            return true;
+        } else {
+            $this->log($backup, Log::LOG_NOTICE, 'Openstack image not downloaded : %s != %s', filesize($imageDestination), $backup->getSize());
+
+            return false;
+        }
+    }
+
     private function uploadBackupSSHResticRmScript(Backup $backup, string $privateKeypath, string $scriptFilePath)
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         $command = sprintf(
-            'ssh %s@%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "sudo rm -f %s"',
+            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "sudo rm -f %s"',
             $backup->getBackupConfiguration()->getHost()->getLogin(),
             $backup->getBackupConfiguration()->getHost()->getIp(),
+            $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
             $privateKeypath,
             $scriptFilePath,
         );
@@ -386,9 +444,10 @@ class BackupService
         }
 
         $command = sprintf(
-            'ssh %s@%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "%s"',
+            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "%s"',
             $backup->getBackupConfiguration()->getHost()->getLogin(),
             $backup->getBackupConfiguration()->getHost()->getIp(),
+            $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
             $privateKeypath,
             sprintf('sudo chmod 700 %s && sudo chown root:root %s && sudo %s',
                 $scriptFilePath,
@@ -447,7 +506,7 @@ class BackupService
                 $command = sprintf(
                     'cat %s | restic backup --tag host=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.sql',
                     $this->getTemporaryBackupDestination($backup),
-                    $backup->getBackupConfiguration()->getHost()->getSlug(),
+                    $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
                     $backup->getBackupConfiguration()->getSlug(),
                     $backup->getName(false)
                 );
@@ -649,23 +708,6 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
             break;
-        }
-    }
-
-    public function checkDownloadedOSSnapshot(Backup $backup): bool
-    {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
-        $imageDestination = $this->getTemporaryBackupDestination($backup);
-
-        if (file_exists($imageDestination) && filesize($imageDestination) === $backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, 'Openstack image downloaded');
-
-            return true;
-        } else {
-            $this->log($backup, Log::LOG_NOTICE, 'Openstack image not downloaded : %s != %s', filesize($imageDestination), $backup->getSize());
-
-            return false;
         }
     }
 

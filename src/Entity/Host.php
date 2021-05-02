@@ -22,18 +22,18 @@ class Host
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private ?int $id;
+    private ?int $id = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private ?string $name;
+    private ?string $name = null;
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
      * @Gedmo\Slug(fields={"name"})
      */
-    private ?string $slug;
+    private ?string $slug = null;
 
     /**
      * @ORM\Column(type="string", length=255)
@@ -48,17 +48,17 @@ class Host
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private ?string $login;
+    private ?string $login = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $password;
+    private ?string $password = null;
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    private ?string $privateKey;
+    private ?string $privateKey = null;
 
     /**
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="host")
