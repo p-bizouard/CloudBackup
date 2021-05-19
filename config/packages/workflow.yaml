@@ -34,10 +34,10 @@ framework:
                     from: [start, download]
                     to: upload
                 cleanup:
-                    from: upload
+                    from: [start, upload]
                     to: cleanup
                 health_check:
-                    from: cleanup
+                    from: [start, cleanup]
                     to: health_check
                 backuped:
                     from: health_check
