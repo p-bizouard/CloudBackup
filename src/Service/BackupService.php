@@ -345,9 +345,7 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         $dumpDestination = $this->getTemporaryBackupDestination($backup);
-        dump($dumpDestination);
-        dump(filesize($dumpDestination));
-        dump($backup->getBackupConfiguration()->getMinimumBackupSize());
+
         if (file_exists($dumpDestination) && filesize($dumpDestination) >= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
             $this->log($backup, Log::LOG_NOTICE, 'Backup downloaded');
 
@@ -370,7 +368,7 @@ class BackupService
 
             return true;
         } else {
-            $this->log($backup, Log::LOG_NOTICE, 'Openstack image not downloaded : %s != %s', filesize($imageDestination), $backup->getSize());
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Openstack image not downloaded : %s != %s', filesize($imageDestination), $backup->getSize()));
 
             return false;
         }
@@ -623,7 +621,7 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         // Restic forget
-        if ($backup->getBackupConfiguration()->getStorage()->isRestic()) {
+        if ($backup->getBackupConfiguration()->getStorage()->isRestic() && BackupConfiguration::TYPE_READ_RESTIC !== $backup->getBackupConfiguration()->getType()) {
             $this->cleanBackupRestic($backup);
         }
 
@@ -694,7 +692,7 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
 
-                $command = 'restic snapshots';
+                $command = 'restic snapshots --json --last -q';
 
                 $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
                 $process = Process::fromShellCommandline($command, null, $env);
@@ -705,7 +703,24 @@ class BackupService
                     $this->log($backup, Log::LOG_ERROR, sprintf('Error executing cleanup - restic check - %s', $process->getErrorOutput()));
                     throw new ProcessFailedException($process);
                 } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                    if (($json = json_decode($process->getOutput(), true)) === null || !\count($json)) {
+                        $message = sprintf('Cannot decode json : %s', $process->getOutput());
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
+                    $this->log($backup, Log::LOG_INFO, $prettyJson);
+
+                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', end($json)['time']));
+                    $this->log($backup, Log::LOG_NOTICE, sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
+
+                    $yesterday = new DateTime('yesterday');
+                    if ($lastBackup < $yesterday) {
+                        $message = 'Last backup older than 24h';
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
                 }
             break;
         }
@@ -768,7 +783,7 @@ class BackupService
             }
         } elseif ('initialized' !== $backup->getCurrentPlace()) {
             if ($backup->getCreatedAt()->format('Y-m-d') !== $now->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
-                if ('failed' === $backup->getCurrentPlace()) {
+                if ('failed' !== $backup->getCurrentPlace()) {
                     $backupWorkflow->apply($backup, 'failed');
                 }
 

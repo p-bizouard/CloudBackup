@@ -60,8 +60,8 @@ class BackupStartCommand extends Command
 
         try {
             $backupConfigurations = $this->backupConfigurationRepository->findBy([
-            'enabled' => true,
-        ]);
+                'enabled' => true,
+            ]);
             foreach ($backupConfigurations as $backupConfiguration) {
                 $this->backupService->initBackup($backupConfiguration);
                 $lock->refresh();

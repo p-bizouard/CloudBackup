@@ -6,6 +6,7 @@ use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
 use App\Entity\Log;
 use App\Service\BackupService;
+use App\Service\MailerService;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -17,6 +18,7 @@ class BackupSubscriber implements EventSubscriberInterface
     public function __construct(
         private LoggerInterface $logger,
         private BackupService $backupService,
+        private MailerService $mailerService,
     ) {
     }
 
@@ -96,6 +98,8 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         $this->backupService->log($backup, Log::LOG_ERROR, 'Backup failed');
+
+        $this->mailerService->sendFailedBackupReport($backup);
     }
 
     public function onEnterAll(Event $event)
@@ -110,8 +114,6 @@ class BackupSubscriber implements EventSubscriberInterface
     {
         /** @var Backup */
         $backup = $event->getSubject();
-
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         try {
             switch ($backup->getBackupConfiguration()->getType()) {
@@ -143,8 +145,6 @@ class BackupSubscriber implements EventSubscriberInterface
     {
         /** @var Backup */
         $backup = $event->getSubject();
-
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         try {
             switch ($backup->getBackupConfiguration()->getType()) {
@@ -187,8 +187,6 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
         /**
          * @TODO ?
          */
@@ -198,8 +196,6 @@ class BackupSubscriber implements EventSubscriberInterface
     {
         /** @var Backup */
         $backup = $event->getSubject();
-
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         if (!$this->backupService->isBackupCleaned($backup)) {
             $message = 'Temporary backup still exists';

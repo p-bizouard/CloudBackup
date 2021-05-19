@@ -1,0 +1,19 @@
+.blur {
+    filter: blur(5px);
+    background-color: #fee;
+
+    &:hover {
+        filter: none;
+    }
+}
+
+.blur-input {
+    input, textarea, dt > span {
+        filter: blur(5px);
+        background-color: #fee;
+
+        &:hover {
+            filter: none;
+        }
+    }
+}

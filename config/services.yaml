@@ -34,6 +34,8 @@ services:
             - "%env(OS_USER_DOMAIN_NAME)%"
             - "%env(OS_PROJECT_DOMAIN_NAME)%"
 
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones
     app.handler.monolog_doctrine_handler:
         class: App\Handler\MonologDoctrineHandler
         arguments:
@@ -43,5 +45,8 @@ services:
         arguments:
             - "%env(TEMPORARY_DOWNLOAD_DIRECTORY)%"
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    App\Service\MailerService:
+        arguments:
+            - "%env(FROM_ADDRESS)%"
+            - "%env(csv:CSV_REPORT_ADDRESSES)%"
+            - "@mailer"
