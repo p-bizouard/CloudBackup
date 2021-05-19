@@ -55,7 +55,9 @@ class OSProjectCrudController extends AbstractCrudController
             TextField::new('tenantId'),
             TextField::new('tenantName'),
             TextField::new('username')->hideOnIndex(),
-            TextField::new('password')->hideOnIndex(),
+            TextField::new('password')
+                ->hideOnIndex()
+                ->addCssClass('blur-input'),
         ];
     }
 }

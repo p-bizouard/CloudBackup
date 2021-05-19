@@ -33,9 +33,13 @@ class HostCrudController extends AbstractCrudController
             TextField::new('name'),
             TextField::new('ip'),
             TextField::new('login'),
-            TextField::new('password')->hideOnIndex(),
+            TextField::new('password')
+                ->hideOnIndex()
+                ->addCssClass('blur-input'),
             IntegerField::new('port')->hideOnIndex(),
-            TextareaField::new('privateKey')->hideOnIndex(),
+            TextareaField::new('privateKey')
+                ->hideOnIndex()
+                ->addCssClass('blur-input'),
             DateTimeField::new('createdAt')->hideOnForm(),
             DateTimeField::new('updatedAt')->hideOnForm(),
         ];

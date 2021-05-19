@@ -33,7 +33,7 @@ class Log
      * @ORM\ManyToOne(targetEntity=Backup::class, inversedBy="logs")
      */
     private $backup;
-    
+
     const LOG_ERROR = 'error';
     const LOG_WARNING = 'warning';
     const LOG_NOTICE = 'notice';
@@ -55,7 +55,20 @@ class Log
                 return 'info';
             case self::LOG_INFO:
                 return 'secondary';
-            
+        }
+    }
+
+    public function getMessageColor(): string
+    {
+        switch ($this->level) {
+            case self::LOG_ERROR:
+                return 'red';
+            case self::LOG_WARNING:
+                return 'orange';
+            case self::LOG_NOTICE:
+                return 'black';
+            case self::LOG_INFO:
+                return 'black';
         }
     }
 

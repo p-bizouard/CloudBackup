@@ -29,7 +29,9 @@ class UserCrudController extends AbstractCrudController
     {
         return [
             EmailField::new('email'),
-            TextField::new('plainPassword')->onlyOnForms(),
+            TextField::new('plainPassword')
+                ->onlyOnForms()
+                ->addCssClass('blur-input'),
         ];
     }
 

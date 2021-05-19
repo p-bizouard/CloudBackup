@@ -80,6 +80,13 @@ class Backup
         }
     }
 
+    public function getLogsForReport(): string
+    {
+        return implode("\n", array_map(function (Log $log) {
+            return sprintf('<pre style="color:%s">%s</pre>', $log->getMessageColor(), $log->getMessage());
+        }, $this->logs->toArray()));
+    }
+
     public function getBootstrapColor(): string
     {
         switch ($this->currentPlace) {

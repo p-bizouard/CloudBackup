@@ -3,3 +3,4 @@ mysql: MySQL
 os-instance: VM Openstack
 postgresql: PostgreSQL
 ssh-restic: Fichiers via Restic SSH
+read-restic: Backup restic externalisé

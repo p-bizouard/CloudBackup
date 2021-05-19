@@ -46,17 +46,17 @@ class BackupConfiguration
      * @ORM\Column(type="string", length=255)
      * @Assert\Choice(callback={BackupConfiguration::class, "getAvailablePeriodicity"})
      */
-    private $periodicity;
+    private $periodicity = 'daily';
 
     /**
      * @ORM\Column(type="integer", nullable=true)
      */
-    private $keepDaily;
+    private $keepDaily = 7;
 
     /**
      * @ORM\Column(type="integer", nullable=true)
      */
-    private $keepWeekly;
+    private $keepWeekly = 4;
 
     /**
      * @ORM\ManyToOne(targetEntity=Storage::class, inversedBy="backupConfigurations")
@@ -112,6 +112,7 @@ class BackupConfiguration
     const TYPE_POSTGRESQL = 'postgresql';
     const TYPE_SSHFS = 'sshfs';
     const TYPE_SSH_RESTIC = 'ssh-restic';
+    const TYPE_READ_RESTIC = 'read-restic';
 
     public function __construct()
     {
@@ -147,6 +148,7 @@ class BackupConfiguration
             self::TYPE_POSTGRESQL,
             self::TYPE_SSHFS,
             self::TYPE_SSH_RESTIC,
+            self::TYPE_READ_RESTIC,
         ];
     }
 

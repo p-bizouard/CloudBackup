@@ -16,7 +16,7 @@
                 <div class="data-row">
                     <dd>Copy env</dd>
                     <dl>
-                        <pre class="mb-0">
+                        <pre class="blur mb-0">
                             {%- for envName, envValue in (entity.instance.backupConfiguration.storage.osEnv | merge(entity.instance.backupConfiguration.resticEnv)) -%}
                                 export {{ envName }}={{ envValue }}{{ "\n" }}
                             {%- endfor -%}
