@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Repository\BackupConfigurationRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -51,6 +52,15 @@ class DashboardController extends AbstractDashboardController
         ;
     }
 
+    public function configureAssets(): Assets
+    {
+        $assets = parent::configureAssets();
+
+        return $assets
+            ->addWebpackEncoreEntry('admin-app')
+        ;
+    }
+
     public function configureActions(): Actions
     {
         $actions = parent::configureActions();
@@ -74,7 +84,7 @@ class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Sources');
         yield MenuItem::linkToCrud('Instances Openstack', 'fas fa-cloud', OSInstance::class);
-        yield MenuItem::linkToCrud('Hôtes via SSH', 'fas fa-server', Host::class);
+        yield MenuItem::linkToCrud('Serveurs SSH', 'fas fa-server', Host::class);
 
         yield MenuItem::section('Sauvegardes');
         yield MenuItem::linkToCrud('Programmation', 'fas fa-cogs', BackupConfiguration::class);

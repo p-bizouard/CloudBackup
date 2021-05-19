@@ -11,6 +11,7 @@
         "ext-iconv": "*",
         "easycorp/easyadmin-bundle": "^3.2",
         "gedmo/doctrine-extensions": "^3.0",
+        "nesbot/carbon": "^2.48",
         "phuml/phuml": "dev-characterization-tests",
         "predis/predis": "^1.1",
         "sensio/framework-extra-bundle": "^5.1",
@@ -41,6 +42,7 @@
         "symfony/twig-pack": "*",
         "symfony/validator": "*",
         "symfony/web-link": "*",
+        "symfony/webpack-encore-bundle": "^1.11",
         "symfony/workflow": "5.2.*",
         "symfony/yaml": "*"
     },
