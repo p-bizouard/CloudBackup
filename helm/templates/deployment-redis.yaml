@@ -5,6 +5,7 @@ metadata:
   labels:
     {{- include "openstack-backup.labels" . | nindent 4 }}
 spec:
+  revisionHistoryLimit: 2
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
