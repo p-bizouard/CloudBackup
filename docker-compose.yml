@@ -22,7 +22,7 @@ services:
         ports:
             - ${DATABASE_TEST_PORT:-8432}:5432
 
-    phppgadmin:
+    phppgadmin_dev:
         container_name: phppgadmin
         image: bitnami/phppgadmin
         restart: on-failure
@@ -40,7 +40,7 @@ services:
         ports:
             - "${REDIS_PORT:-6379}:6379"
 
-    mailhog:
+    mailhog_dev:
         container_name: mailhog
         image: mailhog/mailhog
         restart: always
@@ -48,7 +48,7 @@ services:
             - ${MAILHOG_PORT_SMTP:-1025}:1025
             - ${MAILHOG_PORT_HTTP:-8025}:8025
 
-    assets:
+    assets_dev:
         container_name: assets
         user: $UID:$GID
         build:
@@ -70,7 +70,7 @@ services:
             target: dev
         depends_on:
             - postgres
-            - assets
+            - assets_dev
         volumes:
             - ".:/app:rw"
         devices:
