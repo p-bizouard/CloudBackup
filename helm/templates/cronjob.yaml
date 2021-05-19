@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: servers-check
+  name: backup-cronjob
   labels:
     {{- include "openstack-backup.labels" . | nindent 4 }}
 spec:
@@ -19,40 +19,30 @@ spec:
           {{- end }}
           restartPolicy: Never
           containers:
-            - name: servers-check
+            - name: backup-cronjob
               image: "{{ .Values.image.repository }}/php:{{ .Values.image.tag | default .Chart.AppVersion }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               volumeMounts:
                 - name: "env"
                   mountPath: "/app/.env"
                   subPath: ".env"
-                - name: pvc-cronjob
+                - name: pvc-backup-cronjob
                   mountPath:  /mnt/volume
-                - mountPath: /dev/fuse
-                  name: dev-fuse
               command:
                 - /app/bin/console
                 - app:backup:start 
-              securityContext:
-                privileged: true
-                capabilities:
-                  add:
-                    - SYS_ADMIN
           initContainers:
             - name: volume-mount
               image: busybox
               command: ["sh", "-c", "chown -R 33:33 /mnt/volume"]
               volumeMounts:
-                - name: pvc-cronjob
+                - name: pvc-backup-cronjob
                   mountPath:  /mnt/volume
           volumes:
             - name: "env"
               secret:
                 secretName: "{{ .Release.Name }}-secret-env-php"
-            - name: pvc-cronjob
+            - name: pvc-backup-cronjob
               persistentVolumeClaim:
-                claimName: pvc-cronjob
-            - name: dev-fuse
-              hostPath:
-                path: /dev/fuse
+                claimName: pvc-backup-cronjob
           restartPolicy: OnFailure

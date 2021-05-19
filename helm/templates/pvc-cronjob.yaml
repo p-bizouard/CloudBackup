@@ -7,7 +7,7 @@ metadata:
   annotations:
 {{ toYaml .Values.cronjob.persistentVolume.annotations | indent 4 }}
   {{- end }}
-  name: pvc-cronjob
+  name: pvc-backup-cronjob
 spec:
   accessModes:
 {{ toYaml .Values.cronjob.persistentVolume.accessModes | indent 4 }}
