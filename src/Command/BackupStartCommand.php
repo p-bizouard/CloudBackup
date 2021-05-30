@@ -21,7 +21,7 @@ class BackupStartCommand extends Command
     protected static $defaultDescription = 'Start all backups';
 
     const MAX_RETRY = 4;
-    const LOCK_TIMEOUT = 3600 * 4;
+    const LOCK_TIMEOUT = 3600 * 6;
 
     public function __construct(
         private BackupConfigurationRepository $backupConfigurationRepository,
