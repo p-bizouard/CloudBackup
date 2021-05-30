@@ -171,7 +171,7 @@ class BackupService
 
         $imageDestination = $this->getTemporaryBackupDestination($backup);
 
-        if (file_exists($imageDestination) && filesize($imageDestination) === $backup->getSize() && hash_file('md5', $imageDestination) === $backup->getChecksum()) {
+        if (file_exists($imageDestination) && filesize($imageDestination) === $backup->getSize()) {
             $this->log($backup, Log::LOG_NOTICE, 'Openstack image already downloaded');
 
             return;
@@ -189,12 +189,6 @@ class BackupService
             throw new ProcessFailedException($process);
         } else {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        if (hash_file('md5', $imageDestination) !== $backup->getChecksum()) {
-            $message = 'Error executing download - md5 checksum failed';
-            $this->log($backup, Log::LOG_ERROR, $message);
-            throw new Exception($message);
         }
 
         $this->log($backup, Log::LOG_NOTICE, 'Openstack image downloaded');
@@ -363,15 +357,19 @@ class BackupService
 
         $imageDestination = $this->getTemporaryBackupDestination($backup);
 
-        if (file_exists($imageDestination) && filesize($imageDestination) === $backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, 'Openstack image downloaded');
+        if (!$backup->getSize()) {
+            $this->log($backup, Log::LOG_NOTICE, 'Openstack image not backuped');
 
-            return true;
-        } else {
+            return false;
+        }
+
+        if (!file_exists($imageDestination) || filesize($imageDestination) !== $backup->getSize()) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('Openstack image not downloaded : %s != %s', filesize($imageDestination), $backup->getSize()));
 
             return false;
         }
+
+        return true;
     }
 
     private function uploadBackupSSHResticRmScript(Backup $backup, string $privateKeypath, string $scriptFilePath)
@@ -501,6 +499,7 @@ class BackupService
                 }
                 break;
             case BackupConfiguration::TYPE_MYSQL:
+            case BackupConfiguration::TYPE_POSTGRESQL:
                 $command = sprintf(
                     'cat %s | restic backup --tag host=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.sql',
                     $this->getTemporaryBackupDestination($backup),
