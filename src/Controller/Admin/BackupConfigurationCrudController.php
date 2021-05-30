@@ -111,6 +111,11 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field ssh-restic sshfs')
                     ->setHelp('Dossier à sauvegarder'),
+
+                TextField::new('minimumBackupSize')
+                ->hideOnIndex()
+                ->addCssClass('backupConfigurationType-field postgresql mysql')
+                ->setHelp('Taille minimale du backup (en octets)'),
         ];
     }
 

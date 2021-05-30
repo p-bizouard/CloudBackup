@@ -7,7 +7,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class StorageCrudController extends AbstractCrudController
@@ -43,12 +42,7 @@ class StorageCrudController extends AbstractCrudController
             AssociationField::new('backupConfigurations'),
             TextField::new('osRegionName'),
             TextField::new('resticPassword')->hideOnIndex(),
-            TextField::new('resticRepo')->hideOnIndex(),
-            TextField::new('host')->hideOnIndex(),
-            TextField::new('username')->hideOnIndex(),
-            TextField::new('path')->hideOnIndex(),
-            DateTimeField::new('created')->hideOnForm(),
-            DateTimeField::new('updated')->hideOnForm(),
+            TextField::new('resticRepo'),
         ];
     }
 }

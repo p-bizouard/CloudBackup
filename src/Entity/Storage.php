@@ -86,7 +86,8 @@ class Storage
 
     public function getOSEnv(): array
     {
-        return [
+        if (null !== $this->getOSProject()) {
+            return [
             'OS_AUTH_URL' => $this->getOSProject()->getAuthUrl(),
             'OS_IDENTITY_API_VERSION' => $this->getOSProject()->getIdentityApiVersion(),
             'OS_USER_DOMAIN_NAME' => $this->getOSProject()->getUserDomainName(),
@@ -97,6 +98,9 @@ class Storage
             'OS_PASSWORD' => $this->getOSProject()->getPassword(),
             'OS_REGION_NAME' => $this->getOSRegionName(),
         ];
+        } else {
+            return [];
+        }
     }
 
     public static function getAvailableTypes(): array
