@@ -70,6 +70,7 @@ services:
             target: dev
         depends_on:
             - postgres
+            - redis
             - assets_dev
         volumes:
             - ".:/app:rw"
