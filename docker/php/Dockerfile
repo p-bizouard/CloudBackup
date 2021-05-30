@@ -6,8 +6,14 @@ WORKDIR /app
 ENV APP_ENV=dev
 
 RUN apt update \
-    && apt install -y  \
-         postgresql-client \
+    && apt install -y wget gnupg \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && echo 'deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main' >> /etc/apt/sources.list \
+    && apt update \
+    && apt install -y \
+        postgresql-client-11 \
+        postgresql-client-12 \
+        postgresql-client-13 \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
         software-properties-common \
         git unzip procps \
