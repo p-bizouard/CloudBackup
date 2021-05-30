@@ -1,3 +1,4 @@
+{{- if .Values.postgres.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,10 +54,12 @@ spec:
           volumeMounts:
           - name: pvc-postgres
             mountPath:  /var/lib/postgresql/data
+      {{- if .Values.postgres.persistentVolume .Values.postgres.persistentVolume.enabled }}
       volumes:
       - name: pvc-postgres
         persistentVolumeClaim:
           claimName: pvc-postgres
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -69,3 +72,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}

@@ -14,11 +14,7 @@ image:
         password: password
 
 postgres:
-    persistentVolume:
-        enabled: true
-        storageClass: csi-cinder-classic
-        size: 2G
-        accessModes: [ReadWriteOnce]
+    enabled: false
 
 cronjob:
     persistentVolume:
