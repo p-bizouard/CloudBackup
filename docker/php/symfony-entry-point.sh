@@ -9,6 +9,12 @@ fi
 # Do Symfony migrations
 php bin/console doctrine:migrations:migrate -n
 
+# Dump easyadmin bundle assets
+php bin/console assets:install
+
+# Dump environment
+composer dump-env prod
+
 echo $@
 exec "$@"
 

@@ -1,3 +1,5 @@
+ARG NGINX_DESTINATION
+
 # Dev target
 FROM php:8.0-fpm AS dev
 
@@ -91,8 +93,7 @@ RUN APP_ENV=prod composer install \
     chmod +x bin/console
 
 #  Hack to copy files from our nginx custom image
-
-FROM nginx as nginx-build
+FROM $NGINX_DESTINATION as nginx-build
 
 # Prod image
 FROM test AS prod
@@ -120,6 +121,5 @@ RUN mkdir /var/www/.cache/ && chown -R www-data:www-data /var/www/.cache/
 
 USER www-data
 
-
-#COPY --from=nginx-build /app/public/build/entrypoints.json /app/public/build/entrypoints.json
-#COPY --from=nginx-build /app/public/build/manifest.json /app/public/build/manifest.json
+COPY --from=nginx-build /app/public/build/entrypoints.json /app/public/build/entrypoints.json
+COPY --from=nginx-build /app/public/build/manifest.json /app/public/build/manifest.json
