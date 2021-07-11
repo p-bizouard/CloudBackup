@@ -14,6 +14,7 @@
                                 <th>Programmation</th>
                                 <th>Dernier backup</th>
                                 <th>Statut</th>
+                                <th>Taille</th>
                             </tr>
                             {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => backupConfiguration.type is same as(currentType)) %}
                                 <tr class="data-row {{ loop.index is even ? 'with-background' }}">
@@ -25,7 +26,15 @@
                                             </span>
                                         </td>
                                         <td><span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">{{ backupConfiguration.backups.first.currentPlace }}</span></td>
+                                        <td>
+                                            {% if backupConfiguration.backups.first.size %}
+                                                {{ backupConfiguration.backups.first.size|humanizeFilesize }}
+                                            {% else %}
+                                                <span class="badge badge-danger">N/A</span>
+                                            {% endif %}
+                                        </td>
                                     {% else %}
+                                        <td><span class="badge badge-danger">N/A</span></td>
                                         <td><span class="badge badge-danger">N/A</span></td>
                                         <td><span class="badge badge-danger">N/A</span></td>
                                     {% endif %}

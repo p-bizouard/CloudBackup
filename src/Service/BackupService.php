@@ -7,11 +7,13 @@ use App\Entity\BackupConfiguration;
 use App\Entity\Log;
 use App\Entity\Storage;
 use App\Repository\BackupRepository;
+use App\Utils\StringUtils;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Form\Util\StringUtil;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Workflow\Registry;
@@ -19,7 +21,7 @@ use Symfony\Component\Workflow\Registry;
 class BackupService
 {
     const RESTIC_INIT_TIMEOUT = 60;
-    const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized.*/';
+    const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
     const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
     const RESTIC_CHECK_TIMEOUT = 3600;
 
@@ -245,6 +247,11 @@ class BackupService
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
         }
 
+        
+        $backup->setSize(filesize($backupDestination));
+        $this->log($backup, Log::LOG_INFO, sprintf('Backup size : %s', StringUtils::humanizeFilesize($backup->getSize())));
+
+
         $this->log($backup, Log::LOG_NOTICE, 'Dump done');
     }
 
@@ -299,6 +306,7 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_MYSQL:
             case BackupConfiguration::TYPE_POSTGRESQL:
+            case BackupConfiguration::TYPE_SSH_CMD:
                 $this->downloadCommandResult($backup);
                 break;
             case BackupConfiguration::TYPE_SSHFS:
@@ -345,7 +353,7 @@ class BackupService
 
             return true;
         } else {
-            $this->log($backup, Log::LOG_NOTICE, sprintf('Backup not downloaded : %s < %s', filesize($dumpDestination), $backup->getBackupConfiguration()->getMinimumBackupSize()));
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Backup not downloaded : %s < %s', StringUtils::humanizeFilesize(filesize($dumpDestination)), StringUtils::humanizeFilesize($backup->getBackupConfiguration()->getMinimumBackupSize())));
 
             return false;
         }
@@ -364,7 +372,7 @@ class BackupService
         }
 
         if (!file_exists($imageDestination) || filesize($imageDestination) !== $backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, sprintf('Openstack image not downloaded : %s != %s', filesize($imageDestination), $backup->getSize()));
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Openstack image not downloaded : %s != %s', StringUtils::humanizeFilesize(filesize($imageDestination)), StringUtils::humanizeFilesize($backup->getSize())));
 
             return false;
         }
@@ -478,12 +486,13 @@ class BackupService
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
                 $command = sprintf(
-                    'cat %s | restic backup --tag project=%s --tag instance=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.qcow2',
+                    'cat %s | restic backup --tag project=%s --tag instance=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.%s',
                     $this->getTemporaryBackupDestination($backup),
                     $backup->getBackupConfiguration()->getOsInstance()->getOSProject()->getSlug(),
                     $backup->getBackupConfiguration()->getOsInstance()->getSlug(),
                     $backup->getBackupConfiguration()->getSlug(),
-                    $backup->getName(false)
+                    $backup->getName(false),
+                    $backup->getBackupConfiguration()->getExtension()
                 );
 
                 $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
@@ -500,12 +509,14 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_MYSQL:
             case BackupConfiguration::TYPE_POSTGRESQL:
+            case BackupConfiguration::TYPE_SSH_CMD:
                 $command = sprintf(
-                    'cat %s | restic backup --tag host=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.sql',
+                    'cat %s | restic backup --tag host=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.%s',
                     $this->getTemporaryBackupDestination($backup),
                     $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
                     $backup->getBackupConfiguration()->getSlug(),
-                    $backup->getName(false)
+                    $backup->getName(false),
+                    $backup->getBackupConfiguration()->getExtension()
                 );
 
                 $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
@@ -615,6 +626,51 @@ class BackupService
         }
     }
 
+    private function cleanRemoteByCommand(Backup $backup)
+    {
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        $filesystem = new Filesystem();
+
+        if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
+            $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
+            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+            $privateKeyString = sprintf('-i %s', $privateKeypath);
+        } else {
+            $privateKeyString = '';
+        }
+
+        if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
+            $sshpass = sprintf('sshpass -p %s', $backup->getBackupConfiguration()->getHost()->getPassword());
+        } else {
+            $sshpass = '';
+        }
+
+        $command = sprintf(
+            '%s ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "%s"',
+            $sshpass,
+            $backup->getBackupConfiguration()->getHost()->getLogin(),
+            $backup->getBackupConfiguration()->getHost()->getIp(),
+            $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+            $privateKeyString,
+            $backup->getBackupConfiguration()->getRemoteCleanCommand(),
+        );
+
+        $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
+        $process = Process::fromShellCommandline($command);
+        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing download - exec remote cleanup command - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+
+        $this->log($backup, Log::LOG_NOTICE, 'Remote cleanup done');
+    }
+
     public function cleanBackup(Backup $backup)
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
@@ -630,6 +686,7 @@ class BackupService
                 case BackupConfiguration::TYPE_MYSQL:
                 case BackupConfiguration::TYPE_POSTGRESQL:
                 case BackupConfiguration::TYPE_OS_INSTANCE:
+                case BackupConfiguration::TYPE_SSH_CMD:
                     $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
                     unlink($this->getTemporaryBackupDestination($backup));
                     break;
@@ -642,6 +699,11 @@ class BackupService
         // Remove OS image
         if (BackupConfiguration::TYPE_OS_INSTANCE === $backup->getBackupConfiguration()->getType()) {
             $this->cleanBackupOsInstance($backup);
+        }
+
+        // Execute remote clean command
+        if (BackupConfiguration::TYPE_SSH_CMD === $backup->getBackupConfiguration()->getType() && !empty($backup->getBackupConfiguration()->getRemoteCleanCommand())) {
+            $this->cleanRemoteByCommand($backup);
         }
     }
 
@@ -661,6 +723,7 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_MYSQL:
             case BackupConfiguration::TYPE_POSTGRESQL:
+            case BackupConfiguration::TYPE_SSH_CMD:
             case BackupConfiguration::TYPE_SSHFS:
                 if (file_exists($this->getTemporaryBackupDestination($backup))) {
                     return false;

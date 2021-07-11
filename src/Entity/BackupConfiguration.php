@@ -105,6 +105,11 @@ class BackupConfiguration
      */
     private $minimumBackupSize;
 
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private $remoteCleanCommand;
+
     const PERIODICITY_DAILY = 'daily';
 
     const TYPE_OS_INSTANCE = 'os-instance';
@@ -113,7 +118,8 @@ class BackupConfiguration
     const TYPE_SSHFS = 'sshfs';
     const TYPE_SSH_RESTIC = 'ssh-restic';
     const TYPE_READ_RESTIC = 'read-restic';
-
+    const TYPE_SSH_CMD = 'ssh-cmd';
+    
     public function __construct()
     {
         $this->backups = new ArrayCollection();
@@ -149,7 +155,27 @@ class BackupConfiguration
             self::TYPE_SSHFS,
             self::TYPE_SSH_RESTIC,
             self::TYPE_READ_RESTIC,
+            self::TYPE_SSH_CMD,
         ];
+    }
+
+    public function getExtension(): ?string {
+
+        switch ($this->getType()) {
+            case BackupConfiguration::TYPE_OS_INSTANCE:
+                return 'qcow2';
+                break;
+            case BackupConfiguration::TYPE_MYSQL:
+                return 'sql';
+                break;
+            case BackupConfiguration::TYPE_POSTGRESQL:
+                return 'sqlc';
+                break;
+            case BackupConfiguration::TYPE_SSH_CMD:
+                return 'dump';
+                break;
+        }
+        return null;
     }
 
     public function getResticForgetArgs(): string
@@ -164,26 +190,8 @@ class BackupConfiguration
     {
         return [
             'RESTIC_PASSWORD' => $this->getStorage()->getResticPassword(),
-            'RESTIC_REPOSITORY' => sprintf('%s/%s', trim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
+            'RESTIC_REPOSITORY' => sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
         ];
-    }
-
-    /**
-     * @Assert\Callback
-     */
-    public function validate(ExecutionContextInterface $context, $payload)
-    {
-        // if (null !== $this->getOsInstance()) {
-        //     return;
-        // }
-        // if (null !== $this->getHost()) {
-        //     return;
-        // }
-
-        // $context->buildViolation('One of field OS Instance or Host is mandatory')
-        //     ->atPath('osInstance')
-        //     ->atPath('host')
-        //     ->addViolation();
     }
 
     public function getId(): ?int
@@ -385,6 +393,18 @@ class BackupConfiguration
     public function setMinimumBackupSize(?string $minimumBackupSize): self
     {
         $this->minimumBackupSize = $minimumBackupSize;
+
+        return $this;
+    }
+
+    public function getRemoteCleanCommand(): ?string
+    {
+        return $this->remoteCleanCommand;
+    }
+
+    public function setRemoteCleanCommand(?string $remoteCleanCommand): self
+    {
+        $this->remoteCleanCommand = $remoteCleanCommand;
 
         return $this;
     }

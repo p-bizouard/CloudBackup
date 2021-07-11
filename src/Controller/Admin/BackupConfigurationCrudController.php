@@ -99,13 +99,18 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
                 AssociationField::new('host')
                     ->hideOnIndex()
-                    ->addCssClass('backupConfigurationType-field postgresql mysql ssh-restic sshfs')
+                    ->addCssClass('backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd')
                     ->setHelp('Serveur de la source à sauvegarder'),
 
                 TextField::new('dumpCommand')
-                ->hideOnIndex()
-                    ->addCssClass('blur-input backupConfigurationType-field postgresql mysql ssh-restic sshfs')
+                    ->hideOnIndex()
+                    ->addCssClass('blur-input backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd')
                     ->setHelp('Commande de dump MySQL/PostgreSQL, ou options de montage SSHFS'),
+
+                TextField::new('remoteCleanCommand')
+                    ->hideOnIndex()
+                    ->addCssClass('blur-input backupConfigurationType-field ssh-cmd')
+                    ->setHelp('Commande de nettoyage à exécuter sur l\'hôte distant après le backup'),
 
                 TextField::new('remotePath')
                     ->hideOnIndex()
@@ -113,9 +118,9 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->setHelp('Dossier à sauvegarder'),
 
                 TextField::new('minimumBackupSize')
-                ->hideOnIndex()
-                ->addCssClass('backupConfigurationType-field postgresql mysql')
-                ->setHelp('Taille minimale du backup (en octets)'),
+                    ->hideOnIndex()
+                    ->addCssClass('backupConfigurationType-field postgresql mysql ssh-cmd')
+                    ->setHelp('Taille minimale du backup (en octets)'),
         ];
     }
 

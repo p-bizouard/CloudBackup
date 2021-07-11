@@ -166,6 +166,7 @@ class BackupSubscriber implements EventSubscriberInterface
                     break;
                 case BackupConfiguration::TYPE_MYSQL:
                 case BackupConfiguration::TYPE_POSTGRESQL:
+                case BackupConfiguration::TYPE_SSH_CMD:
                     if (!$this->backupService->checkDownloadedDump($backup)) {
                         $message = 'Download not completed';
 
