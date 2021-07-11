@@ -50,7 +50,7 @@ services:
 
     assets_dev:
         container_name: assets
-        user: $UID:$GID
+        user: "$UID:$GID"
         build:
             context: .
             dockerfile: ./docker/nginx/Dockerfile.dev
@@ -63,7 +63,7 @@ services:
 
     php:
         container_name: php
-        user: $UID:$GID
+        user: "$UID:$GID"
         build:
             context: .
             dockerfile: ./docker/php/Dockerfile
