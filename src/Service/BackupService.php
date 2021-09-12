@@ -421,7 +421,7 @@ class BackupService
         foreach ($env as $k => $v) {
             $filesystem->appendToFile($scriptFilePath, sprintf('export %s="%s"%s', $k, str_replace('"', '\\"', $v), \PHP_EOL));
         }
-        $filesystem->appendToFile($scriptFilePath, sprintf('restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s|| exit 1%s',
+        $filesystem->appendToFile($scriptFilePath, sprintf('restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s || exit 1%s',
             $backup->getBackupConfiguration()->getHost()->getSlug(),
             $backup->getBackupConfiguration()->getSlug(),
             $backup->getBackupConfiguration()->getRemotePath(),
@@ -486,13 +486,11 @@ class BackupService
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
                 $command = sprintf(
-                    'cat %s | restic backup --tag project=%s --tag instance=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.%s',
-                    $this->getTemporaryBackupDestination($backup),
+                    'restic backup --tag project=%s --tag instance=%s --tag configuration=%s --host cloudbackup %s',
                     $backup->getBackupConfiguration()->getOsInstance()->getOSProject()->getSlug(),
                     $backup->getBackupConfiguration()->getOsInstance()->getSlug(),
                     $backup->getBackupConfiguration()->getSlug(),
-                    $backup->getName(false),
-                    $backup->getBackupConfiguration()->getExtension()
+                    $this->getTemporaryBackupDestination($backup)
                 );
 
                 $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
@@ -511,12 +509,10 @@ class BackupService
             case BackupConfiguration::TYPE_POSTGRESQL:
             case BackupConfiguration::TYPE_SSH_CMD:
                 $command = sprintf(
-                    'cat %s | restic backup --tag host=%s --tag configuration=%s --host cloudbackup --stdin --stdin-filename /%s.%s',
-                    $this->getTemporaryBackupDestination($backup),
+                    'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
                     $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
                     $backup->getBackupConfiguration()->getSlug(),
-                    $backup->getName(false),
-                    $backup->getBackupConfiguration()->getExtension()
+                    $this->getTemporaryBackupDestination($backup)
                 );
 
                 $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
@@ -814,6 +810,10 @@ class BackupService
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_SSHFS:
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(true));
+                break;
+            case BackupConfiguration::TYPE_OS_INSTANCE:
+            case BackupConfiguration::TYPE_SSH_CMD:
+                return sprintf('%s/%s.%s', $this->temporaryDownloadDirectory, $backup->getName(false), $backup->getBackupConfiguration()->getExtension());
                 break;
             default:
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
