@@ -26,7 +26,7 @@ spec:
                 - name: "env"
                   mountPath: "/app/.env"
                   subPath: ".env"
-                - name: pvc-backup-cronjob
+                - name: pvc-cronjob
                   mountPath:  /mnt/volume
               command:
                 - /app/bin/console
@@ -36,13 +36,13 @@ spec:
               image: busybox
               command: ["sh", "-c", "chown -R 33:33 /mnt/volume"]
               volumeMounts:
-                - name: pvc-backup-cronjob
+                - name: pvc-cronjob
                   mountPath:  /mnt/volume
           volumes:
             - name: "env"
               secret:
                 secretName: "{{ .Release.Name }}-secret-env-php"
-            - name: pvc-backup-cronjob
+            - name: pvc-cronjob
               persistentVolumeClaim:
-                claimName: pvc-backup-cronjob
+                claimName: pvc-cronjob
           restartPolicy: OnFailure
