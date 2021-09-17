@@ -20,17 +20,17 @@ use Symfony\Component\Workflow\Registry;
 
 class BackupService
 {
-    const RESTIC_INIT_TIMEOUT = 60;
-    const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
-    const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
-    const RESTIC_CHECK_TIMEOUT = 3600;
+    public const RESTIC_INIT_TIMEOUT = 60;
+    public const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
+    public const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
+    public const RESTIC_CHECK_TIMEOUT = 3600;
 
-    const OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
-    const OS_IMAGE_LIST_TIMEOUT = 60;
-    const OS_DOWNLOAD_TIMEOUT = 3600 * 4;
+    public const OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
+    public const OS_IMAGE_LIST_TIMEOUT = 60;
+    public const OS_DOWNLOAD_TIMEOUT = 3600 * 4;
 
-    const SSHFS_MOUNT_TIMEOUT = 60;
-    const SSHFS_UMOUNT_TIMEOUT = 60;
+    public const SSHFS_MOUNT_TIMEOUT = 60;
+    public const SSHFS_UMOUNT_TIMEOUT = 60;
 
     public function __construct(
         private string $temporaryDownloadDirectory,
@@ -129,6 +129,15 @@ class BackupService
             return null;
         }
 
+        if ($backup->getOsImageId() === null || $backup->getSize() === null) {
+            $backup->setOsImageId($output[0]['ID']);
+            $backup->setChecksum($output[0]['Checksum']);
+            $backup->setSize($output[0]['Size']);
+        }
+
+        $this->entityManager->persist($backup);
+        $this->entityManager->flush();
+
         return $output[0]['Status'];
     }
 
@@ -188,6 +197,8 @@ class BackupService
 
         if (!$process->isSuccessful()) {
             $this->log($backup, Log::LOG_ERROR, sprintf('Error executing download - openstack image save - %s', $process->getErrorOutput()));
+            $this->cleanBackupOsInstance($backup);
+            @unlink($imageDestination);
             throw new ProcessFailedException($process);
         } else {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
@@ -229,7 +240,8 @@ class BackupService
                 $backupDestination
             );
         } else {
-            $command = sprintf('%s > %s',
+            $command = sprintf(
+                '%s > %s',
                 $backup->getBackupConfiguration()->getDumpCommand(),
                 $backupDestination
             );
@@ -247,7 +259,7 @@ class BackupService
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
         }
 
-        
+
         $backup->setSize(filesize($backupDestination));
         $this->log($backup, Log::LOG_INFO, sprintf('Backup size : %s', StringUtils::humanizeFilesize($backup->getSize())));
 
@@ -421,7 +433,8 @@ class BackupService
         foreach ($env as $k => $v) {
             $filesystem->appendToFile($scriptFilePath, sprintf('export %s="%s"%s', $k, str_replace('"', '\\"', $v), \PHP_EOL));
         }
-        $filesystem->appendToFile($scriptFilePath, sprintf('restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s || exit 1%s',
+        $filesystem->appendToFile($scriptFilePath, sprintf(
+            'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s || exit 1%s',
             $backup->getBackupConfiguration()->getHost()->getSlug(),
             $backup->getBackupConfiguration()->getSlug(),
             $backup->getBackupConfiguration()->getRemotePath(),
@@ -453,7 +466,8 @@ class BackupService
             $backup->getBackupConfiguration()->getHost()->getIp(),
             $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
             $privateKeypath,
-            sprintf('sudo chmod 700 %s && sudo chown root:root %s && sudo %s',
+            sprintf(
+                'sudo chmod 700 %s && sudo chown root:root %s && sudo %s',
                 $scriptFilePath,
                 $scriptFilePath,
                 $scriptFilePath,
