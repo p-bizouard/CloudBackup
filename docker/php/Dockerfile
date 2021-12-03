@@ -8,9 +8,9 @@ WORKDIR /app
 ENV APP_ENV=dev
 
 RUN apt update \
-    && apt install -y wget gnupg \
+    && apt install -y wget gnupg lsb-release \
     && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-    && echo 'deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main' >> /etc/apt/sources.list \
+    && echo 'deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main' >> /etc/apt/sources.list \
     && apt update \
     && apt install -y \
         postgresql-client-11 \
