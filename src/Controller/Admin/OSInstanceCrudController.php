@@ -32,7 +32,7 @@ class OSInstanceCrudController extends AbstractCrudController
             TextField::new('name'),
             TextField::new('osRegionName'),
             AssociationField::new('osProject'),
-            AssociationField::new('backupConfigurations'),
+            AssociationField::new('backupConfigurations')->hideOnForm(),
         ];
     }
 
