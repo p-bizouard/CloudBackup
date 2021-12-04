@@ -12,6 +12,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class BackupCrudController extends AbstractCrudController
@@ -30,6 +31,8 @@ class BackupCrudController extends AbstractCrudController
             ->setPageTitle('edit', fn (Backup $entity) => sprintf('Modification de <b>%s</b>', $entity))
 
             ->overrideTemplate('crud/detail', 'admin/backup/detail.html.twig')
+
+            ->setSearchFields(['backupConfiguration.name', 'backupConfiguration.type', 'backup.currentPlace'])
         ;
     }
 
@@ -61,6 +64,8 @@ class BackupCrudController extends AbstractCrudController
                 return $return;
             }),
             TextField::new('currentPlace'),
+            IntegerField::new('size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig'),
             AssociationField::new('logs')->hideOnForm(),
             DateTimeField::new('createdAt')->hideOnForm(),
             DateTimeField::new('updatedAt')->hideOnForm(),
