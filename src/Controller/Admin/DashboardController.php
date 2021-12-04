@@ -42,7 +42,7 @@ class DashboardController extends AbstractDashboardController
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-            ->setTitle('Gestion des backups cloud');
+            ->setTitle('Gestionnaire de backups');
     }
 
     public function configureCrud(): Crud
