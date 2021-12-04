@@ -20,14 +20,29 @@
                             {%- for envName, envValue in (entity.instance.backupConfiguration.storage.osEnv | merge(entity.instance.backupConfiguration.resticEnv)) -%}
                                 export {{ envName }}={{ envValue }}{{ "\n" }}
                             {%- endfor -%}
-
-                            restic snapshots</pre>
+                        </pre>
                     </dl>
                 </div>
                 <div class="data-row">
-                    <dd>Restore</dd>
+                    <dd>List snapshots</dd>
+                    <dl>
+                        <pre class="mb-0">restic snapshots</pre>
+                    </dl>
+
+                    <dd>Mount backups on read-only</dd>
                     <dl>
                         <pre class="mb-0">restic mount /mnt/restic</pre>
+                    </dl>
+
+                    <dd>Restore backups in /tmp</dd>
+                    <dl>
+                        <pre class="mb-0">restic restore latest --target /tmp/</pre>
+                    </dl>
+
+                    <dd>Print last backup on stdin</dd>
+                    <dl>
+                        <pre class="mb-0">restic snapshots # List snapshots and copy path</pre>
+                        <pre class="mb-0">restic dump latest _PATH_</pre>
                     </dl>
                 </div>
             </dl>

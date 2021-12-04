@@ -2,50 +2,83 @@
 
 {% block page_title %}Programmations{% endblock %}
 
-{% block main %}    
-    <div class="row">
-        {% for currentType in backupConfigurationTypes | filter(currentType => currentType in (backupConfigurations | map(backupConfiguration => backupConfiguration.type))) %}
-            <div class="col-md-6">
-                <h3>{{ currentType | trans }}</h3>
-                <div class="content-panel">
-                    <div class="content-panel-body without-header without-footer without-padding">
-                        <table class="table with-rounded-top">
-                            <tr>
-                                <th>Programmation</th>
-                                <th>Dernier backup</th>
-                                <th>Statut</th>
-                                <th>Taille</th>
-                            </tr>
-                            {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => backupConfiguration.type is same as(currentType)) %}
-                                <tr class="data-row {{ loop.index is even ? 'with-background' }}">
-                                    <td>{{ backupConfiguration.name }}</td>
-                                    {% if backupConfiguration.backups.first %}
-                                        <td>
-                                            <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
-                                                {{ backupConfiguration.backups.first.updatedAt | date('Y-m-d H:i') }}
-                                            </span>
-                                        </td>
-                                        <td><span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">{{ backupConfiguration.backups.first.currentPlace }}</span></td>
-                                        <td>
-                                            {% if backupConfiguration.backups.first.size %}
-                                                {{ backupConfiguration.backups.first.size|humanizeFilesize }}
+{% block main %}
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab" aria-controls="summary" aria-selected="true">Summary</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="restore-tab" data-bs-toggle="tab" data-bs-target="#restore" type="button" role="tab" aria-controls="restore" aria-selected="false">Restore script</button>
+        </li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="home-tab">
+            <div class="row mt-2">
+                {% for currentType in backupConfigurationTypes | filter(currentType => currentType in (backupConfigurations | map(backupConfiguration => backupConfiguration.type))) %}
+                    <div class="col-md-6">
+                        <h3>{{ currentType | trans }}</h3>
+                        <div class="content-panel">
+                            <div class="content-panel-body without-header without-footer without-padding">
+                                <table class="table with-rounded-top">
+                                    <tr>
+                                        <th>Programmation</th>
+                                        <th>Dernier backup</th>
+                                        <th>Statut</th>
+                                        <th>Taille</th>
+                                    </tr>
+                                    {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => backupConfiguration.type is same as(currentType)) %}
+                                        <tr class="data-row {{ loop.index is even ? 'with-background' }}">
+                                            <td>{{ backupConfiguration.name }}</td>
+                                            {% if backupConfiguration.backups.first %}
+                                                <td>
+                                                    <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
+                                                        {{ backupConfiguration.backups.first.updatedAt | date('Y-m-d H:i') }}
+                                                    </span>
+                                                </td>
+                                                <td><span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">{{ backupConfiguration.backups.first.currentPlace }}</span></td>
+                                                <td>
+                                                    {% if backupConfiguration.backups.first.size %}
+                                                        {{ backupConfiguration.backups.first.size|humanizeFilesize }}
+                                                    {% else %}
+                                                        <span class="badge badge-danger">N/A</span>
+                                                    {% endif %}
+                                                </td>
                                             {% else %}
-                                                <span class="badge badge-danger">N/A</span>
+                                                <td><span class="badge badge-danger">N/A</span></td>
+                                                <td><span class="badge badge-danger">N/A</span></td>
+                                                <td><span class="badge badge-danger">N/A</span></td>
                                             {% endif %}
-                                        </td>
+                                        </tr>
                                     {% else %}
-                                        <td><span class="badge badge-danger">N/A</span></td>
-                                        <td><span class="badge badge-danger">N/A</span></td>
-                                        <td><span class="badge badge-danger">N/A</span></td>
-                                    {% endif %}
-                                </tr>
-                            {% else %}
-                                <tr><td colspan="3">-</td></tr>
-                            {% endfor %}
-                        </table>
+                                        <tr><td colspan="3">-</td></tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                {% endfor %}
             </div>
-        {% endfor %}
+        </div>
+        <div class="tab-pane fade" id="restore" role="tabpanel" aria-labelledby="restore-tab">
+            {% set totalSize = 0 %}
+            {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) %}
+                {% set totalSize = totalSize + backupConfiguration.backups.first.size %}
+            {% endfor %}
+
+            <p class="alert alert-warning mt-2 mb-2">Total backups size : {{ totalSize|humanizeFilesize }}</p>
+            <p class="alert alert-warning mt-2 mb-2">Backups are restored to /tmp/restore/xxx. Edit it if needed.</p>
+            
+            {%- for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) -%}
+                <h3># {{ backupConfiguration.name }} from {{ backupConfiguration.storage.name }}</h3>
+                <pre class="blur mb-0">
+                    {%- for envName, envValue in (backupConfiguration.storage.osEnv | merge(backupConfiguration.resticEnv)) -%}
+                        export {{ envName }}={{ envValue }}{{ "\n" }}
+                    {%- endfor -%}
+
+                    {{- 'restic restore latest --target /tmp/restore/' ~ backupConfiguration.slug -}}
+
+                </pre>
+            {%- endfor -%}
+        </div>
     </div>
 {% endblock %}
