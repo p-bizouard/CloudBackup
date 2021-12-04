@@ -17,80 +17,82 @@ use Symfony\Component\Validator\Constraints as Assert;
 class OSProject
 {
     use TimestampableEntity;
-    
+
     /**
      * @ORM\Id
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private $id;
+    private ?int $id;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $name;
-    
+    private ?string $name;
+
     /**
     * @ORM\Column(type="string", length=255, unique=true)
     * @Gedmo\Slug(fields={"name"})
     */
-    private $slug;
+    private ?string $slug;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $authUrl;
+    private ?string $authUrl;
 
     /**
      * @ORM\Column(type="integer")
      * @Assert\NotNull()
      */
-    private $identityApiVersion;
+    private ?int $identityApiVersion;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $userDomainName;
+    private ?string $userDomainName;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $projectDomainName;
+    private ?string $projectDomainName;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $tenantId;
+    private ?string $tenantId;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $tenantName;
+    private ?string $tenantName;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $username;
+    private ?string $username;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $password;
+    private ?string $password;
 
     /**
+     * @var ArrayCollection<OSinstance>
      * @ORM\OneToMany(targetEntity=OSInstance::class, mappedBy="osProject")
      */
     private $osInstances;
 
     /**
+     * @var ArrayCollection<Storage>
      * @ORM\OneToMany(targetEntity=Storage::class, mappedBy="osProject")
      */
     private $storages;
