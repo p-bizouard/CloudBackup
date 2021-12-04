@@ -116,7 +116,7 @@ COPY docker/php/conf/opcache.ini "$PHP_INI_DIR/conf.d/opcache.ini"
 # php-fpm is run with www-data
 RUN mkdir var && chown -R www-data:www-data var/
 RUN mkdir /var/www/.cache/ && chown -R www-data:www-data /var/www/.cache/
-RUN mkdir public/bundles && chown www-data:www-data public/bundles
+RUN mkdir -p public/bundles && chown www-data:www-data public/bundles
 
 USER www-data
 
