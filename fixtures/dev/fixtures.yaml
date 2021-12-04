@@ -2,8 +2,161 @@ parameters:
     hash: $argon2id$v=19$m=65536,t=4,p=1$SM0i/lRHseD4E2nq4RR5Kg$LB/HV7sLdNYWEBd/0tw71gygrWPVFB7pgL45I8gDlBc
 
 App\Entity\User:
-    paul:
+    dev:
         email: dev@example.com
         password: <{hash}>
         plainPassword: dev
         roles: [ROLE_ADMIN]
+
+App\Entity\OSProject:
+    os-project:
+        name: os-project
+        authUrl: https://auth.cloud.ovh.net/v3/
+        identityApiVersion: 3
+        userDomainName: Default
+        projectDomainName: Default
+        tenantId: xxxxxxxxxxxxxxxxxxxxxxx
+        tenantName: xxxxxxxxxxxxxxxxxxxxxxx
+        username: xxxxxxxxxxxxxxxxxxxxxxx
+        password: xxxxxxxxxxxxxxxxxxxxxxx
+App\Entity\OSInstance:
+    os-instance:
+        id: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+        name: os-instance
+        osRegionName: OS_REGION
+        osProject: "@os-project"
+App\Entity\Storage:
+    swift:
+        name: swift
+        type: restic
+        osProject: "@os-project"
+        osRegionName: OS_REGION
+        resticPassword: resticPassword
+        resticRepo: swift:container:/subdirectory
+    local:
+        name: local
+        type: restic
+        resticPassword: resticPassword
+        resticRepo: /data/backup/
+App\Entity\Host:
+    host-by-key:
+        name: host-by-key
+        ip: 1.2.3.4
+        login: debian
+        password: ~
+        privateKey: |
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+            -----END OPENSSH PRIVATE KEY-----
+        port: 22
+    host-by-pass:
+        name: host-by-pass
+        ip: example.com
+        login: debian
+        password: password
+        privateKey: ~
+        port: 22
+App\Entity\BackupConfiguration:
+    daily-instance:
+        name: daily-instance
+        type: os-instance
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        osInstance: "@os-instance"
+        storageSubPath: "daily-snapshot"
+        enabled: false
+    daily-mysql:
+        name: daily-mysql
+        type: mysql
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        host: "@host-by-key"
+        storageSubPath: "daily-mysql"
+        dumpCommand: "sudo mysqldump --defaults-file=/root/.my.cnf --all-databases"
+        minimumBackupSize: 200000000
+        enabled: false
+    daily-mysql-local:
+        name: daily-mysql-local
+        type: mysql
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@local"
+        host: "@host-by-key"
+        storageSubPath: "daily-mysql"
+        dumpCommand: "sudo mysqldump --defaults-file=/root/.my.cnf --all-databases"
+        minimumBackupSize: 200000000
+        enabled: false
+    daily-mysql-hostpass:
+        name: daily-mysql-host-pass
+        type: mysql
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        host: ~
+        storageSubPath: "daily-mysql-host-pass"
+        dumpCommand: "mysqldump --host example.com --user=username --port=3306 --password=password --all-databases"
+        minimumBackupSize: 500000
+        enabled: false
+    daily-postgres-hostpass:
+        name: daily-postgres-direct
+        type: postgresql
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        host: ~
+        storageSubPath: "daily-postgres-direct"
+        dumpCommand: "PGPASSWORD='password' /usr/lib/postgresql/12/bin/pg_dump -U username -h example.com -p 5432 database"
+        minimumBackupSize: 500000
+        enabled: false
+    sshfs:
+        name: sshfs
+        type: sshfs
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        host: "@host-by-key"
+        storageSubPath: "daily-sshfs"
+        remotePath: "/var/www"
+        dumpCommand: "-o sftp_server='/usr/bin/sudo /usr/lib/openssh/sftp-server'"
+        enabled: false
+    ssh-restic:
+        name: ssh-restic
+        type: ssh-restic
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        host: "@host-by-key"
+        storageSubPath: "daily-ssh-restic"
+        remotePath: "/var/www"
+        dumpCommand: ""
+        enabled: false
+    read-restic:
+        name: read-restic
+        type: read-restic
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        storageSubPath: "daily-mysql-host-pass"
+        enabled: false
+    ssh-cmd:
+        name: daily-ssh-cmd
+        type: ssh-cmd
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        host: "@host-by-key"
+        storage: "@swift"
+        storageSubPath: "daily-ssh-cmd"
+        dumpCommand: "cat /etc/passwd"
+        minimumBackupSize: 1
+        enabled: false
