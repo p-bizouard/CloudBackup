@@ -318,6 +318,7 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_MYSQL:
             case BackupConfiguration::TYPE_POSTGRESQL:
+            case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
                 $this->downloadCommandResult($backup);
                 break;
@@ -521,6 +522,7 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_MYSQL:
             case BackupConfiguration::TYPE_POSTGRESQL:
+            case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
                 $command = sprintf(
                     'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
@@ -695,6 +697,7 @@ class BackupService
             switch ($backup->getBackupConfiguration()->getType()) {
                 case BackupConfiguration::TYPE_MYSQL:
                 case BackupConfiguration::TYPE_POSTGRESQL:
+                case BackupConfiguration::TYPE_SQL_SERVER:
                 case BackupConfiguration::TYPE_OS_INSTANCE:
                 case BackupConfiguration::TYPE_SSH_CMD:
                     $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
@@ -733,6 +736,7 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_MYSQL:
             case BackupConfiguration::TYPE_POSTGRESQL:
+            case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
             case BackupConfiguration::TYPE_SSHFS:
                 if (file_exists($this->getTemporaryBackupDestination($backup))) {
@@ -825,13 +829,11 @@ class BackupService
             case BackupConfiguration::TYPE_SSHFS:
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(true));
                 break;
-            case BackupConfiguration::TYPE_OS_INSTANCE:
-            case BackupConfiguration::TYPE_SSH_CMD:
-                return sprintf('%s/%s.%s', $this->temporaryDownloadDirectory, $backup->getName(false), $backup->getBackupConfiguration()->getExtension());
-                break;
             default:
+                if ($backup->getBackupConfiguration()->getExtension() !== null) {
+                    return sprintf('%s/%s.%s', $this->temporaryDownloadDirectory, $backup->getName(false), $backup->getBackupConfiguration()->getExtension());
+                }
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
-                break;
             }
     }
 
