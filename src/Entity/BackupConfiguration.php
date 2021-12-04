@@ -24,57 +24,58 @@ class BackupConfiguration
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private $id;
+    private ?int $id;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private $name;
+    private ?string $name;
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
      * @Gedmo\Slug(fields={"name"})
      */
-    private $slug;
+    private ?string $slug;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private $type;
+    private ?string $type;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\Choice(callback={BackupConfiguration::class, "getAvailablePeriodicity"})
      */
-    private $periodicity = 'daily';
+    private string $periodicity = 'daily';
 
     /**
-     * @ORM\Column(type="integer", nullable=true)
+     * @ORM\Column(type="integer")
      */
-    private $keepDaily = 7;
+    private int $keepDaily = 7;
 
     /**
-     * @ORM\Column(type="integer", nullable=true)
+     * @ORM\Column(type="integer")
      */
-    private $keepWeekly = 4;
+    private int $keepWeekly = 4;
 
     /**
      * @ORM\ManyToOne(targetEntity=Storage::class, inversedBy="backupConfigurations")
      * @ORM\JoinColumn(nullable=false)
      */
-    private $storage;
+    private Storage $storage;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $storageSubPath;
+    private ?string $storageSubPath;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSInstance::class, inversedBy="backupConfigurations")
      */
-    private $osInstance;
+    private OSInstance $osInstance;
 
     /**
+     * @var Collection<Backup>
      * @ORM\OneToMany(targetEntity=Backup::class, mappedBy="backupConfiguration")
      * @ORM\OrderBy({"id" = "DESC"})
      */
@@ -83,43 +84,54 @@ class BackupConfiguration
     /**
      * @ORM\Column(type="boolean", options={"default" : true})
      */
-    private $enabled = true;
+    private bool $enabled = true;
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    private $dumpCommand;
+    private ?string $dumpCommand;
 
     /**
      * @ORM\ManyToOne(targetEntity=Host::class, inversedBy="backupConfigurations")
      */
-    private $host;
+    private ?Host $host;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $remotePath;
+    private ?string $remotePath;
 
     /**
      * @ORM\Column(type="bigint", nullable=true)
      */
-    private $minimumBackupSize;
+    private ?int $minimumBackupSize;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $remoteCleanCommand;
+    private ?string $remoteCleanCommand;
 
-    const PERIODICITY_DAILY = 'daily';
+    /**
+     * @ORM\Column(type="string", length=20, nullable=true)
+     */
+    private ?string $customExtension;
 
-    const TYPE_OS_INSTANCE = 'os-instance';
-    const TYPE_MYSQL = 'mysql';
-    const TYPE_POSTGRESQL = 'postgresql';
-    const TYPE_SSHFS = 'sshfs';
-    const TYPE_SSH_RESTIC = 'ssh-restic';
-    const TYPE_READ_RESTIC = 'read-restic';
-    const TYPE_SSH_CMD = 'ssh-cmd';
-    
+    /**
+     * @ORM\Column(type="smallint", nullable=true)
+     */
+    private ?int $notBefore;
+
+    public const PERIODICITY_DAILY = 'daily';
+
+    public const TYPE_OS_INSTANCE = 'os-instance';
+    public const TYPE_MYSQL = 'mysql';
+    public const TYPE_SQL_SERVER = 'sql-server';
+    public const TYPE_POSTGRESQL = 'postgresql';
+    public const TYPE_SSHFS = 'sshfs';
+    public const TYPE_SSH_RESTIC = 'ssh-restic';
+    public const TYPE_READ_RESTIC = 'read-restic';
+    public const TYPE_SSH_CMD = 'ssh-cmd';
+
     public function __construct()
     {
         $this->backups = new ArrayCollection();
@@ -151,6 +163,7 @@ class BackupConfiguration
         return [
             self::TYPE_OS_INSTANCE,
             self::TYPE_MYSQL,
+            self::TYPE_SQL_SERVER,
             self::TYPE_POSTGRESQL,
             self::TYPE_SSHFS,
             self::TYPE_SSH_RESTIC,
@@ -159,7 +172,11 @@ class BackupConfiguration
         ];
     }
 
-    public function getExtension(): ?string {
+    public function getExtension(): ?string
+    {
+        if ($this->getCustomExtension()) {
+            return $this->getCustomExtension();
+        }
 
         switch ($this->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
@@ -167,6 +184,9 @@ class BackupConfiguration
                 break;
             case BackupConfiguration::TYPE_MYSQL:
                 return 'sql';
+                break;
+            case BackupConfiguration::TYPE_SQL_SERVER:
+                return 'bak';
                 break;
             case BackupConfiguration::TYPE_POSTGRESQL:
                 return 'sqlc';
@@ -405,6 +425,30 @@ class BackupConfiguration
     public function setRemoteCleanCommand(?string $remoteCleanCommand): self
     {
         $this->remoteCleanCommand = $remoteCleanCommand;
+
+        return $this;
+    }
+
+    public function getCustomExtension(): ?string
+    {
+        return $this->customExtension;
+    }
+
+    public function setCustomExtension(?string $customExtension): self
+    {
+        $this->customExtension = $customExtension;
+
+        return $this;
+    }
+
+    public function getNotBefore(): ?int
+    {
+        return $this->notBefore;
+    }
+
+    public function setNotBefore(?int $notBefore): self
+    {
+        $this->notBefore = $notBefore;
 
         return $this;
     }

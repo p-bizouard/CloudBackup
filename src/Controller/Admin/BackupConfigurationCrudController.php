@@ -79,6 +79,12 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 BooleanField::new('enabled'),
                 IntegerField::new('keepDaily')->hideOnIndex(),
                 IntegerField::new('keepWeekly')->hideOnIndex(),
+
+
+                IntegerField::new('notBefore')
+                    ->hideOnIndex()
+                    ->setHelp('Exécuter le backup à partir d\'une certaine heure'),
+
                 DateTimeField::new('createdAt')->hideOnForm()->hideOnIndex(),
                 DateTimeField::new('updatedAt')->hideOnForm()->hideOnIndex(),
 
@@ -112,15 +118,20 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->addCssClass('blur-input backupConfigurationType-field ssh-cmd')
                     ->setHelp('Commande de nettoyage à exécuter sur l\'hôte distant après le backup'),
 
+                TextField::new('customExtension')
+                    ->hideOnIndex()
+                    ->setHelp('Permet de suffixer le backup avec une extension particulière'),
+
                 TextField::new('remotePath')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field ssh-restic sshfs')
                     ->setHelp('Dossier à sauvegarder'),
 
-                TextField::new('minimumBackupSize')
+                IntegerField::new('minimumBackupSize')
+                    ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field postgresql mysql ssh-cmd')
-                    ->setHelp('Taille minimale du backup (en octets)'),
+                    ->setHelp('Taille minimale du backup en octets'),
         ];
     }
 

@@ -110,6 +110,23 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('Transition from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
+    public function guardStart(GuardEvent $event)
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        if ($backup->getBackupConfiguration()->getNotBefore() > date('H')) {
+            $message = sprintf('Cannot start backup before %s', $backup->getBackupConfiguration()->getNotBefore());
+
+            $this->backupService->log(
+                $backup,
+                Log::LOG_NOTICE,
+                $message
+            );
+            $event->setBlocked(true, $message);
+        }
+    }
+
     public function guardDownload(GuardEvent $event)
     {
         /** @var Backup */
@@ -166,6 +183,7 @@ class BackupSubscriber implements EventSubscriberInterface
                     break;
                 case BackupConfiguration::TYPE_MYSQL:
                 case BackupConfiguration::TYPE_POSTGRESQL:
+                case BackupConfiguration::TYPE_SQL_SERVER:
                 case BackupConfiguration::TYPE_SSH_CMD:
                     if (!$this->backupService->checkDownloadedDump($backup)) {
                         $message = 'Download not completed';
@@ -223,6 +241,7 @@ class BackupSubscriber implements EventSubscriberInterface
 
             'workflow.backup.enter' => 'onEnterAll',
 
+            'workflow.backup.guard.start' => 'guardStart',
             'workflow.backup.guard.download' => 'guardDownload',
             'workflow.backup.guard.upload' => 'guardUpload',
             'workflow.backup.guard.cleanup' => 'guardCleanup',
