@@ -9,48 +9,63 @@
         "php": ">=7.2.5",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "composer/package-versions-deprecated": "1.11.99.4",
+        "doctrine/annotations": "^1.0",
+        "doctrine/doctrine-bundle": "^2.5",
+        "doctrine/doctrine-migrations-bundle": "^3.2",
+        "doctrine/orm": "^2.10",
         "easycorp/easyadmin-bundle": "^3.2",
         "gedmo/doctrine-extensions": "^3.0",
         "nesbot/carbon": "^2.48",
+        "phpdocumentor/reflection-docblock": "^5.3",
+        "phpstan/phpdoc-parser": "^1.2",
         "phuml/phuml": "dev-characterization-tests",
         "predis/predis": "^1.1",
         "sensio/framework-extra-bundle": "^5.1",
         "stof/doctrine-extensions-bundle": "^1.6",
         "symfony/asset": "*",
-        "symfony/cache": "5.2.*",
+        "symfony/cache": "*",
         "symfony/console": "*",
         "symfony/dotenv": "*",
         "symfony/expression-language": "*",
-        "symfony/filesystem": "5.2.*",
+        "symfony/filesystem": "*",
         "symfony/flex": "^1.3.1",
         "symfony/form": "*",
         "symfony/framework-bundle": "*",
         "symfony/http-client": "*",
         "symfony/intl": "*",
-        "symfony/lock": "5.2.*",
+        "symfony/lock": "*",
         "symfony/mailer": "*",
         "symfony/maker-bundle": "^1.30",
         "symfony/mime": "*",
         "symfony/monolog-bundle": "^3.1",
         "symfony/notifier": "*",
-        "symfony/orm-pack": "*",
         "symfony/process": "*",
+        "symfony/property-access": "5.4.*",
+        "symfony/property-info": "5.4.*",
+        "symfony/proxy-manager-bridge": "5.4.*",
         "symfony/security-bundle": "*",
-        "symfony/serializer-pack": "*",
-        "symfony/string": "5.2.*",
-        "symfony/translation": "5.2.*",
-        "symfony/twig-pack": "*",
+        "symfony/serializer": "5.4.*",
+        "symfony/string": "*",
+        "symfony/translation": "*",
+        "symfony/twig-bundle": "5.4.*",
         "symfony/validator": "*",
         "symfony/web-link": "*",
         "symfony/webpack-encore-bundle": "^1.11",
-        "symfony/workflow": "5.2.*",
-        "symfony/yaml": "*"
+        "symfony/workflow": "*",
+        "symfony/yaml": "*",
+        "twig/extra-bundle": "^2.12|^3.0",
+        "twig/twig": "^2.12|^3.0"
     },
     "require-dev": {
         "hautelook/alice-bundle": "^2.9",
-        "symfony/debug-pack": "*",
-        "symfony/profiler-pack": "*",
-        "symfony/test-pack": "*"
+        "phpunit/phpunit": "^9.5",
+        "symfony/browser-kit": "5.4.*",
+        "symfony/css-selector": "5.4.*",
+        "symfony/debug-bundle": "5.4.*",
+        "symfony/phpunit-bridge": "^6.0",
+        "symfony/stopwatch": "5.4.*",
+        "symfony/web-profiler-bundle": "5.4.*"
     },
     "config": {
         "optimize-autoloader": true,
@@ -87,13 +102,10 @@
         ],
         "workflow-dump": "php bin/console workflow:dump backup | dot -Tsvg -o doc/graph.svg"
     },
-    "conflict": {
-        "symfony/symfony": "*"
-    },
     "extra": {
         "symfony": {
             "allow-contrib": false,
-            "require": "5.2.*"
+            "require": "5.4.*"
         }
     }
 }
