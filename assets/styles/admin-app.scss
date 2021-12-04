@@ -8,7 +8,7 @@
 }
 
 .blur-input {
-    input, textarea, dt > span {
+    input, textarea, dd > span {
         filter: blur(5px);
         background-color: #fee;
 
