@@ -8,21 +8,24 @@ WORKDIR /app
 ENV APP_ENV=dev
 
 RUN apt update \
-    && apt install -y wget gnupg lsb-release \
+    && apt install -y wget gnupg lsb-release software-properties-common \
     && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-    && echo 'deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main' >> /etc/apt/sources.list \
+    && wget --quiet -O - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
+    &&  add-apt-repository "deb https://repo.mongodb.org/apt/debian $(lsb_release -cs)/mongodb-org/5.0 main" \
+    &&  add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
     && apt update \
     && apt install -y \
-        postgresql-client-11 \
-        postgresql-client-12 \
-        postgresql-client-13 \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
-        software-properties-common \
         git unzip procps \
         locales \
         sshfs sshpass \
         postgresql-client \
         mariadb-client \
+        postgresql-client-11 \
+        postgresql-client-12 \
+        postgresql-client-13 \
+        mongodb-org-tools \
+        python3-pip restic graphviz \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,10 +37,6 @@ RUN pecl install redis xdebug && \
     docker-php-ext-install intl mbstring pdo pdo_pgsql zip bcmath sockets gd opcache && \
     docker-php-ext-enable xdebug
 
-RUN apt update && apt install -y python3-pip restic graphviz \
-    && apt-get autoremove && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/*
-    
 COPY requirements.txt requirements.txt
 RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
@@ -66,7 +65,6 @@ FROM dev AS test
 WORKDIR /app
 
 ## Copy project files to workdir
-#COPY assets assets
 COPY bin bin
 COPY config config
 COPY fixtures fixtures
@@ -118,6 +116,7 @@ COPY docker/php/conf/opcache.ini "$PHP_INI_DIR/conf.d/opcache.ini"
 # php-fpm is run with www-data
 RUN mkdir var && chown -R www-data:www-data var/
 RUN mkdir /var/www/.cache/ && chown -R www-data:www-data /var/www/.cache/
+RUN mkdir public/bundles && chown www-data:www-data public/bundles
 
 USER www-data
 
