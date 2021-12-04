@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Entity(repositoryClass=StorageRepository::class)
@@ -20,59 +21,45 @@ class Storage
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private $id;
+    private ?int $id;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private $name;
+    private ?string $name;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private $type;
+    private ?string $type;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="storages")
      */
-    private $osProject;
+    private ?OSProject $osProject;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $osRegionName;
+    private ?string $osRegionName;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $resticPassword;
+    private ?string $resticPassword;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $resticRepo;
+    private ?string $resticRepo;
 
     /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $host;
-
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $username;
-
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $path;
-
-    /**
+     * @var ArrayCollection<BackupConfiguration>
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="storage")
      */
     private $backupConfigurations;
 
-    const TYPE_RESTIC = 'restic';
+    public const TYPE_RESTIC = 'restic';
 
     public function __construct()
     {
@@ -176,42 +163,6 @@ class Storage
     public function setResticRepo(?string $resticRepo): self
     {
         $this->resticRepo = $resticRepo;
-
-        return $this;
-    }
-
-    public function getHost(): ?string
-    {
-        return $this->host;
-    }
-
-    public function setHost(?string $host): self
-    {
-        $this->host = $host;
-
-        return $this;
-    }
-
-    public function getUsername(): ?string
-    {
-        return $this->username;
-    }
-
-    public function setUsername(?string $username): self
-    {
-        $this->username = $username;
-
-        return $this;
-    }
-
-    public function getPath(): ?string
-    {
-        return $this->path;
-    }
-
-    public function setPath(?string $path): self
-    {
-        $this->path = $path;
 
         return $this;
     }
