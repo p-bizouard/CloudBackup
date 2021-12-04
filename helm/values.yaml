@@ -16,12 +16,31 @@ image:
 postgres:
     enabled: false
 
+php:
+    resources:
+        limits:
+            cpu: "1"
+        requests:
+            cpu: "0.1"
+
+nginx:
+    resources:
+        limits:
+            cpu: "1"
+        requests:
+            cpu: "0.05"
+
 cronjob:
     persistentVolume:
         enabled: true
         storageClass: csi-cinder-classic
         size: 50G
         accessModes: [ReadWriteOnce]
+    resources:
+        limits:
+            cpu: "1"
+        requests:
+            cpu: "0.1"
 
 envFile: ~
 

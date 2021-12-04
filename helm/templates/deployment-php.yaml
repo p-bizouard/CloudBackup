@@ -38,7 +38,7 @@ spec:
               mountPath: "/app/.env"
               subPath: ".env"
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.php.resources | nindent 12 }}
       volumes:
         - name: "env"
           secret:

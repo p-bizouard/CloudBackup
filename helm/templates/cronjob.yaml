@@ -31,6 +31,8 @@ spec:
               command:
                 - /app/bin/console
                 - app:backup:start 
+              resources:
+                {{- toYaml .Values.cronjob.resources | nindent 16 }}
           initContainers:
             - name: volume-mount
               image: busybox
