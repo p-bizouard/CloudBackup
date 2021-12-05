@@ -11,7 +11,7 @@ RUN apt update \
     && apt install -y wget gnupg lsb-release software-properties-common \
     && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
     && wget --quiet -O - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
-    &&  add-apt-repository "deb https://repo.mongodb.org/apt/debian $(lsb_release -cs)/mongodb-org/5.0 main" \
+    &&  add-apt-repository "deb https://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" \
     &&  add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
     && apt update \
     && apt install -y \
