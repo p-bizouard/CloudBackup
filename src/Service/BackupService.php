@@ -32,6 +32,8 @@ class BackupService
     public const SSHFS_MOUNT_TIMEOUT = 60;
     public const SSHFS_UMOUNT_TIMEOUT = 60;
 
+    public const DOWNLOAD_SIZE_TIMEOUT = 60 * 10;
+
     public function __construct(
         private string $temporaryDownloadDirectory,
         private LoggerInterface $logger,
@@ -139,6 +141,25 @@ class BackupService
         $this->entityManager->flush();
 
         return $output[0]['Status'];
+    }
+
+    private function getSftpDownloadSize(Backup $backup)
+    {
+        $command = sprintf('du -sb %s | cut -f1', $this->getTemporaryBackupDestination($backup));
+
+        $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
+        $process = Process::fromShellCommandline($command);
+        $process->setTimeout(self::DOWNLOAD_SIZE_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error getting download size - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+
+        return (int)$process->getOutput();
     }
 
     private function downloadOSSnapshot(Backup $backup)
@@ -310,6 +331,45 @@ class BackupService
         }
     }
 
+    private function downloadSftp(Backup $backup)
+    {
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        $filesystem = new Filesystem();
+        $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
+        $backupDestination = $this->getTemporaryBackupDestination($backup);
+
+        $filesystem->mkdir($backupDestination);
+
+        $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+
+        $command = sprintf(
+            'sftp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s %s %s@%s:%s %s',
+            $privateKeypath,
+            $backup->getBackupConfiguration()->getDumpCommand(),
+            $backup->getBackupConfiguration()->getHost()->getLogin(),
+            $backup->getBackupConfiguration()->getHost()->getIp(),
+            $backup->getBackupConfiguration()->getRemotePath(),
+            $backupDestination,
+        );
+
+        $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
+        $process = Process::fromShellCommandline($command);
+        $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+
+        $this->log($backup, Log::LOG_NOTICE, 'Download done');
+
+        $backup->setSize($this->getSftpDownloadSize($backup));
+    }
+
     public function downloadBackup(Backup $backup)
     {
         switch ($backup->getBackupConfiguration()->getType()) {
@@ -321,6 +381,9 @@ class BackupService
             case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
                 $this->downloadCommandResult($backup);
+                break;
+            case BackupConfiguration::TYPE_SFTP:
+                $this->downloadSftp($backup);
                 break;
             case BackupConfiguration::TYPE_SSHFS:
                 $this->downloadSSHFS($backup);
@@ -544,6 +607,7 @@ class BackupService
                 }
                 break;
             case BackupConfiguration::TYPE_SSHFS:
+            case BackupConfiguration::TYPE_SFTP:
                 $command = sprintf(
                     'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
                     $backup->getBackupConfiguration()->getHost()->getSlug(),
@@ -616,6 +680,16 @@ class BackupService
         } else {
             // php's rmdir function only remove empty directories
             rmdir($this->getTemporaryBackupDestination($backup));
+        }
+    }
+
+    private function cleanBackupSftp(Backup $backup)
+    {
+        if ($this->checkDownloadedDump($backup)) {
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local directory - %s', $this->getTemporaryBackupDestination($backup)));
+
+            $filesystem = new Filesystem();
+            $filesystem->remove($this->getTemporaryBackupDestination($backup));
         }
     }
 
@@ -703,6 +777,9 @@ class BackupService
                     $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
                     unlink($this->getTemporaryBackupDestination($backup));
                     break;
+                case BackupConfiguration::TYPE_SFTP:
+                    $this->cleanBackupSftp($backup);
+                    break;
                 case BackupConfiguration::TYPE_SSHFS:
                     $this->cleanBackupSSHFS($backup);
                     break;
@@ -739,6 +816,7 @@ class BackupService
             case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
             case BackupConfiguration::TYPE_SSHFS:
+            case BackupConfiguration::TYPE_SFTP:
                 if (file_exists($this->getTemporaryBackupDestination($backup))) {
                     return false;
                 }

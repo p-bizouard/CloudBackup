@@ -160,3 +160,16 @@ App\Entity\BackupConfiguration:
         dumpCommand: "cat /etc/passwd"
         minimumBackupSize: 1
         enabled: false
+    sftp:
+        name: daily-sftp
+        type: sftp
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        host: "@host-by-key"
+        storage: "@swift"
+        storageSubPath: "daily-sftp"
+        dumpCommand: ~
+        remotePath: "/var/www/v2/prod.sh"
+        minimumBackupSize: 1
+        enabled: false

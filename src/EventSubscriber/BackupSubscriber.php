@@ -185,6 +185,7 @@ class BackupSubscriber implements EventSubscriberInterface
                 case BackupConfiguration::TYPE_POSTGRESQL:
                 case BackupConfiguration::TYPE_SQL_SERVER:
                 case BackupConfiguration::TYPE_SSH_CMD:
+                case BackupConfiguration::TYPE_SFTP:
                     if (!$this->backupService->checkDownloadedDump($backup)) {
                         $message = 'Download not completed';
 

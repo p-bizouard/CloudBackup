@@ -131,6 +131,7 @@ class BackupConfiguration
     public const TYPE_SSH_RESTIC = 'ssh-restic';
     public const TYPE_READ_RESTIC = 'read-restic';
     public const TYPE_SSH_CMD = 'ssh-cmd';
+    public const TYPE_SFTP = 'sftp';
 
     public function __construct()
     {
@@ -169,6 +170,7 @@ class BackupConfiguration
             self::TYPE_SSH_RESTIC,
             self::TYPE_READ_RESTIC,
             self::TYPE_SSH_CMD,
+            self::TYPE_SFTP,
         ];
     }
 
