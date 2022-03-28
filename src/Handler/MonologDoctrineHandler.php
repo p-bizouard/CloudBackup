@@ -8,9 +8,9 @@ use Monolog\Handler\AbstractProcessingHandler;
 
 class MonologDoctrineHandler extends AbstractProcessingHandler
 {
-    private $initialized;
-    private $entityManager;
-    private $channel = 'database';
+    private bool $initialized = false;
+    private EntityManagerInterface $entityManager;
+    private string $channel = 'database';
 
     public function __construct(EntityManagerInterface $entityManager)
     {
@@ -37,7 +37,7 @@ class MonologDoctrineHandler extends AbstractProcessingHandler
         $this->entityManager->flush();
     }
 
-    private function initialize()
+    private function initialize(): void
     {
         $this->initialized = true;
     }

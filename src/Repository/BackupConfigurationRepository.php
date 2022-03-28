@@ -7,10 +7,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @method BackupConfiguration|null find($id, $lockMode = null, $lockVersion = null)
- * @method BackupConfiguration|null findOneBy(array $criteria, array $orderBy = null)
- * @method BackupConfiguration[]    findAll()
- * @method BackupConfiguration[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @extends ServiceEntityRepository<BackupConfiguration>
  */
 class BackupConfigurationRepository extends ServiceEntityRepository
 {

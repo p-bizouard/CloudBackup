@@ -80,7 +80,6 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 IntegerField::new('keepDaily')->hideOnIndex(),
                 IntegerField::new('keepWeekly')->hideOnIndex(),
 
-
                 IntegerField::new('notBefore')
                     ->hideOnIndex()
                     ->setHelp('Exécuter le backup à partir d\'une certaine heure'),
@@ -135,7 +134,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
         ];
     }
 
-    public function copyEntity(AdminContext $context)
+    public function copyEntity(AdminContext $context): RedirectResponse
     {
         /** @var BackupConfiguration */
         $backupConfiguration = $context->getEntity()->getInstance();

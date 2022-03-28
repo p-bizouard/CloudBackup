@@ -13,7 +13,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Form\Util\StringUtil;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Workflow\Registry;
@@ -73,7 +72,7 @@ class BackupService
         $this->entityManager->flush();
     }
 
-    public function snapshotOSInstance(Backup $backup)
+    public function snapshotOSInstance(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -131,7 +130,7 @@ class BackupService
             return null;
         }
 
-        if ($backup->getOsImageId() === null || $backup->getSize() === null) {
+        if (null === $backup->getOsImageId() || null === $backup->getSize()) {
             $backup->setOsImageId($output[0]['ID']);
             $backup->setChecksum($output[0]['Checksum']);
             $backup->setSize($output[0]['Size']);
@@ -143,7 +142,7 @@ class BackupService
         return $output[0]['Status'];
     }
 
-    private function getSftpDownloadSize(Backup $backup)
+    private function getSftpDownloadSize(Backup $backup): int
     {
         $command = sprintf('du -sb %s | cut -f1', $this->getTemporaryBackupDestination($backup));
 
@@ -159,10 +158,10 @@ class BackupService
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
         }
 
-        return (int)$process->getOutput();
+        return (int) $process->getOutput();
     }
 
-    private function downloadOSSnapshot(Backup $backup)
+    private function downloadOSSnapshot(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -190,7 +189,7 @@ class BackupService
             }
 
             if (!\count($output)) {
-                return null;
+                return;
             }
 
             $backup->setOsImageId($output[0]['ID']);
@@ -228,7 +227,7 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, 'Openstack image downloaded');
     }
 
-    private function downloadCommandResult(Backup $backup)
+    private function downloadCommandResult(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -280,15 +279,13 @@ class BackupService
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
         }
 
-
         $backup->setSize(filesize($backupDestination));
         $this->log($backup, Log::LOG_INFO, sprintf('Backup size : %s', StringUtils::humanizeFilesize($backup->getSize())));
-
 
         $this->log($backup, Log::LOG_NOTICE, 'Dump done');
     }
 
-    private function downloadSSHFS(Backup $backup)
+    private function downloadSSHFS(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -299,10 +296,17 @@ class BackupService
 
             $filesystem->mkdir($backupDestination);
 
-            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()?->getPrivateKey()."\n"));
+
+            if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
+                $sshpass = sprintf('sshpass -p %s', $backup->getBackupConfiguration()->getHost()->getPassword());
+            } else {
+                $sshpass = '';
+            }
 
             $command = sprintf(
-                'sshfs %s@%s:%s %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o uid=%d,gid=%d -o ro -o IdentityFile=%s %s',
+                '%s sshfs %s@%s:%s %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o uid=%d,gid=%d -o ro -o IdentityFile=%s %s',
+                $sshpass,
                 $backup->getBackupConfiguration()->getHost()->getLogin(),
                 $backup->getBackupConfiguration()->getHost()->getIp(),
                 $backup->getBackupConfiguration()->getRemotePath(),
@@ -331,7 +335,7 @@ class BackupService
         }
     }
 
-    private function downloadSftp(Backup $backup)
+    private function downloadSftp(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -370,7 +374,7 @@ class BackupService
         $backup->setSize($this->getSftpDownloadSize($backup));
     }
 
-    public function downloadBackup(Backup $backup)
+    public function downloadBackup(Backup $backup): void
     {
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
@@ -456,7 +460,7 @@ class BackupService
         return true;
     }
 
-    private function uploadBackupSSHResticRmScript(Backup $backup, string $privateKeypath, string $scriptFilePath)
+    private function uploadBackupSSHResticRmScript(Backup $backup, string $privateKeypath, string $scriptFilePath): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -482,7 +486,7 @@ class BackupService
         }
     }
 
-    private function uploadBackupSSHRestic(Backup $backup)
+    private function uploadBackupSSHRestic(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -535,7 +539,6 @@ class BackupService
                 $scriptFilePath,
                 $scriptFilePath,
                 $scriptFilePath,
-                $scriptFilePath,
             )
         );
 
@@ -555,7 +558,7 @@ class BackupService
         }
     }
 
-    public function uploadBackup(Backup $backup)
+    public function uploadBackup(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -633,7 +636,7 @@ class BackupService
         }
     }
 
-    private function cleanBackupRestic(Backup $backup)
+    private function cleanBackupRestic(Backup $backup): void
     {
         $env = $backup->getBackupConfiguration()->getStorage()->getOSEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
@@ -655,7 +658,7 @@ class BackupService
         }
     }
 
-    private function cleanBackupSSHFS(Backup $backup)
+    private function cleanBackupSSHFS(Backup $backup): void
     {
         if ($this->checkDownloadedSSHFS($backup)) {
             $command = sprintf('fusermount -u %s', $this->getTemporaryBackupDestination($backup));
@@ -683,7 +686,7 @@ class BackupService
         }
     }
 
-    private function cleanBackupSftp(Backup $backup)
+    private function cleanBackupSftp(Backup $backup): void
     {
         if ($this->checkDownloadedDump($backup)) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local directory - %s', $this->getTemporaryBackupDestination($backup)));
@@ -693,7 +696,7 @@ class BackupService
         }
     }
 
-    private function cleanBackupOsInstance(Backup $backup)
+    private function cleanBackupOsInstance(Backup $backup): void
     {
         if (null !== $this->getSnapshotOsInstanceStatus($backup)) {
             $command = sprintf('openstack image delete %s', $backup->getOsImageId());
@@ -712,7 +715,7 @@ class BackupService
         }
     }
 
-    private function cleanRemoteByCommand(Backup $backup)
+    private function cleanRemoteByCommand(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -757,7 +760,7 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, 'Remote cleanup done');
     }
 
-    public function cleanBackup(Backup $backup)
+    public function cleanBackup(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -826,7 +829,7 @@ class BackupService
         return true;
     }
 
-    public function healhCheckBackup(Backup $backup)
+    public function healhCheckBackup(Backup $backup): void
     {
         switch ($backup->getBackupConfiguration()->getStorage()->getType()) {
             case Storage::TYPE_RESTIC:
@@ -880,7 +883,7 @@ class BackupService
         }
     }
 
-    public function resticInitRepo(Backup $backup)
+    public function resticInitRepo(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -905,21 +908,20 @@ class BackupService
     {
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_SSHFS:
-                return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(true));
-                break;
+                return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
             default:
-                if ($backup->getBackupConfiguration()->getExtension() !== null) {
+                if (null !== $backup->getBackupConfiguration()->getExtension()) {
                     return sprintf('%s/%s.%s', $this->temporaryDownloadDirectory, $backup->getName(false), $backup->getBackupConfiguration()->getExtension());
                 }
+
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
             }
     }
 
-    public function initBackup(BackupConfiguration $backupConfiguration)
+    public function initBackup(BackupConfiguration $backupConfiguration): void
     {
         $now = new DateTime();
 
-        /** @var Backup */
         $backup = $this->backupRepository->findOneBy([
             'backupConfiguration' => $backupConfiguration,
         ], ['id' => 'DESC']);
@@ -975,11 +977,15 @@ class BackupService
         $this->entityManager->flush();
     }
 
-    public function completeBackup(BackupConfiguration $backupConfiguration)
+    public function completeBackup(BackupConfiguration $backupConfiguration): void
     {
         $backup = $this->backupRepository->findOneBy([
             'backupConfiguration' => $backupConfiguration,
         ], ['id' => 'DESC']);
+
+        if (null === $backup) {
+            throw new Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
+        }
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
 

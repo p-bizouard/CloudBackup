@@ -12,7 +12,7 @@ class OSProjectCrudController extends AbstractCrudController
 {
     public function __construct(
         private string $authUrl,
-        private string $identityApiVersion,
+        private int $identityApiVersion,
         private string $userDomainName,
         private string $projectDomainName
     ) {
@@ -33,7 +33,7 @@ class OSProjectCrudController extends AbstractCrudController
         ;
     }
 
-    public function createEntity(string $entityFqcn)
+    public function createEntity(string $entityFqcn): OSProject
     {
         $project = new OSProject();
         $project->setAuthUrl($this->authUrl);

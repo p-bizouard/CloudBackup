@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\OSProjectRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -23,79 +22,79 @@ class OSProject
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private ?int $id;
+    private ?int $id = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $name;
+    private ?string $name = null;
 
     /**
-    * @ORM\Column(type="string", length=255, unique=true)
-    * @Gedmo\Slug(fields={"name"})
-    */
-    private ?string $slug;
+     * @ORM\Column(type="string", length=255, unique=true)
+     * @Gedmo\Slug(fields={"name"})
+     */
+    private ?string $slug = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $authUrl;
+    private ?string $authUrl = null;
 
     /**
      * @ORM\Column(type="integer")
      * @Assert\NotNull()
      */
-    private ?int $identityApiVersion;
+    private ?int $identityApiVersion = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $userDomainName;
+    private ?string $userDomainName = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $projectDomainName;
+    private ?string $projectDomainName = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $tenantId;
+    private ?string $tenantId = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $tenantName;
+    private ?string $tenantName = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $username;
+    private ?string $username = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private ?string $password;
+    private ?string $password = null;
 
     /**
-     * @var ArrayCollection<OSinstance>
+     * @var Collection<int, OSInstance>
      * @ORM\OneToMany(targetEntity=OSInstance::class, mappedBy="osProject")
      */
-    private $osInstances;
+    private Collection $osInstances;
 
     /**
-     * @var ArrayCollection<Storage>
+     * @var Collection<int, Storage>
      * @ORM\OneToMany(targetEntity=Storage::class, mappedBy="osProject")
      */
-    private $storages;
+    private Collection $storages;
 
     public function __construct()
     {
@@ -221,14 +220,6 @@ class OSProject
         return $this;
     }
 
-    /**
-     * @return Collection|OSInstance[]
-     */
-    public function getInstances(): Collection
-    {
-        return $this->osInstances;
-    }
-
     public function addOSInstance(OSInstance $osInstance): self
     {
         if (!$this->osInstances->contains($osInstance)) {
@@ -252,7 +243,7 @@ class OSProject
     }
 
     /**
-     * @return Collection|OSInstance[]
+     * @return Collection<int, OSInstance>
      */
     public function getOsInstances(): Collection
     {
@@ -260,7 +251,7 @@ class OSProject
     }
 
     /**
-     * @return Collection|Storage[]
+     * @return Collection<int, Storage>
      */
     public function getStorages(): Collection
     {

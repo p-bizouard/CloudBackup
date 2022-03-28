@@ -16,7 +16,7 @@ class MailerService
     ) {
     }
 
-    public function sendFailedBackupReport(Backup $backup)
+    public function sendFailedBackupReport(Backup $backup): void
     {
         $email = new Email();
         $email

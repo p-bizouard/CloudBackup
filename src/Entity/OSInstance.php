@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\OSInstanceRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -22,41 +21,42 @@ class OSInstance
      * @ORM\Id
      * @ORM\Column(type="uuid")
      */
-    private $id;
+    private ?string $id = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $name;
-    
+    private ?string $name = null;
+
     /**
-    * @ORM\Column(type="string", length=255, unique=true)
-    * @Gedmo\Slug(fields={"name"})
-    */
-    private $slug;
+     * @ORM\Column(type="string", length=255, unique=true)
+     * @Gedmo\Slug(fields={"name"})
+     */
+    private ?string $slug = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Assert\NotNull()
      */
-    private $osRegionName;
+    private ?string $osRegionName = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="osInstances")
      * @Assert\NotNull()
      * @ORM\JoinColumn(nullable=false)
      */
-    private $osProject;
+    private ?OSProject $osProject;
 
     /**
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="osInstance")
+     *
+     * @var Collection<int, BackupConfiguration>
      */
-    private $backupConfigurations;
+    private Collection $backupConfigurations;
 
     public function __construct()
     {
-        $this->osInstanceBackups = new ArrayCollection();
         $this->backupConfigurations = new ArrayCollection();
     }
 
@@ -76,18 +76,18 @@ class OSInstance
             'OS_TENANT_NAME' => $this->getOSProject()->getTenantName(),
             'OS_USERNAME' => $this->getOSProject()->getUsername(),
             'OS_PASSWORD' => $this->getOSProject()->getPassword(),
-            'OS_REGION_NAME' => $this->getOSRegionName()
+            'OS_REGION_NAME' => $this->getOSRegionName(),
         ];
     }
 
-    public function setId($id): self
+    public function setId(?string $id): self
     {
         $this->id = $id;
 
         return $this;
     }
 
-    public function getId()
+    public function getId(): ?string
     {
         return $this->id;
     }
@@ -128,9 +128,8 @@ class OSInstance
         return $this;
     }
 
-
     /**
-     * @return Collection|BackupConfiguration[]
+     * @return Collection<int, BackupConfiguration>
      */
     public function getBackupConfigurations(): Collection
     {

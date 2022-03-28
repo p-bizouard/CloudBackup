@@ -67,7 +67,7 @@ class StorageCrudController extends AbstractCrudController
         ];
     }
 
-    public function copyEntity(AdminContext $context)
+    public function copyEntity(AdminContext $context): RedirectResponse
     {
         /** @var Storage */
         $storage = $context->getEntity()->getInstance();

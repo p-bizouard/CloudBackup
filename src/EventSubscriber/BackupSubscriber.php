@@ -8,7 +8,6 @@ use App\Entity\Log;
 use App\Service\BackupService;
 use App\Service\MailerService;
 use Exception;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Workflow\Event\Event;
 use Symfony\Component\Workflow\Event\GuardEvent;
@@ -16,13 +15,12 @@ use Symfony\Component\Workflow\Event\GuardEvent;
 class BackupSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private LoggerInterface $logger,
         private BackupService $backupService,
         private MailerService $mailerService,
     ) {
     }
 
-    public function onStart(Event $event)
+    public function onStart(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -34,7 +32,7 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function onDump(Event $event)
+    public function onDump(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -50,7 +48,7 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function onDownload(Event $event)
+    public function onDownload(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -60,7 +58,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->downloadBackup($backup);
     }
 
-    public function onUpload(Event $event)
+    public function onUpload(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -70,7 +68,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->uploadBackup($backup);
     }
 
-    public function onCleanup(Event $event)
+    public function onCleanup(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -80,7 +78,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->cleanBackup($backup);
     }
 
-    public function onHealthCheck(Event $event)
+    public function onHealthCheck(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -90,7 +88,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->healhCheckBackup($backup);
     }
 
-    public function onFailed(Event $event)
+    public function onFailed(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -102,7 +100,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->mailerService->sendFailedBackupReport($backup);
     }
 
-    public function onEnterAll(Event $event)
+    public function onEnterAll(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -110,7 +108,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('Transition from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
-    public function guardStart(GuardEvent $event)
+    public function guardStart(GuardEvent $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -127,7 +125,7 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function guardDownload(GuardEvent $event)
+    public function guardDownload(GuardEvent $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -140,7 +138,7 @@ class BackupSubscriber implements EventSubscriberInterface
                         $message = 'Snaphot not found';
 
                         $event->setBlocked(true, $message);
-                        $this->backupService->log($backup, Log::LOG_WARNING, $message, $status);
+                        $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     } elseif ('active' !== $status) {
                         $message = sprintf('Snapshot not ready : %s', $status);
 
@@ -152,13 +150,13 @@ class BackupSubscriber implements EventSubscriberInterface
                     break;
             }
         } catch (Exception $e) {
-            $this->backupService->log($backup, Log::LOG_WARNING, sprintf('Guard download error : ', $e->getMessage()));
+            $this->backupService->log($backup, Log::LOG_WARNING, sprintf('Guard download error : %s', $e->getMessage()));
 
             $event->setBlocked(true, $e->getMessage());
         }
     }
 
-    public function guardUpload(GuardEvent $event)
+    public function guardUpload(GuardEvent $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -197,23 +195,23 @@ class BackupSubscriber implements EventSubscriberInterface
                     break;
             }
         } catch (Exception $e) {
-            $this->backupService->log($backup, Log::LOG_ERROR, sprintf('Guard upload error : ', $e->getMessage()));
+            $this->backupService->log($backup, Log::LOG_ERROR, sprintf('Guard upload error : %s', $e->getMessage()));
 
             $event->setBlocked(true, $e->getMessage());
         }
     }
 
-    public function guardCleanup(GuardEvent $event)
+    public function guardCleanup(GuardEvent $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
 
-        /**
+        /*
          * @TODO ?
          */
     }
 
-    public function guardHealhCheck(GuardEvent $event)
+    public function guardHealhCheck(GuardEvent $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
@@ -229,7 +227,7 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             'workflow.backup.enter.start' => 'onStart',

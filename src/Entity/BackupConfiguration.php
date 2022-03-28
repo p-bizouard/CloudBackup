@@ -10,7 +10,6 @@ use Exception;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * @ORM\Entity(repositoryClass=BackupConfigurationRepository::class)
@@ -29,18 +28,18 @@ class BackupConfiguration
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private ?string $name;
+    private ?string $name = null;
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
      * @Gedmo\Slug(fields={"name"})
      */
-    private ?string $slug;
+    private ?string $slug = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private ?string $type;
+    private ?string $type = null;
 
     /**
      * @ORM\Column(type="string", length=255)
@@ -62,12 +61,12 @@ class BackupConfiguration
      * @ORM\ManyToOne(targetEntity=Storage::class, inversedBy="backupConfigurations")
      * @ORM\JoinColumn(nullable=false)
      */
-    private Storage $storage;
+    private ?Storage $storage;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $storageSubPath;
+    private ?string $storageSubPath = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSInstance::class, inversedBy="backupConfigurations")
@@ -75,11 +74,12 @@ class BackupConfiguration
     private OSInstance $osInstance;
 
     /**
-     * @var Collection<Backup>
      * @ORM\OneToMany(targetEntity=Backup::class, mappedBy="backupConfiguration")
      * @ORM\OrderBy({"id" = "DESC"})
+     *
+     * @var Collection<int, Backup>
      */
-    private $backups;
+    private Collection $backups;
 
     /**
      * @ORM\Column(type="boolean", options={"default" : true})
@@ -89,7 +89,7 @@ class BackupConfiguration
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    private ?string $dumpCommand;
+    private ?string $dumpCommand = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=Host::class, inversedBy="backupConfigurations")
@@ -99,27 +99,27 @@ class BackupConfiguration
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $remotePath;
+    private ?string $remotePath = null;
 
     /**
      * @ORM\Column(type="bigint", nullable=true)
      */
-    private ?int $minimumBackupSize;
+    private ?string $minimumBackupSize = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $remoteCleanCommand;
+    private ?string $remoteCleanCommand = null;
 
     /**
      * @ORM\Column(type="string", length=20, nullable=true)
      */
-    private ?string $customExtension;
+    private ?string $customExtension = null;
 
     /**
      * @ORM\Column(type="smallint", nullable=true)
      */
-    private ?int $notBefore;
+    private ?int $notBefore = null;
 
     public const PERIODICITY_DAILY = 'daily';
 
@@ -183,20 +183,16 @@ class BackupConfiguration
         switch ($this->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
                 return 'qcow2';
-                break;
             case BackupConfiguration::TYPE_MYSQL:
                 return 'sql';
-                break;
             case BackupConfiguration::TYPE_SQL_SERVER:
                 return 'bak';
-                break;
             case BackupConfiguration::TYPE_POSTGRESQL:
                 return 'sqlc';
-                break;
             case BackupConfiguration::TYPE_SSH_CMD:
                 return 'dump';
-                break;
         }
+
         return null;
     }
 
@@ -211,17 +207,17 @@ class BackupConfiguration
     public function getResticEnv(): array
     {
         return [
-            'RESTIC_PASSWORD' => $this->getStorage()->getResticPassword(),
+            'RESTIC_PASSWORD' => $this->getStorage()?->getResticPassword(),
             'RESTIC_REPOSITORY' => sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
         ];
     }
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
     }
 
-    public function getType(): ?string
+    public function getType(): string
     {
         return $this->type;
     }
@@ -233,7 +229,7 @@ class BackupConfiguration
         return $this;
     }
 
-    public function getPeriodicity(): ?string
+    public function getPeriodicity(): string
     {
         return $this->periodicity;
     }
@@ -245,12 +241,12 @@ class BackupConfiguration
         return $this;
     }
 
-    public function getKeepDaily(): ?int
+    public function getKeepDaily(): int
     {
         return $this->keepDaily;
     }
 
-    public function setKeepDaily(?int $keepDaily): self
+    public function setKeepDaily(int $keepDaily): self
     {
         $this->keepDaily = $keepDaily;
 
@@ -318,7 +314,7 @@ class BackupConfiguration
     }
 
     /**
-     * @return Collection|Backup[]
+     * @return Collection<int, Backup>
      */
     public function getBackups(): Collection
     {

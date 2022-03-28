@@ -35,7 +35,7 @@ class UserCrudController extends AbstractCrudController
         ];
     }
 
-    public function createEntity(string $entityFqcn)
+    public function createEntity(string $entityFqcn): User
     {
         $user = new User();
         $user->setRoles(['ROLE_ADMIN']);

@@ -7,10 +7,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @method OSProject|null find($id, $lockMode = null, $lockVersion = null)
- * @method OSProject|null findOneBy(array $criteria, array $orderBy = null)
- * @method OSProject[]    findAll()
- * @method OSProject[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @extends ServiceEntityRepository<OSProject>
  */
 class OSProjectRepository extends ServiceEntityRepository
 {

@@ -7,7 +7,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
-use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Entity(repositoryClass=StorageRepository::class)
@@ -21,17 +20,17 @@ class Storage
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private ?int $id;
+    private ?int $id = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private ?string $name;
+    private ?string $name = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private ?string $type;
+    private ?string $type = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="storages")
@@ -41,23 +40,24 @@ class Storage
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $osRegionName;
+    private ?string $osRegionName = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $resticPassword;
+    private ?string $resticPassword = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private ?string $resticRepo;
+    private ?string $resticRepo = null;
 
     /**
-     * @var ArrayCollection<BackupConfiguration>
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="storage")
+     *
+     * @var Collection<int, BackupConfiguration>
      */
-    private $backupConfigurations;
+    private Collection $backupConfigurations;
 
     public const TYPE_RESTIC = 'restic';
 
@@ -168,7 +168,7 @@ class Storage
     }
 
     /**
-     * @return Collection|BackupConfiguration[]
+     * @return Collection<int,BackupConfiguration>
      */
     public function getBackupConfigurations(): Collection
     {

@@ -17,34 +17,34 @@ class Log
      * @ORM\Column(type="integer")
      * @ORM\GeneratedValue(strategy="AUTO")
      */
-    protected $id;
+    protected ?int $id = null;
 
     /**
      * @ORM\Column(name="message", type="text")
      */
-    private $message;
+    private ?string $message = null;
 
     /**
      * @ORM\Column(name="level", type="string", length=50)
      */
-    private $level;
+    private ?string $level = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=Backup::class, inversedBy="logs")
      */
-    private $backup;
+    private ?Backup $backup;
 
-    const LOG_ERROR = 'error';
-    const LOG_WARNING = 'warning';
-    const LOG_NOTICE = 'notice';
-    const LOG_INFO = 'info';
+    public const LOG_ERROR = 'error';
+    public const LOG_WARNING = 'warning';
+    public const LOG_NOTICE = 'notice';
+    public const LOG_INFO = 'info';
 
     public function __toString(): string
     {
         return sprintf('%s - %s', $this->level, $this->message);
     }
 
-    public function getBootstrapColor(): string
+    public function getBootstrapColor(): ?string
     {
         switch ($this->level) {
             case self::LOG_ERROR:
@@ -56,9 +56,11 @@ class Log
             case self::LOG_INFO:
                 return 'secondary';
         }
+
+        return null;
     }
 
-    public function getMessageColor(): string
+    public function getMessageColor(): ?string
     {
         switch ($this->level) {
             case self::LOG_ERROR:
@@ -70,6 +72,8 @@ class Log
             case self::LOG_INFO:
                 return 'black';
         }
+
+        return null;
     }
 
     /**

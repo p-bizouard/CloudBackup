@@ -62,8 +62,10 @@ class Host
 
     /**
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="host")
+     *
+     * @var Collection<int, BackupConfiguration>
      */
-    private $backupConfigurations;
+    private Collection $backupConfigurations;
 
     public function __construct()
     {
@@ -165,7 +167,7 @@ class Host
     }
 
     /**
-     * @return Collection|BackupConfiguration[]
+     * @return Collection<int, BackupConfiguration>
      */
     public function getBackupConfigurations(): Collection
     {

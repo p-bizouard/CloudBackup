@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\BackupRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -21,38 +20,40 @@ class Backup
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    private $id;
+    private ?int $id = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=BackupConfiguration::class, inversedBy="backups")
      */
-    private $backupConfiguration;
+    private ?BackupConfiguration $backupConfiguration = null;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    private $currentPlace = 'initialized';
+    private ?string $currentPlace = 'initialized';
 
     /**
      * @ORM\OneToMany(targetEntity=Log::class, mappedBy="backup", cascade={"remove"})
      * @ORM\OrderBy({"id" = "DESC"})
+     *
+     * @var Collection<int, Log>
      */
-    private $logs;
+    private Collection $logs;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $osImageId;
+    private ?string $osImageId = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $checksum;
+    private ?string $checksum = null;
 
     /**
      * @ORM\Column(type="bigint", nullable=true)
      */
-    private $size;
+    private ?int $size = null;
 
     public function __construct()
     {
@@ -70,7 +71,7 @@ class Backup
             return sprintf(
                 '%s-%s',
                 $this->getBackupConfiguration()->getSlug(),
-                (null === $this->getCreatedAt() ? new DateTime() : $this->getCreatedAt())->format('Y-m-d')
+                $this->getCreatedAt()->format('Y-m-d')
             );
         } else {
             return sprintf(
@@ -131,7 +132,7 @@ class Backup
     }
 
     /**
-     * @return Collection|Log[]
+     * @return Collection<int, Log>
      */
     public function getLogs(): Collection
     {

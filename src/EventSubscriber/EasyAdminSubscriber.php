@@ -11,13 +11,8 @@ use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 
 class EasyAdminSubscriber implements EventSubscriberInterface
 {
-    private $entityManager;
-    private $passwordEncoder;
-
-    public function __construct(EntityManagerInterface $entityManager, UserPasswordEncoderInterface $passwordEncoder)
+    public function __construct(private EntityManagerInterface $entityManager, private UserPasswordEncoderInterface $passwordEncoder)
     {
-        $this->entityManager = $entityManager;
-        $this->passwordEncoder = $passwordEncoder;
     }
 
     public static function getSubscribedEvents()
@@ -28,7 +23,7 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         ];
     }
 
-    public function updateUser(BeforeEntityUpdatedEvent $event)
+    public function updateUser(BeforeEntityUpdatedEvent $event): void
     {
         $entity = $event->getEntityInstance();
 
@@ -38,7 +33,7 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         $this->setPassword($entity);
     }
 
-    public function addUser(BeforeEntityPersistedEvent $event)
+    public function addUser(BeforeEntityPersistedEvent $event): void
     {
         $entity = $event->getEntityInstance();
 
@@ -48,14 +43,11 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         $this->setPassword($entity);
     }
 
-    /**
-     * @param User $entity
-     */
     public function setPassword(User $entity): void
     {
         $pass = $entity->getPlainPassword();
 
-        if ($pass !== null) {
+        if (null !== $pass) {
             $entity->setPassword(
                 $this->passwordEncoder->encodePassword(
                     $entity,
