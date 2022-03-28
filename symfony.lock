@@ -5,6 +5,15 @@
     "composer/package-versions-deprecated": {
         "version": "1.11.99.1"
     },
+    "composer/pcre": {
+        "version": "3.0.0"
+    },
+    "composer/semver": {
+        "version": "3.3.1"
+    },
+    "composer/xdebug-handler": {
+        "version": "3.0.3"
+    },
     "doctrine/annotations": {
         "version": "1.0",
         "recipe": {
@@ -103,6 +112,18 @@
     "fakerphp/faker": {
         "version": "v1.14.1"
     },
+    "friendsofphp/php-cs-fixer": {
+        "version": "3.8",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "master",
+            "version": "3.0",
+            "ref": "be2103eb4a20942e28a6dd87736669b757132435"
+        },
+        "files": [
+            ".php-cs-fixer.dist.php"
+        ]
+    },
     "friendsofphp/proxy-manager-lts": {
         "version": "v1.0.3"
     },
@@ -157,6 +178,9 @@
     "nikic/php-parser": {
         "version": "v4.10.4"
     },
+    "php-cs-fixer/diff": {
+        "version": "v2.0.2"
+    },
     "phpdocumentor/reflection-common": {
         "version": "2.2.0"
     },
@@ -165,6 +189,21 @@
     },
     "phpdocumentor/type-resolver": {
         "version": "1.4.0"
+    },
+    "phpstan/extension-installer": {
+        "version": "1.1.0"
+    },
+    "phpstan/phpstan": {
+        "version": "1.5.1"
+    },
+    "phpstan/phpstan-doctrine": {
+        "version": "1.2.11"
+    },
+    "phpstan/phpstan-phpunit": {
+        "version": "1.1.0"
+    },
+    "phpstan/phpstan-symfony": {
+        "version": "1.1.8"
     },
     "phuml/phuml": {
         "version": "dev-characterization-tests"

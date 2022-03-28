@@ -58,7 +58,13 @@
         "twig/twig": "^2.12|^3.0"
     },
     "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.8",
         "hautelook/alice-bundle": "^2.9",
+        "phpstan/extension-installer": "^1.1",
+        "phpstan/phpstan": "^1.5",
+        "phpstan/phpstan-doctrine": "^1.2",
+        "phpstan/phpstan-phpunit": "^1.1",
+        "phpstan/phpstan-symfony": "^1.1",
         "phpunit/phpunit": "^9.5",
         "symfony/browser-kit": "5.4.*",
         "symfony/css-selector": "5.4.*",
@@ -72,7 +78,11 @@
         "preferred-install": {
             "*": "dist"
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "symfony/flex": true,
+            "phpstan/extension-installer": true
+        }
     },
     "autoload": {
         "psr-4": {
