@@ -67,6 +67,16 @@ App\Entity\BackupConfiguration:
         osInstance: "@os-instance"
         storageSubPath: "daily-snapshot"
         enabled: false
+    daily-failed-instance:
+        name: daily-failed-instance
+        type: os-instance
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        osInstance: "@os-instance"
+        storageSubPath: "daily-failed-snapshot"
+        enabled: false
     daily-mysql:
         name: daily-mysql
         type: mysql
@@ -173,3 +183,9 @@ App\Entity\BackupConfiguration:
         remotePath: "/var/www/v2/prod.sh"
         minimumBackupSize: 1
         enabled: false
+
+App\Entity\Backup:
+    failed:
+        backupConfiguration: "@daily-failed-instance"
+        currentPlace: dump
+        createdAt: <(new DateTime("yesterday"))>
