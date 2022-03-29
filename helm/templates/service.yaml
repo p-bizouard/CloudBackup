@@ -31,6 +31,7 @@ spec:
   selector:
     app: php
     {{- include "openstack-backup.selectorLabels" . | nindent 4 }}
+{{- if .Values.postgres.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -48,6 +49,7 @@ spec:
   selector:
     app: postgres
     {{- include "openstack-backup.selectorLabels" . | nindent 4 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
