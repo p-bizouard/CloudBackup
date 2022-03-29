@@ -20,7 +20,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: backup-cronjob
-              image: "{{ .Values.image.repository }}/php:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              image: "{{ .Values.image.repository }}-php:{{ .Values.image.tag | default .Chart.AppVersion }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               volumeMounts:
                 - name: "env"
