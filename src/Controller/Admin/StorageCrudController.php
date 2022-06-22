@@ -62,6 +62,9 @@ class StorageCrudController extends AbstractCrudController
             AssociationField::new('backupConfigurations')->hideOnForm(),
             AssociationField::new('osProject'),
             TextField::new('osRegionName'),
+            TextField::new('awsAccessKeyId'),
+            TextField::new('awsSecretAccessKey'),
+            TextField::new('awsDefaultRegion'),
             TextField::new('resticPassword')->hideOnIndex()->setRequired(true),
             TextField::new('resticRepo')->setRequired(true),
         ];

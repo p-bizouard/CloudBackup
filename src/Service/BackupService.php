@@ -299,7 +299,7 @@ class BackupService
             $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()?->getPrivateKey()."\n"));
 
             if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-                $sshpass = sprintf('sshpass -p %s', $backup->getBackupConfiguration()->getHost()->getPassword());
+                $sshpass = sprintf('echo "%s" |', $backup->getBackupConfiguration()->getHost()->getPassword());
             } else {
                 $sshpass = '';
             }
@@ -490,7 +490,7 @@ class BackupService
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        $env = $backup->getBackupConfiguration()->getStorage()->getOSEnv() + $backup->getBackupConfiguration()->getResticEnv();
+        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
         $filesystem = new Filesystem();
         $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
@@ -562,7 +562,7 @@ class BackupService
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        $env = $backup->getBackupConfiguration()->getStorage()->getOSEnv() + $backup->getBackupConfiguration()->getResticEnv();
+        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
@@ -638,7 +638,7 @@ class BackupService
 
     private function cleanBackupRestic(Backup $backup): void
     {
-        $env = $backup->getBackupConfiguration()->getStorage()->getOSEnv() + $backup->getBackupConfiguration()->getResticEnv();
+        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
         $command = sprintf(
             'restic forget --prune %s',
@@ -833,7 +833,7 @@ class BackupService
     {
         switch ($backup->getBackupConfiguration()->getStorage()->getType()) {
             case Storage::TYPE_RESTIC:
-                $env = $backup->getBackupConfiguration()->getStorage()->getOSEnv() + $backup->getBackupConfiguration()->getResticEnv();
+                $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
                 $command = 'restic check';
 
@@ -887,7 +887,7 @@ class BackupService
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        $env = $backup->getBackupConfiguration()->getStorage()->getOSEnv() + $backup->getBackupConfiguration()->getResticEnv();
+        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
         $command = 'restic init';
 

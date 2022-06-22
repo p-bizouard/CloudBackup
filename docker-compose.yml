@@ -1,7 +1,7 @@
 version: "3.7"
 services:
     postgres:
-        container_name: postgres
+        container_name: cloudbkp-postgres
         image: postgres:12
         restart: on-failure
         environment:
@@ -12,7 +12,7 @@ services:
             - "${DATABASE_PORT:-5432}:5432"
 
     postgres_test:
-        container_name: phppgadmin_test
+        container_name: cloudbkp-phppgadmin-test
         image: postgres:12
         restart: on-failure
         environment:
@@ -23,7 +23,7 @@ services:
             - ${DATABASE_TEST_PORT:-8432}:5432
 
     phppgadmin_dev:
-        container_name: phppgadmin
+        container_name: cloudbkp-phppgadmin
         image: bitnami/phppgadmin
         restart: on-failure
         environment:
@@ -31,8 +31,22 @@ services:
         ports:
             - "${DATABASE_PORT:-9080}:8080"
 
+    minio:
+        container_name: cloudbkp-minio
+        image: minio/minio
+        restart: on-failure
+        ports:
+            - "${MINIO_PORT:-9000}:9000"
+            - "${MINIO_CONSOLE_PORT:-9001}:9001"
+        volumes:
+            - minio:/data
+        environment:
+            MINIO_ROOT_USER: minioadmin
+            MINIO_ROOT_PASSWORD: minioadmin
+        command: server --address ":9000" --console-address ":9001" /data
+
     redis:
-        container_name: redis
+        container_name: cloudbkp-redis
         image: redis:5.0.8
         restart: on-failure
         command: >
@@ -41,15 +55,15 @@ services:
             - "${REDIS_PORT:-6379}:6379"
 
     mailhog_dev:
-        container_name: mailhog
+        container_name: cloudbkp-mailhog
         image: mailhog/mailhog
         restart: always
         ports:
             - ${MAILHOG_PORT_SMTP:-1025}:1025
             - ${MAILHOG_PORT_HTTP:-8025}:8025
 
-    assets_dev:
-        container_name: assets
+    assets:
+        container_name: cloudbkp-assets
         user: "$UID:$GID"
         build:
             context: .
@@ -62,7 +76,7 @@ services:
             - ${ENCORE_PORT_HTTP:-8080}:8080
 
     php:
-        container_name: php
+        container_name: cloudbkp-php
         user: "$UID:$GID"
         build:
             context: .
@@ -71,7 +85,7 @@ services:
         depends_on:
             - postgres
             - redis
-            - assets_dev
+            - assets
         volumes:
             - ".:/app:rw"
         devices:
@@ -79,7 +93,7 @@ services:
         cap_add:
             - SYS_ADMIN
     nginx:
-        container_name: nginx
+        container_name: cloudbkp-nginx
         build:
             context: .
             dockerfile: ./docker/nginx/Dockerfile.dev
@@ -94,3 +108,4 @@ services:
 
 volumes:
     build:
+    minio:

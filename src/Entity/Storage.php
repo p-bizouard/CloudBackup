@@ -45,6 +45,21 @@ class Storage
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
+    private ?string $awsAccessKeyId = null;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private ?string $awsSecretAccessKey = null;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private ?string $awsDefaultRegion = null;
+
+    /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
     private ?string $resticPassword = null;
 
     /**
@@ -75,19 +90,32 @@ class Storage
     {
         if (null !== $this->getOSProject()) {
             return [
-            'OS_AUTH_URL' => $this->getOSProject()->getAuthUrl(),
-            'OS_IDENTITY_API_VERSION' => $this->getOSProject()->getIdentityApiVersion(),
-            'OS_USER_DOMAIN_NAME' => $this->getOSProject()->getUserDomainName(),
-            'OS_PROJECT_DOMAIN_NAME' => $this->getOSProject()->getProjectDomainName(),
-            'OS_TENANT_ID' => $this->getOSProject()->getTenantId(),
-            'OS_TENANT_NAME' => $this->getOSProject()->getTenantName(),
-            'OS_USERNAME' => $this->getOSProject()->getUsername(),
-            'OS_PASSWORD' => $this->getOSProject()->getPassword(),
-            'OS_REGION_NAME' => $this->getOSRegionName(),
-        ];
+                'OS_AUTH_URL' => $this->getOSProject()->getAuthUrl(),
+                'OS_IDENTITY_API_VERSION' => $this->getOSProject()->getIdentityApiVersion(),
+                'OS_USER_DOMAIN_NAME' => $this->getOSProject()->getUserDomainName(),
+                'OS_PROJECT_DOMAIN_NAME' => $this->getOSProject()->getProjectDomainName(),
+                'OS_TENANT_ID' => $this->getOSProject()->getTenantId(),
+                'OS_TENANT_NAME' => $this->getOSProject()->getTenantName(),
+                'OS_USERNAME' => $this->getOSProject()->getUsername(),
+                'OS_PASSWORD' => $this->getOSProject()->getPassword(),
+                'OS_REGION_NAME' => $this->getOSRegionName(),
+            ];
         } else {
             return [];
         }
+    }
+
+    public function getAwsEnv(): array
+    {
+        return [
+            'AWS_ACCESS_KEY_ID' => $this->getAwsAccessKeyId(),
+            'AWS_SECRET_ACCESS_KEY' => $this->getAwsSecretAccessKey(),
+            'AWS_DEFAULT_REGION' => $this->getAwsDefaultRegion(),
+        ];
+    }
+
+    public function getEnv(): array {
+        return $this->getOSEnv() + $this->getAwsEnv();
     }
 
     public static function getAvailableTypes(): array
@@ -205,6 +233,42 @@ class Storage
     public function setName(string $name): self
     {
         $this->name = $name;
+
+        return $this;
+    }
+
+    public function getAwsAccessKeyId(): ?string
+    {
+        return $this->awsAccessKeyId;
+    }
+
+    public function setAwsAccessKeyId(?string $awsAccessKeyId): self
+    {
+        $this->awsAccessKeyId = $awsAccessKeyId;
+
+        return $this;
+    }
+
+    public function getAwsSecretAccessKey(): ?string
+    {
+        return $this->awsSecretAccessKey;
+    }
+
+    public function setAwsSecretAccessKey(?string $awsSecretAccessKey): self
+    {
+        $this->awsSecretAccessKey = $awsSecretAccessKey;
+
+        return $this;
+    }
+
+    public function getAwsDefaultRegion(): ?string
+    {
+        return $this->awsDefaultRegion;
+    }
+
+    public function setAwsDefaultRegion(?string $awsDefaultRegion): self
+    {
+        $this->awsDefaultRegion = $awsDefaultRegion;
 
         return $this;
     }
