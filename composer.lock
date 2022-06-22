@@ -4046,16 +4046,16 @@
         },
         {
             "name": "symfony/flex",
-            "version": "v1.17.6",
+            "version": "v1.19.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/flex.git",
-                "reference": "7a79135e1dc66b30042b4d968ecba0908f9374bc"
+                "reference": "d1a692369be53445af6e391170b509d7f5d026cf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/flex/zipball/7a79135e1dc66b30042b4d968ecba0908f9374bc",
-                "reference": "7a79135e1dc66b30042b4d968ecba0908f9374bc",
+                "url": "https://api.github.com/repos/symfony/flex/zipball/d1a692369be53445af6e391170b509d7f5d026cf",
+                "reference": "d1a692369be53445af6e391170b509d7f5d026cf",
                 "shasum": ""
             },
             "require": {
@@ -4091,7 +4091,7 @@
             "description": "Composer plugin for Symfony",
             "support": {
                 "issues": "https://github.com/symfony/flex/issues",
-                "source": "https://github.com/symfony/flex/tree/v1.17.6"
+                "source": "https://github.com/symfony/flex/tree/v1.19.2"
             },
             "funding": [
                 {
@@ -4107,7 +4107,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-11-29T15:39:37+00:00"
+            "time": "2022-06-14T21:13:39+00:00"
         },
         {
             "name": "symfony/form",
@@ -11879,5 +11879,5 @@
         "ext-iconv": "*"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.2.0"
+    "plugin-api-version": "2.1.0"
 }
