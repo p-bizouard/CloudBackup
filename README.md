@@ -2,15 +2,15 @@
 
 ## Description
 
-CloudBackup is a backup software for cloud data. It can backup:
+CloudBackup is a backup software powered by Restic. It can backup:
 
--   Openstack servers
--   MySQL databases (direct connection or with ssh gateway)
+-   Openstack instances
+-   MySQL/PostgreSQL databases (direct connection or with ssh gateway)
 -   Custom remote command by ssh
 -   Remote directory mounted with sshfs
 -   Remote directory backuped by restic if restic is locally available
 
-CloudBackup can store data with Restic
+The dashboard show all backup statuses, and provide the restic commands to download your data.
 
 ### Global workflow
 
@@ -24,10 +24,10 @@ CloudBackup can store data with Restic
 
 -   [x] Source - Remote directory
 -   [x] Email reports
--   [ ] Source - PostgreSQL
--   [ ] Destination - Rsync or scp
--   [ ] Destination - FTP
--   [ ] Microsoft Teams or Slack notification
+-   [x] Source - PostgreSQL
+-   [x] Restic S3
+-   [ ] Optional restic backup arguments
+-   [ ] Start manual backup
 
 ## Requirements
 
@@ -38,13 +38,13 @@ CloudBackup can store data with Restic
 
 -   Install dependencies, configure environments, run containers:
 
-```
+```shell
 cp -f .env .env.local
 ```
 
 -   Launch php + database + assets
 
-```
+```shell
 ./start-dev.sh
 ```
 
@@ -52,7 +52,7 @@ cp -f .env .env.local
 
 -   Create database and load fixtures:
 
-```
+```shell
 docker-compose exec php bin/console doctrine:database:create
 docker-compose exec php bin/console doctrine:migrations:migrate
 docker-compose exec php bin/console hautelook:fixtures:load --env=dev
@@ -62,7 +62,7 @@ docker-compose exec php bin/console hautelook:fixtures:load --env=dev
 
 ### Launch the development environment
 
-```
+```shell
 ./start-dev.sh
 ```
 
@@ -71,6 +71,12 @@ docker-compose exec php bin/console hautelook:fixtures:load --env=dev
 -   Mailhog : http://localhost:8025/
 -   phpPgAdmin : http://localhost:9080/
 -   Webapp : http://localhost/
+
+### Start backups
+
+```shell
+docker-compose exec php bin/console app:backup:start
+```
 
 ### Useful commands - Symfony with docker cheatsheet
 
