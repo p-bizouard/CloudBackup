@@ -2,23 +2,30 @@
 
 {% block main %}
     {{ parent() }}
-    
-    <h3>Restic</h3>
+
+    <h3>
+        Restic
+    </h3>
     <div class="content-panel">
         <div class="content-panel-body without-header without-footer without-padding">
             <dl class="datalist">
                 <div class="data-row">
                     <dd>Help</dd>
                     <dl>
-                        <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet" target="_blank">Restic cheatsheet <i class="fas fa-external-link-alt"></i></a>
+                        <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet"
+                            target="_blank">
+                            Restic cheatsheet <i class="fas fa-external-link-alt"></i>
+                        </a>
                     </dl>
                 </div>
                 <div class="data-row">
                     <dd>Copy env</dd>
                     <dl>
                         <pre class="blur mb-0">
-                            {%- for envName, envValue in (entity.instance.storage.osEnv | merge(entity.instance.resticEnv)) -%}
-                                export {{ envName }}={{ envValue }}{{ "\n" }}
+                            {%- for envName, envValue in entity.instance.storage.env|merge(
+                                entity.instance.resticEnv
+                            ) -%}
+                                export {{ envName }}={{ envValue }}{{ '\n' }}
                             {%- endfor -%}
                         </pre>
                     </dl>
@@ -26,37 +33,60 @@
                 <div class="data-row">
                     <dd>List snapshots</dd>
                     <dl>
-                        <pre class="mb-0">restic snapshots</pre>
+                        <pre class="mb-0">
+                            restic snapshots
+                        </pre>
                     </dl>
 
                     <dd>Mount backups on read-only</dd>
                     <dl>
-                        <pre class="mb-0">restic mount /mnt/restic</pre>
+                        <pre class="mb-0">
+                            restic mount /mnt/restic
+                        </pre>
                     </dl>
 
                     <dd>Restore backups in /tmp</dd>
                     <dl>
-                        <pre class="mb-0">restic restore latest --target /tmp/</pre>
+                        <pre class="mb-0">
+                            restic restore latest --target /tmp/
+                        </pre>
                     </dl>
 
                     <dd>Print last backup on stdin</dd>
                     <dl>
-                        <pre class="mb-0">restic snapshots # List snapshots and copy path</pre>
-                        <pre class="mb-0">restic dump latest _PATH_</pre>
+                        <pre class="mb-0">
+                            restic snapshots # List snapshots and copy path
+                        </pre>
+                        <pre class="mb-0">
+                            restic dump latest _PATH_
+                        </pre>
                     </dl>
                 </div>
             </dl>
         </div>
     </div>
-    
-    <h3>Backups</h3>
+
+    <h3>
+        Backups
+    </h3>
     <div class="content-panel">
         <div class="content-panel-body without-header without-footer without-padding">
             <dl class="datalist">
                 {% for backup in entity.instance.backups %}
-                    <div class="data-row {{ loop.index is even ? 'with-background' }}">
-                        <dd>{{ backup.createdAt | date('Y-m-d H:i') }}</dd>
-                        <dl><span class="badge badge-{{ backup.bootstrapColor }}">{{ backup.currentPlace }}</span>{% if backup.size %} {{ backup.size|humanizeFilesize }}{% endif %}</dl>
+                    <div class="data-row {{
+                        loop.index is even
+                            ? 'with-background'
+                        }}">
+                        <dd>{{ backup.createdAt|date('Y-m-d H:i') }}</dd>
+                        <dl>
+                            <span class="badge badge-{{
+                                backup.bootstrapColor
+                                }}">
+                                {{ backup.currentPlace }}
+                            </span>{% if backup.size %}
+                                {{ backup.size|humanizeFilesize }}
+                            {% endif %}
+                        </dl>
                     </div>
                 {% endfor %}
             </dl>

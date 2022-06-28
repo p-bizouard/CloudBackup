@@ -71,7 +71,7 @@
             {%- for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) -%}
                 <h3># {{ backupConfiguration.name }} from {{ backupConfiguration.storage.name }} ({{ backupConfiguration.backups.first.size|humanizeFilesize }})</h3>
                 <pre class="blur mb-0">
-                    {%- for envName, envValue in (backupConfiguration.storage.osEnv | merge(backupConfiguration.resticEnv)) -%}
+                    {%- for envName, envValue in (backupConfiguration.storage.env | merge(backupConfiguration.resticEnv)) -%}
                         export {{ envName }}={{ envValue }}{{ "\n" }}
                     {%- endfor -%}
 

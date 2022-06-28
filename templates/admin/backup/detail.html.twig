@@ -2,23 +2,30 @@
 
 {% block main %}
     {{ parent() }}
-    
-    <h3>Restic</h3>
+
+    <h3>
+        Restic
+    </h3>
     <div class="content-panel">
         <div class="content-panel-body without-header without-footer without-padding">
             <dl class="datalist">
                 <div class="data-row">
                     <dd>Help</dd>
                     <dl>
-                        <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet" target="_blank">Restic cheatsheet <i class="fas fa-external-link-alt"></i></a>
+                        <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet"
+                            target="_blank">
+                            Restic cheatsheet <i class="fas fa-external-link-alt"></i>
+                        </a>
                     </dl>
                 </div>
                 <div class="data-row">
                     <dd>Copy env</dd>
                     <dl>
                         <pre class="blur mb-0">
-                            {%- for envName, envValue in (entity.instance.backupConfiguration.storage.osEnv | merge(entity.instance.backupConfiguration.resticEnv)) -%}
-                                export {{ envName }}={{ envValue }}{{ "\n" }}
+                            {%- for envName, envValue in entity.instance.backupConfiguration.storage.env|merge(
+                                entity.instance.backupConfiguration.resticEnv
+                            ) -%}
+                                export {{ envName }}={{ envValue }}{{ '\n' }}
                             {%- endfor -%}
                         </pre>
                     </dl>
@@ -26,39 +33,61 @@
                 <div class="data-row">
                     <dd>List snapshots</dd>
                     <dl>
-                        <pre class="mb-0">restic snapshots</pre>
+                        <pre class="mb-0">
+                            restic snapshots
+                        </pre>
                     </dl>
 
                     <dd>Mount backups on read-only</dd>
                     <dl>
-                        <pre class="mb-0">restic mount /mnt/restic</pre>
+                        <pre class="mb-0">
+                            restic mount /mnt/restic
+                        </pre>
                     </dl>
 
                     <dd>Restore backups in /tmp</dd>
                     <dl>
-                        <pre class="mb-0">restic restore latest --target /tmp/</pre>
+                        <pre class="mb-0">
+                            restic restore latest --target /tmp/
+                        </pre>
                     </dl>
 
                     <dd>Print last backup on stdin</dd>
                     <dl>
-                        <pre class="mb-0">restic snapshots # List snapshots and copy path</pre>
-                        <pre class="mb-0">restic dump latest _PATH_</pre>
+                        <pre class="mb-0">
+                            restic snapshots # List snapshots and copy path
+                        </pre>
+                        <pre class="mb-0">
+                            restic dump latest _PATH_
+                        </pre>
                     </dl>
                 </div>
             </dl>
         </div>
     </div>
-    
-    <h3>Logs</h3>
+
+    <h3>
+        Logs
+    </h3>
     <div class="content-panel">
         <div class="content-panel-body without-header without-footer without-padding">
             <dl class="datalist">
                 {% for log in entity.instance.logs %}
-                    <div class="data-row {{ loop.index is even ? 'with-background' }}">
-                        <dd>{{ log.createdAt | date('Y-m-d H:i:s') }} <span class="badge badge-{{ log.bootstrapColor }}">{{ log.level }}</span></dd>
+                    <div class="data-row {{
+                        loop.index is even
+                            ? 'with-background'
+                        }}">
+                        <dd>
+                            {{ log.createdAt|date('Y-m-d H:i:s') }}
+                            <span class="badge badge-{{ log.bootstrapColor }}">
+                                {{ log.level }}
+                            </span>
+                        </dd>
                         <dl>
                             {% if log.message matches '{\n}' %}
-                                <pre>{{ log.message }}</pre>
+                                <pre>
+                                    {{ log.message }}
+                                </pre>
                             {% else %}
                                 {{ log.message }}
                             {% endif %}
