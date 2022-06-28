@@ -8,9 +8,7 @@ use App\Service\BackupService;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Lock\LockFactory;
@@ -36,19 +34,12 @@ class BackupStartCommand extends Command
     {
         $this
             ->setDescription(self::$defaultDescription)
-            ->addArgument('os-instance', InputArgument::OPTIONAL, 'Openstack Instance')
-            ->addOption('option1', null, InputOption::VALUE_NONE, 'Option description')
         ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $osInstance = $input->getArgument('os-instance');
-
-        if ($osInstance) {
-            $io->note(sprintf('You passed an argument: %s', $osInstance));
-        }
 
         $lock = $this->lockFactory->createLock($this->getName(), self::LOCK_TIMEOUT);
 
