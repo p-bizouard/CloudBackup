@@ -107,14 +107,19 @@ class Storage
 
     public function getAwsEnv(): array
     {
-        return [
-            'AWS_ACCESS_KEY_ID' => $this->getAwsAccessKeyId(),
-            'AWS_SECRET_ACCESS_KEY' => $this->getAwsSecretAccessKey(),
-            'AWS_DEFAULT_REGION' => $this->getAwsDefaultRegion(),
-        ];
+        if (null !== $this->getAwsAccessKeyId()) {
+            return [
+                'AWS_ACCESS_KEY_ID' => $this->getAwsAccessKeyId(),
+                'AWS_SECRET_ACCESS_KEY' => $this->getAwsSecretAccessKey(),
+                'AWS_DEFAULT_REGION' => $this->getAwsDefaultRegion(),
+            ];
+        } else {
+            return [];
+        }
     }
 
-    public function getEnv(): array {
+    public function getEnv(): array
+    {
         return $this->getOSEnv() + $this->getAwsEnv();
     }
 
