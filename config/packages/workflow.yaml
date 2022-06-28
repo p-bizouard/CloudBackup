@@ -18,6 +18,7 @@ framework:
                 - upload
                 - cleanup
                 - health_check
+                - forget
                 - backuped
                 - failed
             transitions:
@@ -39,8 +40,11 @@ framework:
                 health_check:
                     from: [start, cleanup]
                     to: health_check
-                backuped:
+                forget:
                     from: health_check
+                    to: forget
+                backuped:
+                    from: forget
                     to: backuped
                 failed:
                     from:
@@ -51,6 +55,7 @@ framework:
                             download,
                             upload,
                             health_check,
+                            forget,
                             cleanup,
                         ]
                     to: failed

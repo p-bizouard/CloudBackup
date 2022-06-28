@@ -88,6 +88,19 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->healhCheckBackup($backup);
     }
 
+    public function onForget(Event $event): void
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        // Restic forget
+        if ($backup->getBackupConfiguration()->getStorage()->isRestic() && BackupConfiguration::TYPE_READ_RESTIC !== $backup->getBackupConfiguration()->getType()) {
+            $this->backupService->cleanBackupRestic($backup);
+        }
+    }
+
     public function onFailed(Event $event): void
     {
         /** @var Backup */

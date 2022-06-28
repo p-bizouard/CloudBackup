@@ -70,6 +70,13 @@ class BackupStartCommand extends Command
             $this->entityManager->flush();
 
             foreach ($backupConfigurations as $backupConfiguration) {
+                $this->backupService->performBackup($backupConfiguration);
+                $lock->refresh();
+            }
+
+            $this->entityManager->flush();
+
+            foreach ($backupConfigurations as $backupConfiguration) {
                 $this->backupService->completeBackup($backupConfiguration);
                 $lock->refresh();
             }

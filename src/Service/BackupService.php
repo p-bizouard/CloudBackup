@@ -636,7 +636,7 @@ class BackupService
         }
     }
 
-    private function cleanBackupRestic(Backup $backup): void
+    public function cleanBackupRestic(Backup $backup): void
     {
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
@@ -763,11 +763,6 @@ class BackupService
     public function cleanBackup(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
-        // Restic forget
-        if ($backup->getBackupConfiguration()->getStorage()->isRestic() && BackupConfiguration::TYPE_READ_RESTIC !== $backup->getBackupConfiguration()->getType()) {
-            $this->cleanBackupRestic($backup);
-        }
 
         // Remove local temporary file / directory
         if (file_exists($this->getTemporaryBackupDestination($backup))) {
@@ -977,7 +972,7 @@ class BackupService
         $this->entityManager->flush();
     }
 
-    public function completeBackup(BackupConfiguration $backupConfiguration): void
+    public function performBackup(BackupConfiguration $backupConfiguration): void
     {
         $backup = $this->backupRepository->findOneBy([
             'backupConfiguration' => $backupConfiguration,
@@ -1003,9 +998,39 @@ class BackupService
             if ($backupWorkflow->can($backup, 'cleanup')) {
                 $backupWorkflow->apply($backup, 'cleanup');
             }
+        } catch (\Exception $e) {
+            $this->log($backup, Log::LOG_NOTICE, sprintf('An error occured : %s', $e->getMessage()));
+
+            if ($backupWorkflow->can($backup, 'failed')) {
+                $backupWorkflow->apply($backup, 'failed');
+            }
+        }
+
+        $this->entityManager->persist($backup);
+        $this->entityManager->flush();
+    }
+
+    public function completeBackup(BackupConfiguration $backupConfiguration): void
+    {
+        $backup = $this->backupRepository->findOneBy([
+            'backupConfiguration' => $backupConfiguration,
+        ], ['id' => 'DESC']);
+
+        if (null === $backup) {
+            throw new Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
+        }
+
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
+
+        try {
+            $backupWorkflow = $this->workflowRegistry->get($backup);
 
             if ($backupWorkflow->can($backup, 'health_check')) {
                 $backupWorkflow->apply($backup, 'health_check');
+            }
+
+            if ($backupWorkflow->can($backup, 'forget')) {
+                $backupWorkflow->apply($backup, 'forget');
             }
 
             if ($backupWorkflow->can($backup, 'backuped')) {
