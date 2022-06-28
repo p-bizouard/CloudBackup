@@ -55,6 +55,26 @@ class Backup
      */
     private ?int $size = null;
 
+    /**
+     * @ORM\Column(type="bigint", nullable=true)
+     */
+    private ?int $resticSize = null;
+
+    /**
+     * @ORM\Column(type="bigint", nullable=true)
+     */
+    private ?int $resticDedupSize = null;
+
+    /**
+     * @ORM\Column(type="bigint", nullable=true)
+     */
+    private ?int $resticTotalSize = null;
+
+    /**
+     * @ORM\Column(type="bigint", nullable=true)
+     */
+    private ?int $resticTotalDedupSize = null;
+
     public function __construct()
     {
         $this->logs = new ArrayCollection();
@@ -193,6 +213,54 @@ class Backup
     public function setSize(?int $size): self
     {
         $this->size = $size;
+
+        return $this;
+    }
+
+    public function getResticSize(): ?int
+    {
+        return $this->resticSize;
+    }
+
+    public function setResticSize(?int $resticSize): self
+    {
+        $this->resticSize = $resticSize;
+
+        return $this;
+    }
+
+    public function getResticDedupSize(): ?int
+    {
+        return $this->resticDedupSize;
+    }
+
+    public function setResticDedupSize(?int $resticDedupSize): self
+    {
+        $this->resticDedupSize = $resticDedupSize;
+
+        return $this;
+    }
+
+    public function getResticTotalSize(): ?int
+    {
+        return $this->resticTotalSize;
+    }
+
+    public function setResticTotalSize(?int $resticTotalSize): self
+    {
+        $this->resticTotalSize = $resticTotalSize;
+
+        return $this;
+    }
+
+    public function getResticTotalDedupSize(): ?int
+    {
+        return $this->resticTotalDedupSize;
+    }
+
+    public function setResticTotalDedupSize(?int $resticTotalDedupSize): self
+    {
+        $this->resticTotalDedupSize = $resticTotalDedupSize;
 
         return $this;
     }

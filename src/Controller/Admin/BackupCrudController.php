@@ -64,8 +64,24 @@ class BackupCrudController extends AbstractCrudController
                 ->hideOnForm(),
             ChoiceField::new('currentPlace')
                 ->setChoices($this->workflowRegistry->get(new Backup())->getDefinition()->getPlaces()),
-            IntegerField::new('size')
+            IntegerField::new('resticSize')
+                ->setLabel('Backup size')
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnForm(),
+            IntegerField::new('resticDedupSize')
+                ->setLabel('Backup deduplicated size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnIndex()
+                ->hideOnForm(),
+            IntegerField::new('resticTotalSize')
+                ->setLabel('Repository virtual size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnIndex()
+                ->hideOnForm(),
+            IntegerField::new('resticTotalDedupSize')
+                ->setLabel('Repository deduplicated size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnIndex()
                 ->hideOnForm(),
             AssociationField::new('logs')->hideOnForm(),
             DateTimeField::new('createdAt')->hideOnForm(),

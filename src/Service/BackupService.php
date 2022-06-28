@@ -15,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Workflow\Registry;
 
 class BackupService
@@ -872,6 +873,41 @@ class BackupService
                         $message = 'Last backup older than 24h';
                         $this->log($backup, Log::LOG_ERROR, $message);
                         throw new Exception($message);
+                    }
+                }
+
+                $sizes = [
+                    '--mode restore-size latest' => 'resticSize',
+                    '--mode raw-data latest' => 'resticDedupSize',
+                    '--mode restore-size' => 'resticTotalSize',
+                    '--mode raw-data' => 'resticTotalDedupSize',
+                ];
+
+                foreach ($sizes as $resticCommandSuffix => $backupAttribute) {
+                    $command = sprintf('restic stats --json %s', $resticCommandSuffix);
+
+                    $this->log($backup, Log::LOG_NOTICE, sprintf('Run `%s`', $command));
+                    $process = Process::fromShellCommandline($command, null, $env);
+                    $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
+                    $process->run();
+
+                    if (!$process->isSuccessful()) {
+                        $this->log($backup, Log::LOG_ERROR, sprintf('Error executing cleanup - restic stats - %s', $process->getErrorOutput()));
+                        throw new ProcessFailedException($process);
+                    } else {
+                        if (($json = json_decode($process->getOutput(), true)) === null) {
+                            $message = sprintf('Cannot decode json : %s', $process->getOutput());
+                            $this->log($backup, Log::LOG_ERROR, $message);
+                            throw new Exception($message);
+                        }
+
+                        $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
+                        $this->log($backup, Log::LOG_INFO, $prettyJson);
+
+                        $accessor = PropertyAccess::createPropertyAccessor();
+                        $accessor->setValue($backup, $backupAttribute, $json['total_size']);
+
+                        $this->log($backup, Log::LOG_NOTICE, sprintf('Stat %s : %s', $backupAttribute, StringUtils::humanizeFilesize($json['total_size'])));
                     }
                 }
             break;
