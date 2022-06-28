@@ -118,6 +118,7 @@ RUN mkdir var && chown -R www-data:www-data var/
 RUN mkdir /var/www/.cache/ && chown -R www-data:www-data /var/www/.cache/
 RUN mkdir /var/www/.ssh/ && chown -R www-data:www-data /var/www/.ssh/
 RUN mkdir -p public/bundles && chown www-data:www-data public/bundles
+RUN touch .env.local.php && chown www-data:www-data .env.local.php
 
 USER www-data
 
