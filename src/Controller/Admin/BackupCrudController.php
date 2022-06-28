@@ -4,8 +4,6 @@ namespace App\Controller\Admin;
 
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -14,9 +12,14 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\Workflow\Registry;
 
 class BackupCrudController extends AbstractCrudController
 {
+    public function __construct(private Registry $workflowRegistry)
+    {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Backup::class;
@@ -43,29 +46,27 @@ class BackupCrudController extends AbstractCrudController
         ;
     }
 
-    public function configureActions(Actions $actions): Actions
-    {
-        return $actions
-            ->remove(Crud::PAGE_INDEX, ACTION::EDIT)
-            ->remove(Crud::PAGE_DETAIL, ACTION::EDIT)
-        ;
-    }
-
     public function configureFields(string $pageName): iterable
     {
         return [
-            AssociationField::new('backupConfiguration')->setLabel('Programmation'),
-            ChoiceField::new('backupConfiguration.type')->setChoices(function () {
-                $return = [];
-                foreach (BackupConfiguration::getAvailableTypes() as $type) {
-                    $return[$type] = $type;
-                }
+            AssociationField::new('backupConfiguration')
+                ->setLabel('Programmation')
+                ->hideOnForm(),
+            ChoiceField::new('backupConfiguration.type')
+                ->setChoices(function () {
+                    $return = [];
+                    foreach (BackupConfiguration::getAvailableTypes() as $type) {
+                        $return[$type] = $type;
+                    }
 
-                return $return;
-            }),
-            TextField::new('currentPlace'),
+                    return $return;
+                })
+                ->hideOnForm(),
+            ChoiceField::new('currentPlace')
+                ->setChoices($this->workflowRegistry->get(new Backup())->getDefinition()->getPlaces()),
             IntegerField::new('size')
-                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig'),
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnForm(),
             AssociationField::new('logs')->hideOnForm(),
             DateTimeField::new('createdAt')->hideOnForm(),
             DateTimeField::new('updatedAt')->hideOnForm(),
