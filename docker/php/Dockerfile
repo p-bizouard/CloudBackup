@@ -1,7 +1,7 @@
 ARG NGINX_DESTINATION
 
 # Dev target
-FROM php:8.0-fpm AS dev
+FROM php:8.1-fpm AS dev
 
 WORKDIR /app
 
@@ -64,7 +64,19 @@ FROM dev AS test
 
 WORKDIR /app
 
-## Copy project files to workdir
+## Copy composer configuration files
+COPY composer.json \
+    composer.lock \
+    ./
+
+# Install composer dependencies
+RUN APP_ENV=prod composer install \
+    --no-dev \
+    --no-interaction \
+    --optimize-autoloader \
+    --no-scripts
+
+# Copy project files to workdir
 COPY bin bin
 COPY config config
 COPY fixtures fixtures
@@ -74,21 +86,6 @@ COPY templates templates
 COPY tests tests
 COPY translations translations
 COPY migrations migrations
-COPY composer.json \
-    composer.lock \
-    package.json \
-    package-lock.json \
-    ./
-# webpack.config.js \
-# postcss.config.js \
-
-## Install application dependencies
-RUN APP_ENV=prod composer install \
-    --no-dev \
-    --no-interaction \
-    --optimize-autoloader \
-    --no-scripts && \
-    chmod +x bin/console
 
 #  Hack to copy files from our nginx custom image
 FROM $NGINX_DESTINATION as nginx-build
@@ -110,7 +107,6 @@ ENV PHP_OPCACHE_MAX_ACCELERATED_FILES="12000"
 ENV PHP_OPCACHE_REVALIDATE_FREQUENCY="0"
 ENV PHP_OPCACHE_VALIDATE_TIMESTAMPS="0"
 # Install opcache lib and add the configuration bellow
-RUN docker-php-ext-install opcache
 COPY docker/php/conf/opcache.ini "$PHP_INI_DIR/conf.d/opcache.ini"
 
 # php-fpm is run with www-data
