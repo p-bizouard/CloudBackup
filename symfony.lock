@@ -219,9 +219,6 @@
             "tests/bootstrap.php"
         ]
     },
-    "phuml/phuml": {
-        "version": "dev-characterization-tests"
-    },
     "predis/predis": {
         "version": "v1.1.7"
     },
