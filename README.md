@@ -26,6 +26,7 @@ The dashboard show all backup statuses, and provide the restic commands to downl
 -   [x] Email reports
 -   [x] Source - PostgreSQL
 -   [x] Restic S3
+-   [x] CAS authentication
 -   [ ] Optional restic backup arguments
 -   [ ] Start manual backup
 

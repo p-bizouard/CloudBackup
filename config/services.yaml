@@ -50,3 +50,8 @@ services:
             - "%env(FROM_ADDRESS)%"
             - "%env(csv:CSV_REPORT_ADDRESSES)%"
             - "@mailer"
+
+    app.cas_authenticator:
+        class: App\Security\CasGuardAuthenticator
+        arguments:
+            $userProvider: "@security.user.provider.concrete.app_user_provider"

@@ -17,7 +17,7 @@ class SecurityController extends AbstractController
         $error = $authenticationUtils->getLastAuthenticationError();
         $lastUsername = $authenticationUtils->getLastUsername();
 
-        return $this->render('@EasyAdmin/page/login.html.twig', [
+        return $this->render('bundles/EasyAdmin/page/login.html.twig', [
                 // parameters usually defined in Symfony login forms
                 'error' => $error,
                 'last_username' => $lastUsername,
@@ -52,10 +52,10 @@ class SecurityController extends AbstractController
                 'sign_in_label' => 'Log in',
 
                 // the 'name' HTML attribute of the <input> used for the username field (default: '_username')
-                'username_parameter' => 'email',
+                'username_parameter' => '_username',
 
                 // the 'name' HTML attribute of the <input> used for the password field (default: '_password')
-                'password_parameter' => 'password',
+                'password_parameter' => '_password',
             ]);
     }
 

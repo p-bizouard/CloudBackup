@@ -1,0 +1,17 @@
+{% extends "@!EasyAdmin/page/login.html.twig" %}
+
+{% block header_logo %}
+{% endblock %}
+
+{% block wrapper_wrapper %}
+
+        {% if cas_base_url is empty %}
+            {{ parent() }}
+        {% else %}
+            <div class="login-wrapper">
+                <section class="content text-center">
+                    <a href="{{ path('cas_bundle_login') }}" class="btn btn-primary btn-lg btn-block">Login with CAS</a>
+                </section>
+            </div>
+        {% endif %}
+{% endblock %}
