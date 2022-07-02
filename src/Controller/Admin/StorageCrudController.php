@@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -28,16 +29,16 @@ class StorageCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setPageTitle('index', 'Liste des espaces de stockage')
-            ->setPageTitle('new', 'Nouvel espace de stockage')
+            ->setPageTitle('index', 'Storages')
+            ->setPageTitle('new', 'New storage')
             ->setPageTitle('detail', fn (Storage $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (Storage $entity) => sprintf('Modification de <b>%s</b>', $entity))
+            ->setPageTitle('edit', fn (Storage $entity) => sprintf('Edit <b>%s</b>', $entity))
         ;
     }
 
     public function configureActions(Actions $actions): Actions
     {
-        $copyEntity = Action::new('copyEntity', 'Dupliquer')
+        $copyEntity = Action::new('copyEntity', 'Duplicate')
             ->linkToCrudAction('copyEntity');
 
         return $actions
@@ -50,23 +51,28 @@ class StorageCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-            TextField::new('name'),
-            ChoiceField::new('type')->setChoices(function () {
-                $return = [];
-                foreach (Storage::getAvailableTypes() as $type) {
-                    $return[$type] = $type;
-                }
+            FormField::addPanel('General configuration'),
+                TextField::new('name'),
+                ChoiceField::new('type')->setChoices(function () {
+                    $return = [];
+                    foreach (Storage::getAvailableTypes() as $type) {
+                        $return[$type] = $type;
+                    }
 
-                return $return;
-            }),
-            AssociationField::new('backupConfigurations')->hideOnForm(),
-            AssociationField::new('osProject'),
-            TextField::new('osRegionName'),
-            TextField::new('awsAccessKeyId'),
-            TextField::new('awsSecretAccessKey'),
-            TextField::new('awsDefaultRegion'),
-            TextField::new('resticPassword')->hideOnIndex()->setRequired(true),
-            TextField::new('resticRepo')->setRequired(true),
+                    return $return;
+                }),
+                TextField::new('resticPassword')->hideOnIndex()->setRequired(true),
+                TextField::new('resticRepo')
+                    ->setRequired(true)
+                    ->setHelp('/data, s3:https://minio/bucket/subdirectory, swift:object-storage:/subdirectory'),
+                AssociationField::new('backupConfigurations')->hideOnForm(),
+            FormField::addPanel('For Openstack Swift storage'),
+                AssociationField::new('osProject'),
+                TextField::new('osRegionName'),
+            FormField::addPanel('For S3 storage'),
+                TextField::new('awsAccessKeyId'),
+                TextField::new('awsSecretAccessKey'),
+                TextField::new('awsDefaultRegion'),
         ];
     }
 
@@ -76,7 +82,7 @@ class StorageCrudController extends AbstractCrudController
         $storage = $context->getEntity()->getInstance();
         $newstorage = clone $storage;
 
-        $newstorage->setName(sprintf('Copie de %s', $newstorage->getName()));
+        $newstorage->setName(sprintf('Copy %s', $newstorage->getName()));
 
         $entityManager = $this->getDoctrine()->getManagerForClass(self::getEntityFqcn());
         $entityManager->persist($newstorage);
