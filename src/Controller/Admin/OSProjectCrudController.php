@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 use App\Entity\OSProject;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
@@ -26,10 +27,10 @@ class OSProjectCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setPageTitle('index', 'Liste des projets Openstack')
-            ->setPageTitle('new', 'Nouveau projet Openstack')
+            ->setPageTitle('index', 'Openstack projects (for Swift storage or Instance backup)')
+            ->setPageTitle('new', 'New Openstack project')
             ->setPageTitle('detail', fn (OSProject $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (OSProject $entity) => sprintf('Modification de <b>%s</b>', $entity))
+            ->setPageTitle('edit', fn (OSProject $entity) => sprintf('Edit <b>%s</b>', $entity))
         ;
     }
 
@@ -48,6 +49,8 @@ class OSProjectCrudController extends AbstractCrudController
     {
         return [
             TextField::new('name'),
+            AssociationField::new('osInstances')->hideOnForm(),
+            AssociationField::new('storages')->hideOnForm(),
             TextField::new('authUrl')->hideOnIndex(),
             IntegerField::new('identityApiVersion')->hideOnIndex(),
             TextField::new('userDomainName')->hideOnIndex(),
