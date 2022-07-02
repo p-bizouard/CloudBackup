@@ -1,4 +1,4 @@
-ARG NGINX_DESTINATION
+ARG NGINX_DESTINATION=cloudbackup_nginx
 
 # Dev target
 FROM php:8.1-fpm AS dev
@@ -56,8 +56,8 @@ COPY --from=symfonycorp/cli /symfony /usr/local/bin/symfony
 
 CMD  ["php-fpm"]
 
-RUN echo "user:user:1000:1000:Dev user:/:/sbin/nologin" >> /etc/passwd
-RUN mkdir /.ssh && chown 1000:1000 /.ssh
+RUN echo "user:user:${DOCKER_USER:-1000}:${DOCKER_USER:-1000}:Dev user:/:/sbin/nologin" >> /etc/passwd
+RUN mkdir /.ssh && chown ${DOCKER_USER:-1000}:${DOCKER_USER:-1000} /.ssh
 
 # Test image
 FROM dev AS test

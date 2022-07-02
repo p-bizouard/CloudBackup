@@ -64,7 +64,7 @@ services:
 
     assets:
         container_name: cloudbkp-assets
-        user: "$UID:$GID"
+        user: ${DOCKER_USER:-1000}
         build:
             context: .
             dockerfile: ./docker/nginx/Dockerfile.dev
@@ -77,7 +77,7 @@ services:
 
     php:
         container_name: cloudbkp-php
-        user: "$UID:$GID"
+        user: ${DOCKER_USER:-1000}
         build:
             context: .
             dockerfile: ./docker/php/Dockerfile

@@ -1,9 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-export UID=$(id -u)
-export GID=$(id -g)
+set -e
 
-export DOCKER_BUILDKIT=0
+declare DOCKER_USER
+DOCKER_USER="$(id -u):$(id -g)"
 
-docker-compose stop
-docker-compose up --build
+#export DOCKER_BUILDKIT=0
+
+DOCKER_USER=${DOCKER_USER} docker-compose stop
+DOCKER_USER=${DOCKER_USER} docker-compose up --build
