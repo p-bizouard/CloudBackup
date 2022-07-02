@@ -3,12 +3,16 @@ FROM node:14-alpine3.13 AS assets-prod
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json \
+    ./
 RUN npm ci
 
 RUN npm rebuild node-sass 
 
-COPY . ./
+COPY assets assets
+COPY public public
+COPY webpack.config.js \
+    ./
 RUN npm run build
 
 # run production web server
