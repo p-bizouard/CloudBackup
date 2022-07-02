@@ -20,10 +20,10 @@ class HostCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setPageTitle('index', 'Liste des hôtes SSH')
-            ->setPageTitle('new', 'Nouvel hôte SSH')
+            ->setPageTitle('index', 'SSH hosts (sftp, sshfs, custom ssh command to stdout, ...)')
+            ->setPageTitle('new', 'New SSH host')
             ->setPageTitle('detail', fn (Host $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (Host $entity) => sprintf('Modification de <b>%s</b>', $entity))
+            ->setPageTitle('edit', fn (Host $entity) => sprintf('Edit <b>%s</b>', $entity))
         ;
     }
 

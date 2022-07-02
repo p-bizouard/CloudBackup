@@ -42,7 +42,7 @@ class DashboardController extends AbstractDashboardController
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-            ->setTitle('Gestionnaire de backups');
+            ->setTitle('Backups manager');
     }
 
     public function configureCrud(): Crud
@@ -77,18 +77,17 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linktoDashboard('Dashboard', 'fa fa-home');
 
         yield MenuItem::section('Configuration');
-        yield MenuItem::linkToCrud('Utilisateurs', 'fas fa-users', User::class);
-        yield MenuItem::linkToCrud('Project Openstack', 'fas fa-folder-open', OSProject::class);
-        yield MenuItem::linkToCrud('Stockage', 'fas fa-hdd', Storage::class);
+        yield MenuItem::linkToCrud('Users', 'fas fa-users', User::class);
+        yield MenuItem::linkToCrud('Openstack projects', 'fas fa-folder-open', OSProject::class);
+        yield MenuItem::linkToCrud('Storages', 'fas fa-hdd', Storage::class);
         yield MenuItem::linkToCrud('Logs', 'fas fa-volume-up', Log::class);
 
         yield MenuItem::section('Sources');
-        yield MenuItem::linkToCrud('Instances Openstack', 'fas fa-cloud', OSInstance::class);
-        yield MenuItem::linkToCrud('Serveurs SSH', 'fas fa-server', Host::class);
+        yield MenuItem::linkToCrud('Openstack instances', 'fas fa-cloud', OSInstance::class);
+        yield MenuItem::linkToCrud('SSH hosts', 'fas fa-server', Host::class);
 
-        yield MenuItem::section('Sauvegardes');
-        yield MenuItem::linkToCrud('Programmation', 'fas fa-cogs', BackupConfiguration::class);
-        yield MenuItem::linkToCrud('Sauvegardes réalisées', 'fas fa-save', Backup::class);
-        // yield MenuItem::linkToCrud('The Label', 'fas fa-list', EntityClass::class);
+        yield MenuItem::section('Backups');
+        yield MenuItem::linkToCrud('Schedulings', 'fas fa-cogs', BackupConfiguration::class);
+        yield MenuItem::linkToCrud('Backups', 'fas fa-save', Backup::class);
     }
 }

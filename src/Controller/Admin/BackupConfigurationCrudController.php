@@ -32,10 +32,10 @@ class BackupConfigurationCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setPageTitle('index', 'Liste des programmations')
-            ->setPageTitle('new', 'Nouvelle programmation')
+            ->setPageTitle('index', 'backup schedulings')
+            ->setPageTitle('new', 'New backup scheduling')
             ->setPageTitle('detail', fn (BackupConfiguration $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (BackupConfiguration $entity) => sprintf('Modification de <b>%s</b>', $entity))
+            ->setPageTitle('edit', fn (BackupConfiguration $entity) => sprintf('Edit <b>%s</b>', $entity))
 
             ->overrideTemplate('crud/detail', 'admin/backup_configuration/detail.html.twig')
         ;
@@ -43,7 +43,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        $copyEntity = Action::new('copyEntity', 'Dupliquer')
+        $copyEntity = Action::new('copyEntity', 'Duplicate')
             ->linkToCrudAction('copyEntity');
 
         return $actions
@@ -82,55 +82,55 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
                 IntegerField::new('notBefore')
                     ->hideOnIndex()
-                    ->setHelp('Exécuter le backup à partir d\'une certaine heure'),
+                    ->setHelp('Schedule after this hour'),
 
                 DateTimeField::new('createdAt')->hideOnForm()->hideOnIndex(),
                 DateTimeField::new('updatedAt')->hideOnForm()->hideOnIndex(),
 
-            FormField::addPanel('Destination des sauvegardes')
+            FormField::addPanel('Backup storage')
                 ->setIcon('fas fa-hdd'),
 
                 AssociationField::new('storage'),
                 TextField::new('storageSubPath')->hideOnIndex(),
 
-            FormField::addPanel('Source à sauvegarder')
+            FormField::addPanel('Backup source')
                 ->hideOnIndex()
                 ->setIcon('fas fa-server'),
 
                 AssociationField::new('osInstance')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field os-instance')
-                    ->setHelp('Sauvegarde des instances Opentack'),
+                    ->setHelp('Openstack Instance to backup'),
 
                 AssociationField::new('host')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd sftp')
-                    ->setHelp('Serveur de la source à sauvegarder'),
+                    ->setHelp('Host to backup'),
 
                 TextField::new('dumpCommand')
                     ->hideOnIndex()
                     ->addCssClass('blur-input backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd sftp')
-                    ->setHelp('Commande de dump MySQL/PostgreSQL, ou options de montage SSHFS'),
+                    ->setHelp('MySQL/PostgreSQL dump command, or SSHFS options'),
 
                 TextField::new('remoteCleanCommand')
                     ->hideOnIndex()
                     ->addCssClass('blur-input backupConfigurationType-field ssh-cmd')
-                    ->setHelp('Commande de nettoyage à exécuter sur l\'hôte distant après le backup'),
+                    ->setHelp('Command to clean the remote host after backup'),
 
                 TextField::new('customExtension')
                     ->hideOnIndex()
-                    ->setHelp('Permet de suffixer le backup avec une extension particulière'),
+                    ->setHelp('Suffix the backup with custom extension'),
 
                 TextField::new('remotePath')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field ssh-restic sshfs sftp')
-                    ->setHelp('Dossier à sauvegarder'),
+                    ->setHelp('Folder to backup'),
 
                 IntegerField::new('minimumBackupSize')
                     ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field postgresql mysql ssh-cmd sftp')
-                    ->setHelp('Taille minimale du backup en octets'),
+                    ->setHelp('Minimal size of the backup (in bytes)'),
         ];
     }
 
@@ -140,7 +140,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
         $backupConfiguration = $context->getEntity()->getInstance();
         $newBackupConfiguration = clone $backupConfiguration;
 
-        $newBackupConfiguration->setName(sprintf('Copie de %s', $newBackupConfiguration->getName()));
+        $newBackupConfiguration->setName(sprintf('Copy %s', $newBackupConfiguration->getName()));
         $newBackupConfiguration->setEnabled(false);
 
         $entityManager = $this->getDoctrine()->getManagerForClass(self::getEntityFqcn());

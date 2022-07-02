@@ -28,10 +28,10 @@ class BackupCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setPageTitle('index', 'Liste des sauvegardes')
-            ->setPageTitle('new', 'Nouvelle sauvegardes')
+            ->setPageTitle('index', 'backups')
+            ->setPageTitle('new', 'New sauvegardes')
             ->setPageTitle('detail', fn (Backup $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (Backup $entity) => sprintf('Modification de <b>%s</b>', $entity))
+            ->setPageTitle('edit', fn (Backup $entity) => sprintf('Edit <b>%s</b>', $entity))
 
             ->overrideTemplate('crud/detail', 'admin/backup/detail.html.twig')
 
@@ -50,7 +50,7 @@ class BackupCrudController extends AbstractCrudController
     {
         return [
             AssociationField::new('backupConfiguration')
-                ->setLabel('Programmation')
+                ->setLabel('Scheduling')
                 ->hideOnForm(),
             ChoiceField::new('backupConfiguration.type')
                 ->setChoices(function () {
