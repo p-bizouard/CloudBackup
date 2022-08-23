@@ -57,13 +57,14 @@ services:
     mailhog_dev:
         container_name: cloudbkp-mailhog
         image: mailhog/mailhog
-        restart: always
+        restart: on-failure
         ports:
             - ${MAILHOG_PORT_SMTP:-1025}:1025
             - ${MAILHOG_PORT_HTTP:-8025}:8025
 
     assets:
         container_name: cloudbkp-assets
+        restart: on-failure
         user: ${DOCKER_USER:-1000}
         build:
             context: .
@@ -77,6 +78,7 @@ services:
 
     php:
         container_name: cloudbkp-php
+        restart: on-failure
         user: ${DOCKER_USER:-1000}
         build:
             context: .
@@ -94,6 +96,7 @@ services:
             - SYS_ADMIN
     nginx:
         container_name: cloudbkp-nginx
+        restart: on-failure
         build:
             context: .
             dockerfile: ./docker/nginx/Dockerfile.dev
