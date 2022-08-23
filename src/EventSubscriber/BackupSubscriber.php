@@ -41,7 +41,7 @@ class BackupSubscriber implements EventSubscriberInterface
 
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
-                    $this->backupService->snapshotOSInstance($backup);
+                $this->backupService->snapshotOSInstance($backup);
                 break;
             default:
                 break;
@@ -240,6 +240,22 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
+    public function guardForget(GuardEvent $event): void
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        if (null === $backup->getResticSize() || 0 === $backup->getResticSize()) {
+            $message = 'Restic size not set from health check';
+
+            $event->setBlocked(true, $message);
+            $this->backupService->log($backup, Log::LOG_ERROR, $message);
+
+            // We retry the health check
+            $this->backupService->healhCheckBackup($backup);
+        }
+    }
+
     public static function getSubscribedEvents(): array
     {
         return [
@@ -249,6 +265,7 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.enter.upload' => 'onUpload',
             'workflow.backup.enter.cleanup' => 'onCleanup',
             'workflow.backup.enter.health_check' => 'onHealthCheck',
+            'workflow.backup.enter.forget' => 'onForget',
             'workflow.backup.enter.failed' => 'onFailed',
 
             'workflow.backup.enter' => 'onEnterAll',
@@ -258,6 +275,7 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.guard.upload' => 'guardUpload',
             'workflow.backup.guard.cleanup' => 'guardCleanup',
             'workflow.backup.guard.health_check' => 'guardHealhCheck',
+            'workflow.backup.guard.forget' => 'guardForget',
         ];
     }
 }
