@@ -35,7 +35,7 @@ class DashboardController extends AbstractDashboardController
     {
         return $this->render('admin/dashboard.html.twig', [
             'backupConfigurationTypes' => BackupConfiguration::getAvailableTypes(),
-            'backupConfigurations' => $this->backupConfigurationRepository->findAll(),
+            'backupConfigurations' => $this->backupConfigurationRepository->findBy(['enabled' => true]),
         ]);
     }
 
