@@ -54,7 +54,7 @@ services:
         ports:
             - "${REDIS_PORT:-6379}:6379"
 
-    mailhog_dev:
+    mailhog:
         container_name: cloudbkp-mailhog
         image: mailhog/mailhog
         restart: on-failure
