@@ -7,7 +7,6 @@ use App\Entity\BackupConfiguration;
 use App\Entity\Log;
 use App\Service\BackupService;
 use App\Service\MailerService;
-use Exception;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Workflow\Event\Event;
 use Symfony\Component\Workflow\Event\GuardEvent;
@@ -162,7 +161,7 @@ class BackupSubscriber implements EventSubscriberInterface
                 default:
                     break;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $this->backupService->log($backup, Log::LOG_WARNING, sprintf('Guard download error : %s', $e->getMessage()));
 
             $event->setBlocked(true, $e->getMessage());
@@ -207,7 +206,7 @@ class BackupSubscriber implements EventSubscriberInterface
                 default:
                     break;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $this->backupService->log($backup, Log::LOG_ERROR, sprintf('Guard upload error : %s', $e->getMessage()));
 
             $event->setBlocked(true, $e->getMessage());
@@ -219,9 +218,7 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        /*
-         * @TODO ?
-         */
+        // Nothing to do
     }
 
     public function guardHealhCheck(GuardEvent $event): void
