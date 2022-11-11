@@ -34,6 +34,8 @@ final class CasGuardAuthenticator extends AbstractGuardAuthenticator
 
     private HttpMessageFactoryInterface $httpMessageFactory;
 
+    private UserProviderInterface $userProvider;
+
     public function __construct(
         CasInterface $cas,
         HttpMessageFactoryInterface $httpMessageFactory,
