@@ -15,7 +15,6 @@ use EcPhp\CasBundle\Security\Core\User\CasUserProviderInterface;
 use EcPhp\CasLib\CasInterface;
 use EcPhp\CasLib\Introspection\Contract\ServiceValidate;
 use EcPhp\CasLib\Utils\Uri;
-use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface;
@@ -49,7 +48,7 @@ final class CasGuardAuthenticator extends AbstractGuardAuthenticator
     {
         try {
             $introspect = $this->cas->detect($credentials);
-        } catch (InvalidArgumentException $exception) {
+        } catch (\InvalidArgumentException $exception) {
             throw new AuthenticationException($exception->getMessage());
         }
 

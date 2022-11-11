@@ -6,7 +6,6 @@ use App\Entity\Log;
 use App\Repository\BackupConfigurationRepository;
 use App\Service\BackupService;
 use Doctrine\ORM\EntityManagerInterface;
-use Exception;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -71,7 +70,7 @@ class BackupStartCommand extends Command
                 $this->backupService->completeBackup($backupConfiguration);
                 $lock->refresh();
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $log = new Log();
             $log->setLevel(Log::LOG_ERROR);
             $log->setMessage(sprintf('General error : %s', $e->getMessage()));

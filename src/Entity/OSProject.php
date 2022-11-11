@@ -86,12 +86,14 @@ class OSProject
 
     /**
      * @var Collection<int, OSInstance>
+     *
      * @ORM\OneToMany(targetEntity=OSInstance::class, mappedBy="osProject")
      */
     private Collection $osInstances;
 
     /**
      * @var Collection<int, Storage>
+     *
      * @ORM\OneToMany(targetEntity=Storage::class, mappedBy="osProject")
      */
     private Collection $storages;

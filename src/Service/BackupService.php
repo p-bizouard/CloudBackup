@@ -8,9 +8,7 @@ use App\Entity\Log;
 use App\Entity\Storage;
 use App\Repository\BackupRepository;
 use App\Utils\StringUtils;
-use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
-use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Exception\ProcessFailedException;
@@ -59,7 +57,7 @@ class BackupService
                 $this->logger->notice($message);
                 break;
             default:
-                throw new Exception('Log level not found');
+                throw new \Exception('Log level not found');
         }
 
         $log = new Log();
@@ -677,10 +675,10 @@ class BackupService
         }
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
-        if ((2 !== \count(scandir($this->getTemporaryBackupDestination($backup))))) {
+        if (2 !== \count(scandir($this->getTemporaryBackupDestination($backup)))) {
             $message = sprintf('Error executing cleanup - %s directory is not empty', $this->getTemporaryBackupDestination($backup));
             $this->log($backup, Log::LOG_ERROR, $message);
-            throw new Exception($message);
+            throw new \Exception($message);
         } else {
             // php's rmdir function only remove empty directories
             rmdir($this->getTemporaryBackupDestination($backup));
@@ -859,20 +857,20 @@ class BackupService
                     if (($json = json_decode($process->getOutput(), true)) === null || !\count($json)) {
                         $message = sprintf('Cannot decode json : %s', $process->getOutput());
                         $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
+                        throw new \Exception($message);
                     }
 
                     $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
                     $this->log($backup, Log::LOG_INFO, $prettyJson);
 
-                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', end($json)['time']));
+                    $lastBackup = new \DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', end($json)['time']));
                     $this->log($backup, Log::LOG_NOTICE, sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
 
-                    $yesterday = new DateTime('yesterday');
+                    $yesterday = new \DateTime('yesterday');
                     if ($lastBackup < $yesterday) {
                         $message = 'Last backup older than 24h';
                         $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
+                        throw new \Exception($message);
                     }
                 }
 
@@ -898,7 +896,7 @@ class BackupService
                         if (($json = json_decode($process->getOutput(), true)) === null) {
                             $message = sprintf('Cannot decode json : %s', $process->getOutput());
                             $this->log($backup, Log::LOG_ERROR, $message);
-                            throw new Exception($message);
+                            throw new \Exception($message);
                         }
 
                         $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
@@ -910,7 +908,7 @@ class BackupService
                         $this->log($backup, Log::LOG_NOTICE, sprintf('Stat %s : %s', $backupAttribute, StringUtils::humanizeFilesize($json['total_size'])));
                     }
                 }
-            break;
+                break;
         }
     }
 
@@ -946,12 +944,12 @@ class BackupService
                 }
 
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
-            }
+        }
     }
 
     public function initBackup(BackupConfiguration $backupConfiguration): void
     {
-        $now = new DateTime();
+        $now = new \DateTime();
 
         $backup = $this->backupRepository->findOneBy([
             'backupConfiguration' => $backupConfiguration,
@@ -1015,7 +1013,7 @@ class BackupService
         ], ['id' => 'DESC']);
 
         if (null === $backup) {
-            throw new Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
+            throw new \Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
         }
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
@@ -1053,7 +1051,7 @@ class BackupService
         ], ['id' => 'DESC']);
 
         if (null === $backup) {
-            throw new Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
+            throw new \Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
         }
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
