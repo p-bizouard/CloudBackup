@@ -23,7 +23,7 @@ security:
             guard:
                 provider: cas
                 authenticators:
-                    - app.cas_authenticator
+                    - App\Security\CasGuardAuthenticator
             form_login:
                 login_path: app_login
                 check_path: app_login
