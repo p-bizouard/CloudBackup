@@ -52,9 +52,9 @@ class Log
             case self::LOG_WARNING:
                 return 'warning';
             case self::LOG_NOTICE:
-                return 'info';
-            case self::LOG_INFO:
                 return 'secondary';
+            case self::LOG_INFO:
+                return 'info';
         }
 
         return null;
