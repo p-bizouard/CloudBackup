@@ -832,7 +832,7 @@ class BackupService
         return true;
     }
 
-    public function healhCheckBackup(Backup $backup): void
+    public function healhCheckBackup(Backup $backup, bool $tryRepair = true): void
     {
         switch ($backup->getBackupConfiguration()->getStorage()->getType()) {
             case Storage::TYPE_RESTIC:
@@ -848,9 +848,12 @@ class BackupService
                 if (!$process->isSuccessful()) {
                     $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
 
-                    $this->applyWorkflow($backup, 'repair');
-
-                    throw new ProcessFailedException($process);
+                    if ($tryRepair) {
+                        $this->repairBackup($backup);
+                        $this->healhCheckBackup($backup, false);
+                    } else {
+                        throw new ProcessFailedException($process);
+                    }
                 } else {
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
@@ -1095,9 +1098,9 @@ class BackupService
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
 
-        try {
-            $backupWorkflow = $this->workflowRegistry->get($backup);
+        $backupWorkflow = $this->workflowRegistry->get($backup);
 
+        try {
             if ($backupWorkflow->can($backup, 'health_check')) {
                 $backupWorkflow->apply($backup, 'health_check');
             }

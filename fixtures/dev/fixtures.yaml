@@ -87,14 +87,16 @@ App\Entity\BackupConfiguration:
         enabled: false
     daily-failed-check:
         name: daily-failed-check
-        type: os-instance
+        type: postgresql
         periodicity: "daily"
         keepDaily: 7
         keepWeekly: 4
-        storage: "@swift"
-        osInstance: "@os-instance"
+        storage: "@s3"
+        host: ~
         storageSubPath: "daily-failed-check"
-        enabled: true
+        dumpCommand: "PGPASSWORD='db' /usr/lib/postgresql/13/bin/pg_dump -U db -h postgres -p 5432 db"
+        minimumBackupSize: 5000
+        enabled: false
     daily-mysql:
         name: daily-mysql
         type: mysql

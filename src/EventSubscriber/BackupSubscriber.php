@@ -72,15 +72,7 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->healhCheckBackup($backup);
-    }
-
-    public function onRepair(Event $event): void
-    {
-        /** @var Backup */
-        $backup = $event->getSubject();
-
-        $this->backupService->repairBackup($backup);
+        $this->backupService->healhCheckBackup($backup, true);
     }
 
     public function onForget(Event $event): void
@@ -245,26 +237,6 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function guardRepair(GuardEvent $event): void
-    {
-        /** @var Backup */
-        $backup = $event->getSubject();
-
-        if ($backup->getLogs()->filter(function (Log $log) {
-            return Log::LOG_ERROR === $log->getLevel() && preg_match('/tree [a-z0-9]+, blob [a-z0-9]+: not found in index/', $log->getMessage());
-        })->count()) {
-            $message = 'Backup are corrupted. Repairing...';
-            $this->backupService->log($backup, Log::LOG_INFO, $message);
-            $this->backupService->repairBackup($backup);
-        } else {
-            $message = 'Nothing we can do';
-            $event->setBlocked(true, $message);
-            $this->backupService->log($backup, Log::LOG_ERROR, $message);
-
-            $this->backupService->applyWorkflow($backup, 'failed');
-        }
-    }
-
     public function onGuardAll(GuardEvent $event): void
     {
         /** @var Backup */
@@ -282,7 +254,6 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.enter.upload' => 'onUpload',
             'workflow.backup.enter.cleanup' => 'onCleanup',
             'workflow.backup.enter.health_check' => 'onHealthCheck',
-            'workflow.backup.enter.repair' => 'onRepair',
             'workflow.backup.enter.forget' => 'onForget',
             'workflow.backup.enter.failed' => 'onFailed',
 
@@ -292,7 +263,6 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.guard.download' => 'guardDownload',
             'workflow.backup.guard.upload' => 'guardUpload',
             'workflow.backup.guard.cleanup' => 'guardCleanup',
-            'workflow.backup.guard.repair' => 'guardRepair',
             'workflow.backup.guard.health_check' => 'guardHealhCheck',
             'workflow.backup.guard.forget' => 'guardForget',
 
