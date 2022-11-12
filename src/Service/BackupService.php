@@ -845,15 +845,15 @@ class BackupService
                 $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
                 $process->run();
 
-                // if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
 
-                $this->applyWorkflow($backup, 'repair');
+                    $this->applyWorkflow($backup, 'repair');
 
-                throw new ProcessFailedException($process);
-                // } else {
-                //     $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                // }
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
 
                 $command = 'restic snapshots --json --last -q';
 
