@@ -22,6 +22,7 @@ class BackupService
     public const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
     public const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
     public const RESTIC_CHECK_TIMEOUT = 3600;
+    public const RESTIC_REPAIR_TIMEOUT = 3600;
 
     public const OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
     public const OS_IMAGE_LIST_TIMEOUT = 60;
@@ -942,10 +943,10 @@ class BackupService
         foreach ($commands as $command) {
             $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
             $process = Process::fromShellCommandline($command, null, $env);
-            $process->setTimeout(self::RESTIC_INIT_TIMEOUT);
+            $process->setTimeout(self::RESTIC_REPAIR_TIMEOUT);
             $process->run();
 
-            if (!$process->isSuccessful() && !preg_match(self::RESTIC_INIT_REGEX, $process->getErrorOutput())) {
+            if (!$process->isSuccessful()) {
                 $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
                 throw new ProcessFailedException($process);
             } else {
