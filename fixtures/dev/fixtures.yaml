@@ -85,6 +85,16 @@ App\Entity\BackupConfiguration:
         osInstance: "@os-instance"
         storageSubPath: "daily-failed-snapshot"
         enabled: false
+    daily-failed-check:
+        name: daily-failed-check
+        type: os-instance
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@swift"
+        osInstance: "@os-instance"
+        storageSubPath: "daily-failed-check"
+        enabled: true
     daily-mysql:
         name: daily-mysql
         type: mysql
@@ -209,3 +219,21 @@ App\Entity\Backup:
         backupConfiguration: "@daily-failed-instance"
         currentPlace: dump
         createdAt: <(new DateTime("yesterday"))>
+    failed_check:
+        backupConfiguration: "@daily-failed-check"
+        currentPlace: health_check
+        createdAt: <(new DateTime("today"))>
+
+App\Entity\Log:
+    log_error:
+        backup: "@failed_check"
+        level: <(App\Entity\Log::LOG_ERROR)>
+        message: |
+            Error executing cleanup - restic check - error for tree 8b39f66a:
+            tree 8b39f66a: file "bdd.sqlc" blob 3 size could not be found
+            tree 8b39f66a: file "bdd.sqlc" blob 4 size could not be found
+            tree 8b39f66a: file "bdd.sqlc" blob 5 size could not be found
+            tree 8b39f66a, blob a753f9c6: not found in index
+            tree 8b39f66a, blob 830b5ab0: not found in index
+            tree 8b39f66a, blob b548c207: not found in index
+            Fatal: repository contains errors

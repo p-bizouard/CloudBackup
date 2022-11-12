@@ -24,8 +24,6 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
         if ($backup->getBackupConfiguration()->getStorage()->isRestic()) {
             $this->backupService->resticInitRepo($backup);
         }
@@ -35,8 +33,6 @@ class BackupSubscriber implements EventSubscriberInterface
     {
         /** @var Backup */
         $backup = $event->getSubject();
-
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
@@ -52,8 +48,6 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
         $this->backupService->downloadBackup($backup);
     }
 
@@ -61,8 +55,6 @@ class BackupSubscriber implements EventSubscriberInterface
     {
         /** @var Backup */
         $backup = $event->getSubject();
-
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         $this->backupService->uploadBackup($backup);
     }
@@ -72,8 +64,6 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
         $this->backupService->cleanBackup($backup);
     }
 
@@ -82,17 +72,21 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
         $this->backupService->healhCheckBackup($backup);
+    }
+
+    public function onRepair(Event $event): void
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        $this->backupService->repairBackup($backup);
     }
 
     public function onForget(Event $event): void
     {
         /** @var Backup */
         $backup = $event->getSubject();
-
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         // Restic forget
         if ($backup->getBackupConfiguration()->getStorage()->isRestic() && BackupConfiguration::TYPE_READ_RESTIC !== $backup->getBackupConfiguration()->getType()) {
@@ -105,8 +99,6 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
-
         $this->backupService->log($backup, Log::LOG_ERROR, 'Backup failed');
 
         $this->mailerService->sendFailedBackupReport($backup);
@@ -117,7 +109,7 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_NOTICE, sprintf('Transition from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
+        $this->backupService->log($backup, Log::LOG_INFO, sprintf('Transition from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
     public function guardStart(GuardEvent $event): void
@@ -243,7 +235,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $backup = $event->getSubject();
 
         if (null === $backup->getResticSize() || 0 === $backup->getResticSize()) {
-            $message = 'Restic size not set from health check';
+            $message = 'Restic size not set from health check. Retry health check';
 
             $event->setBlocked(true, $message);
             $this->backupService->log($backup, Log::LOG_ERROR, $message);
@@ -251,6 +243,34 @@ class BackupSubscriber implements EventSubscriberInterface
             // We retry the health check
             $this->backupService->healhCheckBackup($backup);
         }
+    }
+
+    public function guardRepair(GuardEvent $event): void
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        if ($backup->getLogs()->filter(function (Log $log) {
+            return Log::LOG_ERROR === $log->getLevel() && preg_match('/tree [a-z0-9]+, blob [a-z0-9]+: not found in index/', $log->getMessage());
+        })->count()) {
+            $message = 'Backup are corrupted. Repairing...';
+            $this->backupService->log($backup, Log::LOG_INFO, $message);
+            $this->backupService->repairBackup($backup);
+        } else {
+            $message = 'Nothing we can do';
+            $event->setBlocked(true, $message);
+            $this->backupService->log($backup, Log::LOG_ERROR, $message);
+
+            $this->backupService->applyWorkflow($backup, 'failed');
+        }
+    }
+
+    public function onGuardAll(GuardEvent $event): void
+    {
+        /** @var Backup */
+        $backup = $event->getSubject();
+
+        $this->backupService->log($backup, Log::LOG_INFO, sprintf('Guard from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
     public static function getSubscribedEvents(): array
@@ -262,6 +282,7 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.enter.upload' => 'onUpload',
             'workflow.backup.enter.cleanup' => 'onCleanup',
             'workflow.backup.enter.health_check' => 'onHealthCheck',
+            'workflow.backup.enter.repair' => 'onRepair',
             'workflow.backup.enter.forget' => 'onForget',
             'workflow.backup.enter.failed' => 'onFailed',
 
@@ -271,8 +292,11 @@ class BackupSubscriber implements EventSubscriberInterface
             'workflow.backup.guard.download' => 'guardDownload',
             'workflow.backup.guard.upload' => 'guardUpload',
             'workflow.backup.guard.cleanup' => 'guardCleanup',
+            'workflow.backup.guard.repair' => 'guardRepair',
             'workflow.backup.guard.health_check' => 'guardHealhCheck',
             'workflow.backup.guard.forget' => 'guardForget',
+
+            'workflow.backup.guard' => 'onGuardAll',
         ];
     }
 }

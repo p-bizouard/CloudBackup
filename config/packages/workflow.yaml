@@ -18,6 +18,7 @@ framework:
                 - upload
                 - cleanup
                 - health_check
+                - repair
                 - forget
                 - backuped
                 - failed
@@ -38,11 +39,14 @@ framework:
                     from: [start, upload]
                     to: cleanup
                 health_check:
-                    from: [start, cleanup]
+                    from: [start, cleanup, repair]
                     to: health_check
                 forget:
                     from: health_check
                     to: forget
+                repair:
+                    from: health_check
+                    to: repair
                 backuped:
                     from: forget
                     to: backuped
@@ -55,6 +59,7 @@ framework:
                             download,
                             upload,
                             health_check,
+                            repair,
                             forget,
                             cleanup,
                         ]
