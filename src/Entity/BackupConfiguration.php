@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\BackupConfigurationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
@@ -19,7 +20,9 @@ class BackupConfiguration
 
     /**
      * @ORM\Id
+     *
      * @ORM\GeneratedValue
+     *
      * @ORM\Column(type="integer")
      */
     private ?int $id;
@@ -31,6 +34,7 @@ class BackupConfiguration
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
+     *
      * @Gedmo\Slug(fields={"name"})
      */
     private ?string $slug = null;
@@ -42,6 +46,7 @@ class BackupConfiguration
 
     /**
      * @ORM\Column(type="string", length=255)
+     *
      * @Assert\Choice(callback={BackupConfiguration::class, "getAvailablePeriodicity"})
      */
     private string $periodicity = 'daily';
@@ -58,6 +63,7 @@ class BackupConfiguration
 
     /**
      * @ORM\ManyToOne(targetEntity=Storage::class, inversedBy="backupConfigurations")
+     *
      * @ORM\JoinColumn(nullable=false)
      */
     private ?Storage $storage;
@@ -73,7 +79,13 @@ class BackupConfiguration
     private OSInstance $osInstance;
 
     /**
+     * @ORM\ManyToOne(targetEntity=S3Bucket::class, inversedBy="backupConfigurations")
+     */
+    private S3Bucket $s3Bucket;
+
+    /**
      * @ORM\OneToMany(targetEntity=Backup::class, mappedBy="backupConfiguration")
+     *
      * @ORM\OrderBy({"id" = "DESC"})
      *
      * @var Collection<int, Backup>
@@ -131,6 +143,7 @@ class BackupConfiguration
     public const TYPE_READ_RESTIC = 'read-restic';
     public const TYPE_SSH_CMD = 'ssh-cmd';
     public const TYPE_SFTP = 'sftp';
+    public const TYPE_S3_BUCKET = 's3-bucket';
 
     public function __construct()
     {
@@ -170,6 +183,7 @@ class BackupConfiguration
             self::TYPE_READ_RESTIC,
             self::TYPE_SSH_CMD,
             self::TYPE_SFTP,
+            self::TYPE_S3_BUCKET,
         ];
     }
 
@@ -390,6 +404,18 @@ class BackupConfiguration
         return $this;
     }
 
+    public function getS3Bucket(): ?S3Bucket
+    {
+        return $this->s3Bucket;
+    }
+
+    public function setS3Bucket(?S3Bucket $s3Bucket): self
+    {
+        $this->s3Bucket = $s3Bucket;
+
+        return $this;
+    }
+
     public function getRemotePath(): ?string
     {
         return $this->remotePath;
@@ -448,5 +474,10 @@ class BackupConfiguration
         $this->notBefore = $notBefore;
 
         return $this;
+    }
+
+    public function isEnabled(): ?bool
+    {
+        return $this->enabled;
     }
 }

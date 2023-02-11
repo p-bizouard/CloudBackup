@@ -26,6 +26,7 @@ RUN apt update \
         postgresql-client-13 \
         mongodb-org-tools \
         python3-pip restic graphviz \
+        s3fs \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -115,6 +116,9 @@ RUN mkdir /var/www/.cache/ && chown -R www-data:www-data /var/www/.cache/
 RUN mkdir /var/www/.ssh/ && chown -R www-data:www-data /var/www/.ssh/
 RUN mkdir -p public/bundles && chown www-data:www-data public/bundles
 RUN touch .env.local.php && chown www-data:www-data .env.local.php
+
+# Required for fusermount
+RUN ln -s /proc/mounts /etc/mtab
 
 USER www-data
 

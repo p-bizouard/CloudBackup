@@ -102,6 +102,11 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->addCssClass('backupConfigurationType-field os-instance')
                     ->setHelp('Openstack Instance to backup'),
 
+                AssociationField::new('s3Bucket')
+                    ->hideOnIndex()
+                    ->addCssClass('backupConfigurationType-field s3-bucket')
+                    ->setHelp('S3 Bucket to backup'),
+
                 AssociationField::new('host')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd sftp')
@@ -119,7 +124,8 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
                 TextField::new('customExtension')
                     ->hideOnIndex()
-                    ->setHelp('Suffix the backup with custom extension'),
+                    ->setHelp('Suffix the backup with custom extension')
+                    ->addCssClass('backupConfigurationType-field os-instance postgresql mysql sql-server ssh-cmd'),
 
                 TextField::new('remotePath')
                     ->hideOnIndex()

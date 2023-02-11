@@ -1,4 +1,4 @@
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: backup-cronjob
@@ -33,6 +33,11 @@ spec:
                 - app:backup:start 
               resources:
                 {{- toYaml .Values.cronjob.resources | nindent 16 }}
+              securityContext:
+                privileged: true
+                capabilities:
+                  add:
+                    - SYS_ADMIN # Required for FUSE mounts
           initContainers:
             - name: volume-mount
               image: busybox

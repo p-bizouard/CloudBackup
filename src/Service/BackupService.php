@@ -31,6 +31,8 @@ class BackupService
     public const SSHFS_MOUNT_TIMEOUT = 60;
     public const SSHFS_UMOUNT_TIMEOUT = 60;
 
+    public const S3FS_MOUNT_TIMEOUT = 60;
+
     public const DOWNLOAD_SIZE_TIMEOUT = 60 * 10;
 
     public function __construct(
@@ -298,7 +300,7 @@ class BackupService
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        if (!$this->checkDownloadedSSHFS($backup)) {
+        if (!$this->checkDownloadedFUSE($backup)) {
             $filesystem = new Filesystem();
             $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
             $backupDestination = $this->getTemporaryBackupDestination($backup);
@@ -329,6 +331,50 @@ class BackupService
             $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
             $process = Process::fromShellCommandline($command);
             $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                $this->log($backup, Log::LOG_ERROR, sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
+                throw new ProcessFailedException($process);
+            } else {
+                $this->log($backup, Log::LOG_INFO, $process->getOutput());
+            }
+
+            $this->log($backup, Log::LOG_NOTICE, 'Mount done');
+        } else {
+            $this->log($backup, Log::LOG_NOTICE, 'Already mounted');
+        }
+    }
+
+    private function downloadS3Bucket(Backup $backup): void
+    {
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+
+        if (!$this->checkDownloadedFUSE($backup)) {
+            $filesystem = new Filesystem();
+            $s3fsCredentialPath = $filesystem->tempnam('/tmp', 's3fs_');
+            $backupDestination = $this->getTemporaryBackupDestination($backup);
+
+            $filesystem->mkdir($backupDestination);
+            $filesystem->chmod($s3fsCredentialPath, 0600);
+            $filesystem->appendToFile($s3fsCredentialPath, sprintf("%s:%s\n", $backup->getBackupConfiguration()->getS3Bucket()->getAccessKey(), $backup->getBackupConfiguration()->getS3Bucket()->getSecretKey()));
+
+            $command = sprintf(
+                's3fs ${BUCKET_NAME} ${BACKUP_DESTINATION} %s -o passwd_file=${S3FS_CREDENTIAL_PATH} -o url=${ENDPOINT_URL}',
+                $backup->getBackupConfiguration()->getS3Bucket()->isUsePathRequestStyle() ? '-o use_path_request_style' : '',
+            );
+
+            $environment = [
+                'BUCKET_NAME' => $backup->getBackupConfiguration()->getS3Bucket()->getBucket(),
+                'BACKUP_DESTINATION' => $backupDestination,
+                'S3FS_CREDENTIAL_PATH' => $s3fsCredentialPath,
+                'ENDPOINT_URL' => $backup->getBackupConfiguration()->getS3Bucket()->getEndpointUrl(),
+            ];
+
+            $this->log($backup, Log::LOG_INFO, sprintf("Run `%s`\nwith `%s`", $command, implode(', ', $environment)));
+
+            $process = Process::fromShellCommandline($command, null, $environment);
+            $process->setTimeout(self::S3FS_MOUNT_TIMEOUT);
             $process->run();
 
             if (!$process->isSuccessful()) {
@@ -401,10 +447,13 @@ class BackupService
             case BackupConfiguration::TYPE_SSHFS:
                 $this->downloadSSHFS($backup);
                 break;
+            case BackupConfiguration::TYPE_S3_BUCKET:
+                $this->downloadS3Bucket($backup);
+                break;
         }
     }
 
-    public function checkDownloadedSSHFS(Backup $backup): bool
+    public function checkDownloadedFUSE(Backup $backup): bool
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
@@ -421,11 +470,11 @@ class BackupService
         $process->run();
 
         if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, 'checkDownloadedSSHFS : not mounted');
+            $this->log($backup, Log::LOG_ERROR, 'checkDownloadedFUSE : not mounted');
 
             return false;
         } else {
-            $this->log($backup, Log::LOG_NOTICE, 'checkDownloadedSSHFS : mounted');
+            $this->log($backup, Log::LOG_NOTICE, 'checkDownloadedFUSE : mounted');
 
             return true;
         }
@@ -639,6 +688,26 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
                 break;
+            case BackupConfiguration::TYPE_S3_BUCKET:
+                $command = sprintf(
+                    'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
+                    $backup->getBackupConfiguration()->getS3Bucket()->getName(),
+                    $backup->getBackupConfiguration()->getSlug(),
+                    $this->getTemporaryBackupDestination($backup),
+                );
+
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
+                $process = Process::fromShellCommandline($command, null, $env);
+                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - restic upload - %s', $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
+                break;
             case BackupConfiguration::TYPE_SSH_RESTIC:
                 $this->uploadBackupSSHRestic($backup);
                 break;
@@ -667,9 +736,9 @@ class BackupService
         }
     }
 
-    private function cleanBackupSSHFS(Backup $backup): void
+    private function cleanBackupFUSE(Backup $backup): void
     {
-        if ($this->checkDownloadedSSHFS($backup)) {
+        if ($this->checkDownloadedFUSE($backup)) {
             $command = sprintf('fusermount -u %s', $this->getTemporaryBackupDestination($backup));
             $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
             $process = Process::fromShellCommandline($command);
@@ -788,7 +857,8 @@ class BackupService
                     $this->cleanBackupSftp($backup);
                     break;
                 case BackupConfiguration::TYPE_SSHFS:
-                    $this->cleanBackupSSHFS($backup);
+                case BackupConfiguration::TYPE_S3_BUCKET:
+                    $this->cleanBackupFUSE($backup);
                     break;
             }
         }
@@ -823,6 +893,7 @@ class BackupService
             case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
             case BackupConfiguration::TYPE_SSHFS:
+            case BackupConfiguration::TYPE_S3_BUCKET:
             case BackupConfiguration::TYPE_SFTP:
                 if (file_exists($this->getTemporaryBackupDestination($backup))) {
                     return false;
@@ -980,6 +1051,7 @@ class BackupService
     {
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_SSHFS:
+            case BackupConfiguration::TYPE_S3_BUCKET:
                 return sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
             default:
                 if (null !== $backup->getBackupConfiguration()->getExtension()) {
