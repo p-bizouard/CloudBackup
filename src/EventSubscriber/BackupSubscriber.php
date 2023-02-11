@@ -168,7 +168,8 @@ class BackupSubscriber implements EventSubscriberInterface
                     }
                     break;
                 case BackupConfiguration::TYPE_SSHFS:
-                    if (!$this->backupService->checkDownloadedSSHFS($backup)) {
+                case BackupConfiguration::TYPE_S3_BUCKET:
+                    if (!$this->backupService->checkDownloadedFUSE($backup)) {
                         $message = 'Download not completed';
 
                         $event->setBlocked(true, $message);

@@ -46,6 +46,15 @@ App\Entity\Storage:
         awsDefaultRegion: region
         resticPassword: resticPassword
         resticRepo: s3:http://minio:9000/restic/subdirectory
+App\Entity\S3Bucket:
+    s3-bucket:
+        name: s3-bucket
+        accessKey: minioadmin
+        secretKey: minioadmin
+        region: region
+        bucket: "restic"
+        endpointUrl: http://minio:9000
+        usePathRequestStyle: true
 App\Entity\Host:
     host-by-key:
         name: host-by-key
@@ -214,6 +223,17 @@ App\Entity\BackupConfiguration:
         storageSubPath: "dev-postgres-s3"
         dumpCommand: "PGPASSWORD='db' /usr/lib/postgresql/13/bin/pg_dump -U db -h postgres -p 5432 db"
         minimumBackupSize: 5000
+        enabled: false
+    daily-s3-bucket:
+        name: s3-bucket
+        type: s3-bucket
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@s3"
+        storageSubPath: "daily-s3-bucket"
+        minimumBackupSize: 1
+        s3Bucket: "@s3-bucket"
         enabled: false
 
 App\Entity\Backup:
