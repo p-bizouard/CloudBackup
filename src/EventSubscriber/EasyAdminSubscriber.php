@@ -7,11 +7,11 @@ use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Event\BeforeEntityPersistedEvent;
 use EasyCorp\Bundle\EasyAdminBundle\Event\BeforeEntityUpdatedEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class EasyAdminSubscriber implements EventSubscriberInterface
 {
-    public function __construct(private EntityManagerInterface $entityManager, private UserPasswordEncoderInterface $passwordEncoder)
+    public function __construct(private EntityManagerInterface $entityManager, private UserPasswordHasherInterface $passwordHasher)
     {
     }
 
@@ -49,7 +49,7 @@ class EasyAdminSubscriber implements EventSubscriberInterface
 
         if (null !== $pass) {
             $entity->setPassword(
-                $this->passwordEncoder->encodePassword(
+                $this->passwordHasher->hashPassword(
                     $entity,
                     $pass
                 )

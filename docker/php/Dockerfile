@@ -1,7 +1,7 @@
 ARG NGINX_DESTINATION=cloudbackup_nginx
 
 # Dev target
-FROM php:8.1-fpm AS dev
+FROM php:8.2-fpm AS dev
 
 WORKDIR /app
 
@@ -24,6 +24,7 @@ RUN apt update \
         postgresql-client-11 \
         postgresql-client-12 \
         postgresql-client-13 \
+        postgresql-client-14 \
         mongodb-org-tools \
         python3-pip restic graphviz \
         s3fs \
