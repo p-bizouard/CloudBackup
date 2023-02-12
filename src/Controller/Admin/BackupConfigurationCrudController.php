@@ -135,7 +135,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 IntegerField::new('minimumBackupSize')
                     ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                     ->hideOnIndex()
-                    ->addCssClass('backupConfigurationType-field postgresql mysql ssh-cmd sftp')
+                    ->addCssClass(sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypes())))
                     ->setHelp('Minimal size of the backup (in bytes)'),
         ];
     }
