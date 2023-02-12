@@ -118,7 +118,7 @@ RUN mkdir -p public/bundles && chown www-data:www-data public/bundles
 RUN touch .env.local.php && chown www-data:www-data .env.local.php
 
 # Required for fusermount
-RUN ln -s /proc/mounts /etc/mtab
+RUN if [ ! -L /etc/mtab ]; then ln -s /proc/mounts /etc/mtab; fi
 
 USER www-data
 
