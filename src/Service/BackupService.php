@@ -96,10 +96,14 @@ class BackupService
 
         $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
 
-        $command = sprintf('openstack server image create --name %s %s', $backup->getName(), $backup->getBackupConfiguration()->getOsInstance()->getId());
+        $command = 'openstack server image create --name ${BACKUP_NAME} ${OS_INSTANCE_ID}';
+        $parameters = [
+            'BACKUP_NAME' => $backup->getName(),
+            'OS_INSTANCE_ID' => $backup->getBackupConfiguration()->getOsInstance()->getId(),
+        ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null, $env);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $env + $parameters);
         $process->setTimeout(self::OS_INSTANCE_SNAPSHOT_TIMEOUT);
         $process->run();
 
@@ -117,10 +121,13 @@ class BackupService
 
         $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
 
-        $command = sprintf('openstack image list --private --name %s --long -f json', $backup->getName());
+        $command = 'openstack image list --private --name ${BACKUP_NAME} --long -f json';
+        $parameters = [
+            'BACKUP_NAME' => $backup->getName(),
+        ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null, $env);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $env + $parameters);
         $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
         $process->run();
 
@@ -155,10 +162,13 @@ class BackupService
 
     private function getSftpDownloadSize(Backup $backup): int
     {
-        $command = sprintf('du -sb %s | cut -f1', $this->getTemporaryBackupDestination($backup));
+        $command = 'du -sb "${BACKUP_DESTINATION}" | cut -f1';
+        $parameters = [
+            'BACKUP_DESTINATION' => $this->getTemporaryBackupDestination($backup),
+        ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::DOWNLOAD_SIZE_TIMEOUT);
         $process->run();
 
@@ -179,10 +189,13 @@ class BackupService
         $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
 
         if (!$backup->getOsImageId()) {
-            $command = sprintf('openstack image list --private --name %s --long -f json', $backup->getName());
+            $command = 'openstack image list --private --name ${BACKUP_NAME} --long -f json';
+            $parameters = [
+                'BACKUP_NAME' => $backup->getName(),
+            ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-            $process = Process::fromShellCommandline($command, null, $env);
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $process = Process::fromShellCommandline($command, null, $env + $parameters);
             $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
             $process->run();
 
@@ -219,10 +232,14 @@ class BackupService
             return;
         }
 
-        $command = sprintf('openstack image save --file %s %s', $imageDestination, $backup->getOsImageId());
+        $command = 'openstack image save --file ${IMAGE_DESTINATION} ${IMAGE_ID}';
+        $parameters = [
+            'IMAGE_DESTINATION' => $imageDestination,
+            'IMAGE_ID' => $backup->getOsImageId(),
+        ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null, $env);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $env + $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
 
@@ -249,37 +266,40 @@ class BackupService
             if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
                 $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
                 $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-                $privateKeyString = sprintf('-i %s', $privateKeypath);
-            } else {
-                $privateKeyString = '';
+                $privateKeyString = '-i ${PRIVATE_KEY_PATH}';
             }
 
             if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-                $sshpass = sprintf('sshpass -p %s', $backup->getBackupConfiguration()->getHost()->getPassword());
-            } else {
-                $sshpass = '';
+                $sshpass = 'sshpass -p ${SSHPASS}';
             }
 
             $command = sprintf(
-                '%s ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "%s | gzip -9" | gunzip > %s',
-                $sshpass,
-                $backup->getBackupConfiguration()->getHost()->getLogin(),
-                $backup->getBackupConfiguration()->getHost()->getIp(),
-                $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-                $privateKeyString,
-                $backup->getBackupConfiguration()->getDumpCommand(),
-                $backupDestination
+                '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "${DUMP_COMMAND} | gzip -9" | gunzip > "${DESTINATION}"',
+                $sshpass ?? null,
+                $privateKeyString ?? null
             );
+            $parameters = [
+                'SSHPASS' => $backup->getBackupConfiguration()->getHost()->getPassword(),
+                'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
+                'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
+                'PORT' => $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+                'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
+                'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
+                'DESTINATION' => $backupDestination,
+            ];
         } else {
             $command = sprintf(
-                '%s > %s',
-                $backup->getBackupConfiguration()->getDumpCommand(),
-                $backupDestination
+                // Unsafe use of shell command
+                'sh -c "${DUMP_COMMAND}" > "${DESTINATION}"',
             );
+            $parameters = [
+                'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
+                'DESTINATION' => $backupDestination,
+            ];
         }
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
 
@@ -302,34 +322,39 @@ class BackupService
 
         if (!$this->checkDownloadedFUSE($backup)) {
             $filesystem = new Filesystem();
-            $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-            $backupDestination = $this->getTemporaryBackupDestination($backup);
 
+            $backupDestination = $this->getTemporaryBackupDestination($backup);
             $filesystem->mkdir($backupDestination);
 
-            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()?->getPrivateKey()."\n"));
+            if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
+                $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
+                $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+                $privateKeyString = '-o IdentityFile="${PRIVATE_KEY_PATH}"';
+            }
 
             if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-                $sshpass = sprintf('echo "%s" |', $backup->getBackupConfiguration()->getHost()->getPassword());
-            } else {
-                $sshpass = '';
+                $sshpass = 'echo "${SSHPASS}" | ';
             }
 
             $command = sprintf(
-                '%s sshfs %s@%s:%s %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o uid=%d,gid=%d -o ro -o IdentityFile=%s %s',
-                $sshpass,
-                $backup->getBackupConfiguration()->getHost()->getLogin(),
-                $backup->getBackupConfiguration()->getHost()->getIp(),
-                $backup->getBackupConfiguration()->getRemotePath(),
-                $backupDestination,
+                '%s sshfs "${LOGIN}@${IP}:${REMOTE_PATH}" "${DESTINATION}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s -o "uid=%d,gid=%d" -o ro %s',
+                $sshpass ?? null,
+                $privateKeyString ?? null,
                 posix_getuid(),
                 posix_getgid(),
-                $privateKeypath,
-                $backup->getBackupConfiguration()->getDumpCommand(),
+                $backup->getBackupConfiguration()->getDumpCommand() // Unsafe use of shell command - allow to add options to sshfs
             );
+            $parameters = [
+                'SSHPASS' => $backup->getBackupConfiguration()->getHost()->getPassword(),
+                'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
+                'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
+                'REMOTE_PATH' => $backup->getBackupConfiguration()->getRemotePath(),
+                'DESTINATION' => $backupDestination,
+                'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
+            ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-            $process = Process::fromShellCommandline($command);
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $process = Process::fromShellCommandline($command, null, $parameters);
             $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
             $process->run();
 
@@ -395,25 +420,28 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
         $filesystem = new Filesystem();
-        $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-        $backupDestination = $this->getTemporaryBackupDestination($backup);
 
-        $filesystem->mkdir($backupDestination);
-
-        $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+        if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
+            $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
+            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
+            $privateKeyString = '-i ${PRIVATE_KEY_PATH}';
+        }
 
         $command = sprintf(
-            'sftp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s %s %s@%s:%s %s',
-            $privateKeypath,
-            $backup->getBackupConfiguration()->getDumpCommand(),
-            $backup->getBackupConfiguration()->getHost()->getLogin(),
-            $backup->getBackupConfiguration()->getHost()->getIp(),
-            $backup->getBackupConfiguration()->getRemotePath(),
-            $backupDestination,
+            'sftp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "${LOGIN}@${IP}:${REMOTE_DIRECTORY}" "${BACKUP_DESTINATION}"',
+            $privateKeyString ?? null
         );
+        $parameters = [
+            'PORT' => $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+            'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
+            'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
+            'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
+            'REMOTE_DIRECTORY' => $backup->getBackupConfiguration()->getRemotePath(),
+            'BACKUP_DESTINATION' => $this->getTemporaryBackupDestination($backup),
+        ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
         $process->run();
 
@@ -457,15 +485,13 @@ class BackupService
     {
         $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
 
-        $backupDestination = $this->getTemporaryBackupDestination($backup);
+        $command = 'grep -qs "${DIRECTORY}" /proc/mounts';
+        $parameters = [
+            'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+        ];
 
-        $command = sprintf(
-            'grep -qs "%s" /proc/mounts',
-            $backupDestination
-        );
-
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
 
@@ -624,16 +650,16 @@ class BackupService
 
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
-                $command = sprintf(
-                    'restic backup --tag project=%s --tag instance=%s --tag configuration=%s --host cloudbackup %s',
-                    $backup->getBackupConfiguration()->getOsInstance()->getOSProject()->getSlug(),
-                    $backup->getBackupConfiguration()->getOsInstance()->getSlug(),
-                    $backup->getBackupConfiguration()->getSlug(),
-                    $this->getTemporaryBackupDestination($backup)
-                );
+                $command = 'restic backup --tag project="${PROJECT}" --tag instance="${INSTANCE}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
+                $parameters = [
+                    'PROJECT' => $backup->getBackupConfiguration()->getOsInstance()->getOSProject()->getSlug(),
+                    'INSTANCE' => $backup->getBackupConfiguration()->getOsInstance()->getSlug(),
+                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
+                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+                ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-                $process = Process::fromShellCommandline($command, null, $env);
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
 
@@ -648,15 +674,15 @@ class BackupService
             case BackupConfiguration::TYPE_POSTGRESQL:
             case BackupConfiguration::TYPE_SQL_SERVER:
             case BackupConfiguration::TYPE_SSH_CMD:
-                $command = sprintf(
-                    'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
-                    $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
-                    $backup->getBackupConfiguration()->getSlug(),
-                    $this->getTemporaryBackupDestination($backup)
-                );
+                $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
+                $parameters = [
+                    'HOST' => $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
+                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
+                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+                ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-                $process = Process::fromShellCommandline($command, null, $env);
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
 
@@ -669,15 +695,15 @@ class BackupService
                 break;
             case BackupConfiguration::TYPE_SSHFS:
             case BackupConfiguration::TYPE_SFTP:
-                $command = sprintf(
-                    'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
-                    $backup->getBackupConfiguration()->getHost()->getSlug(),
-                    $backup->getBackupConfiguration()->getSlug(),
-                    $this->getTemporaryBackupDestination($backup),
-                );
+                $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
+                $parameters = [
+                    'HOST' => $backup->getBackupConfiguration()->getHost()->getSlug(),
+                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
+                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+                ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-                $process = Process::fromShellCommandline($command, null, $env);
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
 
@@ -689,15 +715,15 @@ class BackupService
                 }
                 break;
             case BackupConfiguration::TYPE_S3_BUCKET:
-                $command = sprintf(
-                    'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s',
-                    $backup->getBackupConfiguration()->getS3Bucket()->getName(),
-                    $backup->getBackupConfiguration()->getSlug(),
-                    $this->getTemporaryBackupDestination($backup),
-                );
+                $command = 'restic backup --tag bucket="${BUCKET}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
+                $parameters = [
+                    'BUCKET' => $backup->getBackupConfiguration()->getS3Bucket()->getBucket(),
+                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
+                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+                ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-                $process = Process::fromShellCommandline($command, null, $env);
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
 
@@ -739,9 +765,13 @@ class BackupService
     private function cleanBackupFUSE(Backup $backup): void
     {
         if ($this->checkDownloadedFUSE($backup)) {
-            $command = sprintf('fusermount -u %s', $this->getTemporaryBackupDestination($backup));
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-            $process = Process::fromShellCommandline($command);
+            $command = 'fusermount -u "${DIRECTORY}"';
+            $parameters = [
+                'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+            ];
+
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $process = Process::fromShellCommandline($command, null, $parameters);
             $process->setTimeout(self::SSHFS_UMOUNT_TIMEOUT);
             $process->run();
 
@@ -777,10 +807,13 @@ class BackupService
     private function cleanBackupOsInstance(Backup $backup): void
     {
         if (null !== $this->getSnapshotOsInstanceStatus($backup)) {
-            $command = sprintf('openstack image delete %s', $backup->getOsImageId());
+            $command = 'openstack image delete ${OS_IMAGE_ID}';
+            $parameters = [
+                'OS_IMAGE_ID' => $backup->getOsImageId(),
+            ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-            $process = Process::fromShellCommandline($command, null, $backup->getBackupConfiguration()->getOsInstance()->getOSEnv());
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $process = Process::fromShellCommandline($command, null, $parameters + $backup->getBackupConfiguration()->getOsInstance()->getOSEnv());
             $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
             $process->run();
 
@@ -802,29 +835,29 @@ class BackupService
         if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
             $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
             $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-            $privateKeyString = sprintf('-i %s', $privateKeypath);
-        } else {
-            $privateKeyString = '';
+            $privateKeyString = '-i ${PRIVATE_KEY_PATH}';
         }
 
         if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-            $sshpass = sprintf('sshpass -p %s', $backup->getBackupConfiguration()->getHost()->getPassword());
-        } else {
-            $sshpass = '';
+            $sshpass = 'sshpass -p ${SSHPASS}';
         }
 
         $command = sprintf(
-            '%s ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "%s"',
-            $sshpass,
-            $backup->getBackupConfiguration()->getHost()->getLogin(),
-            $backup->getBackupConfiguration()->getHost()->getIp(),
-            $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-            $privateKeyString,
-            $backup->getBackupConfiguration()->getRemoteCleanCommand(),
+            '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "${REMOTE_CLEAN_COMMAND}"',
+            $sshpass ?? null,
+            $privateKeyString ?? null
         );
+        $parameters = [
+            'SSHPASS' => $backup->getBackupConfiguration()->getHost()->getPassword(),
+            'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
+            'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
+            'PORT' => $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+            'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
+            'REMOTE_CLEAN_COMMAND' => $backup->getBackupConfiguration()->getRemoteCleanCommand(),
+        ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
 
