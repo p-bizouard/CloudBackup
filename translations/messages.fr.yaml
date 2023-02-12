@@ -2,7 +2,7 @@ daily: Backup quotidien
 mysql: MySQL
 os-instance: VM Openstack
 postgresql: PostgreSQL
-ssh-restic: Fichiers via Restic SSH
+ssh-restic: Fichiers via Restic SSH (non sécurisé)
 read-restic: Backup restic externalisé
 ssh-cmd: Commande ssh personnalisée
 sshfs: Montage SSHFS

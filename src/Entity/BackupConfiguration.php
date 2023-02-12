@@ -5,7 +5,6 @@ namespace App\Entity;
 use App\Repository\BackupConfigurationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
@@ -211,8 +210,8 @@ class BackupConfiguration
 
     public function getResticForgetArgs(): string
     {
-        $keepDaily = $this->getKeepDaily() ? sprintf('--keep-daily %s', $this->getKeepDaily()) : null;
-        $keepWeekly = $this->getKeepDaily() ? sprintf('--keep-weekly %s', $this->getKeepWeekly()) : null;
+        $keepDaily = $this->getKeepDaily() ? sprintf('--keep-daily %s', (int) $this->getKeepDaily()) : null;
+        $keepWeekly = $this->getKeepDaily() ? sprintf('--keep-weekly %s', (int) $this->getKeepWeekly()) : null;
 
         return sprintf('%s %s', $keepDaily, $keepWeekly);
     }
