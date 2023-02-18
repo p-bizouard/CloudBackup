@@ -5,6 +5,7 @@ namespace App\Handler;
 use App\Entity\Log;
 use Doctrine\ORM\EntityManagerInterface;
 use Monolog\Handler\AbstractProcessingHandler;
+use Monolog\LogRecord;
 
 class MonologDoctrineHandler extends AbstractProcessingHandler
 {
@@ -19,7 +20,7 @@ class MonologDoctrineHandler extends AbstractProcessingHandler
         $this->entityManager = $entityManager;
     }
 
-    protected function write(array $record): void
+    protected function write(LogRecord $record): void
     {
         if (!$this->initialized) {
             $this->initialize();

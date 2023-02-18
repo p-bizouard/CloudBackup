@@ -1,4 +1,8 @@
 twig:
-    default_path: "%kernel.project_dir%/templates"
+    default_path: '%kernel.project_dir%/templates'
     globals:
         cas_base_url: "%env(CAS_BASE_URL)%"
+
+when@test:
+    twig:
+        strict_variables: true

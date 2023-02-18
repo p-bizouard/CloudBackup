@@ -2,7 +2,7 @@
 # Files in the packages/ subdirectory configure your dependencies.
 
 # Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices/configuration.html#application-related-configuration
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     cas_base_url: "%env(CAS_BASE_URL)%"
 
@@ -52,8 +52,8 @@ services:
             - "%env(csv:CSV_REPORT_ADDRESSES)%"
             - "@mailer"
 
-    App\Security\CasGuardAuthenticator:
-        decorates: EcPhp\CasBundle\Security\CasGuardAuthenticator
+    App\Security\CasAuthenticator:
+        decorates: EcPhp\CasBundle\Security\CasAuthenticator
         arguments:
             $userProvider: "@security.user.provider.concrete.app_user_provider"
-            $ecpPhpcasGuardAuthenticator: "@.inner"
+            $ecpPhpcasAuthenticator: "@.inner"
