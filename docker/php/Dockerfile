@@ -28,6 +28,7 @@ RUN apt update \
         mongodb-org-tools \
         python3-pip restic graphviz \
         s3fs \
+    && curl https://rclone.org/install.sh | bash \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 

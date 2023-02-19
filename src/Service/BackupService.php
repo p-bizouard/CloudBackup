@@ -74,6 +74,11 @@ class BackupService
         $this->entityManager->flush();
     }
 
+    public function logParameters(mixed $parameters): string
+    {
+        return strip_tags(json_encode($parameters, \JSON_PRETTY_PRINT));
+    }
+
     public function applyWorkflow(Backup $backup, string $transition): void
     {
         $workflow = $this->workflowRegistry->get($backup);
@@ -102,7 +107,7 @@ class BackupService
             'OS_INSTANCE_ID' => $backup->getBackupConfiguration()->getOsInstance()->getId(),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $env + $parameters);
         $process->setTimeout(self::OS_INSTANCE_SNAPSHOT_TIMEOUT);
         $process->run();
@@ -126,7 +131,7 @@ class BackupService
             'BACKUP_NAME' => $backup->getName(),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $env + $parameters);
         $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
         $process->run();
@@ -167,7 +172,7 @@ class BackupService
             'BACKUP_DESTINATION' => $this->getTemporaryBackupDestination($backup),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::DOWNLOAD_SIZE_TIMEOUT);
         $process->run();
@@ -194,7 +199,7 @@ class BackupService
                 'BACKUP_NAME' => $backup->getName(),
             ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
             $process = Process::fromShellCommandline($command, null, $env + $parameters);
             $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
             $process->run();
@@ -238,7 +243,7 @@ class BackupService
             'IMAGE_ID' => $backup->getOsImageId(),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $env + $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
@@ -298,7 +303,7 @@ class BackupService
             ];
         }
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
@@ -353,7 +358,7 @@ class BackupService
                 'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
             ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
             $process = Process::fromShellCommandline($command, null, $parameters);
             $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
             $process->run();
@@ -440,7 +445,7 @@ class BackupService
             'BACKUP_DESTINATION' => $this->getTemporaryBackupDestination($backup),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
         $process->run();
@@ -478,6 +483,9 @@ class BackupService
             case BackupConfiguration::TYPE_S3_BUCKET:
                 $this->downloadS3Bucket($backup);
                 break;
+            default:
+                $this->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
+                break;
         }
     }
 
@@ -490,7 +498,7 @@ class BackupService
             'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
@@ -658,7 +666,7 @@ class BackupService
                     'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
                 ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                 $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
@@ -681,7 +689,7 @@ class BackupService
                     'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
                 ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                 $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
@@ -702,7 +710,7 @@ class BackupService
                     'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
                 ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                 $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
@@ -722,7 +730,7 @@ class BackupService
                     'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
                 ];
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                 $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
                 $process->run();
@@ -734,8 +742,37 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
                 break;
+            case BackupConfiguration::TYPE_RCLONE:
+                $filesystem = new Filesystem();
+                $configFile = $filesystem->tempnam('/tmp', 'key_');
+                $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
+
+                $daily_backup_dir = sprintf('%s/%s', $backup->getBackupConfiguration()->getRcloneBackupDir(), date('Y-m-d'));
+                $command = 'rclone sync "${SOURCE_LOCATION}" "${REMOTE_STORAGE_LOCATION}" --backup-dir "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
+                $parameters = [
+                    'SOURCE_LOCATION' => $backup->getBackupConfiguration()->getRemotePath(),
+                    'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
+                    'REMOTE_STORAGE_BACKUP' => $daily_backup_dir,
+                    'RCLONE_CONFIG' => $configFile,
+                ];
+
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
+                $process = Process::fromShellCommandline($command, null, $parameters);
+                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone sync - %s', $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
+                break;
             case BackupConfiguration::TYPE_SSH_RESTIC:
                 $this->uploadBackupSSHRestic($backup);
+                break;
+            default:
+                $this->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
                 break;
         }
     }
@@ -762,6 +799,37 @@ class BackupService
         }
     }
 
+    public function cleanBackupRclone(Backup $backup): void
+    {
+        if (null === $backup->getBackupConfiguration()->getRcloneBackupDir() || '' === $backup->getBackupConfiguration()->getRcloneBackupDir()) {
+            return;
+        }
+
+        $filesystem = new Filesystem();
+        $configFile = $filesystem->tempnam('/tmp', 'key_');
+        $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getStorage()->getRcloneConfiguration());
+
+        $command = 'rclone delete --rmdirs --min-age "${KEEP_DAILY}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
+        $parameters = [
+            'KEEP_DAILY' => $backup->getBackupConfiguration()->getKeepDaily(),
+            'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
+            'RCLONE_CONFIG' => $configFile,
+        ];
+
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+
+        $process = Process::fromShellCommandline($command, null, $parameters);
+        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone delete  - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+    }
+
     private function cleanBackupFUSE(Backup $backup): void
     {
         if ($this->checkDownloadedFUSE($backup)) {
@@ -770,7 +838,7 @@ class BackupService
                 'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
             ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
             $process = Process::fromShellCommandline($command, null, $parameters);
             $process->setTimeout(self::SSHFS_UMOUNT_TIMEOUT);
             $process->run();
@@ -812,7 +880,7 @@ class BackupService
                 'OS_IMAGE_ID' => $backup->getOsImageId(),
             ];
 
-            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+            $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
             $process = Process::fromShellCommandline($command, null, $parameters + $backup->getBackupConfiguration()->getOsInstance()->getOSEnv());
             $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
             $process->run();
@@ -856,7 +924,7 @@ class BackupService
             'REMOTE_CLEAN_COMMAND' => $backup->getBackupConfiguration()->getRemoteCleanCommand(),
         ];
 
-        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, json_encode($parameters, \JSON_PRETTY_PRINT)));
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $parameters);
         $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
         $process->run();
@@ -1027,6 +1095,48 @@ class BackupService
 
                         $this->log($backup, Log::LOG_NOTICE, sprintf('Stat %s : %s', $backupAttribute, StringUtils::humanizeFilesize($json['total_size'])));
                     }
+                }
+
+                if (null === $backup->getSize()) {
+                    $backup->setSize($backup->getResticSize());
+                }
+
+                break;
+            case Storage::TYPE_RCLONE:
+                $filesystem = new Filesystem();
+                $configFile = $filesystem->tempnam('/tmp', 'key_');
+                $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getStorage()->getRcloneConfiguration());
+
+                $command = 'rclone size "${REMOTE_STORAGE_LOCATION}" --config "${RCLONE_CONFIG}" --json';
+                $parameters = [
+                    'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
+                    'RCLONE_CONFIG' => $configFile,
+                ];
+
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+                $process = Process::fromShellCommandline($command, null, $parameters);
+                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone size - %s', $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
+
+                $output = json_decode($process->getOutput(), true);
+                if (null === $output) {
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing rclone size - %s - %s', $process->getOutput(), $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                }
+
+                $backup->setSize($output['bytes']);
+
+                if ($output['bytes'] <= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
+                    $message = sprintf('Rclone failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFilesize($output['bytes']), StringUtils::humanizeFilesize($backup->getBackupConfiguration()->getMinimumBackupSize()));
+                    $this->log($backup, Log::LOG_NOTICE, $message);
+                    throw new \Exception($message);
                 }
                 break;
         }

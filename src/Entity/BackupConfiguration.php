@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\BackupConfigurationRepository;
+use App\Validator as AppAssert;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -13,6 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 /**
  * @ORM\Entity(repositoryClass=BackupConfigurationRepository::class)
  */
+#[AppAssert\BackupConfigurationTypeRclone]
 class BackupConfiguration
 {
     use TimestampableEntity;
@@ -112,6 +114,11 @@ class BackupConfiguration
     private ?string $remotePath = null;
 
     /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private ?string $rcloneBackupDir = null;
+
+    /**
      * @ORM\Column(type="bigint", nullable=true)
      */
     private ?string $minimumBackupSize = null;
@@ -131,6 +138,11 @@ class BackupConfiguration
      */
     private ?int $notBefore = null;
 
+    /**
+     * @ORM\Column(type="text", nullable=true)
+     */
+    private ?string $rcloneConfiguration = null;
+
     public const PERIODICITY_DAILY = 'daily';
 
     public const TYPE_OS_INSTANCE = 'os-instance';
@@ -143,6 +155,7 @@ class BackupConfiguration
     public const TYPE_SSH_CMD = 'ssh-cmd';
     public const TYPE_SFTP = 'sftp';
     public const TYPE_S3_BUCKET = 's3-bucket';
+    public const TYPE_RCLONE = 'rclone';
 
     public function __construct()
     {
@@ -183,7 +196,15 @@ class BackupConfiguration
             self::TYPE_SSH_CMD,
             self::TYPE_SFTP,
             self::TYPE_S3_BUCKET,
+            self::TYPE_RCLONE,
         ];
+    }
+
+    public static function getAvailableTypesWithoutRclone(): array
+    {
+        return array_filter(self::getAvailableTypes(), function ($type) {
+            return self::TYPE_RCLONE !== $type;
+        });
     }
 
     public function getExtension(): ?string
@@ -222,6 +243,11 @@ class BackupConfiguration
             'RESTIC_PASSWORD' => $this->getStorage()?->getResticPassword(),
             'RESTIC_REPOSITORY' => sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
         ];
+    }
+
+    public function getCompleteRcloneConfiguration(): ?string
+    {
+        return sprintf("%s\n%s", $this->getStorage()->getRcloneConfiguration(), $this->rcloneConfiguration);
     }
 
     public function getId(): int
@@ -478,5 +504,29 @@ class BackupConfiguration
     public function isEnabled(): ?bool
     {
         return $this->enabled;
+    }
+
+    public function getRcloneConfiguration(): ?string
+    {
+        return $this->rcloneConfiguration;
+    }
+
+    public function setRcloneConfiguration(?string $rcloneConfiguration): self
+    {
+        $this->rcloneConfiguration = $rcloneConfiguration;
+
+        return $this;
+    }
+
+    public function getRcloneBackupDir(): ?string
+    {
+        return $this->rcloneBackupDir;
+    }
+
+    public function setRcloneBackupDir(?string $rcloneBackupDir): self
+    {
+        $this->rcloneBackupDir = $rcloneBackupDir;
+
+        return $this;
     }
 }

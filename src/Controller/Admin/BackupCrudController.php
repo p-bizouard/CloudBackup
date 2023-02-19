@@ -11,7 +11,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Symfony\Component\Workflow\Registry;
 
 class BackupCrudController extends AbstractCrudController
@@ -64,22 +63,26 @@ class BackupCrudController extends AbstractCrudController
                 ->hideOnForm(),
             ChoiceField::new('currentPlace')
                 ->setChoices($this->workflowRegistry->get(new Backup())->getDefinition()->getPlaces()),
-            IntegerField::new('resticSize')
+            IntegerField::new('size')
                 ->setLabel('Backup size')
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                 ->hideOnForm(),
+            IntegerField::new('resticSize')
+                ->setLabel('Restic snapshot size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnForm(),
             IntegerField::new('resticDedupSize')
-                ->setLabel('Backup deduplicated size')
+                ->setLabel('Restic snapshot deduplicated size')
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                 ->hideOnIndex()
                 ->hideOnForm(),
             IntegerField::new('resticTotalSize')
-                ->setLabel('Repository virtual size')
+                ->setLabel('Restic total size')
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                 ->hideOnIndex()
                 ->hideOnForm(),
             IntegerField::new('resticTotalDedupSize')
-                ->setLabel('Repository deduplicated size')
+                ->setLabel('Restic total deduplicated size')
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                 ->hideOnIndex()
                 ->hideOnForm(),
@@ -88,15 +91,4 @@ class BackupCrudController extends AbstractCrudController
             DateTimeField::new('updatedAt')->hideOnForm(),
         ];
     }
-
-    /*
-    public function configureFields(string $pageName): iterable
-    {
-        return [
-            IdField::new('id'),
-            TextField::new('title'),
-            TextEditorField::new('description'),
-        ];
-    }
-    */
 }

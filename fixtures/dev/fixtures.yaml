@@ -46,6 +46,25 @@ App\Entity\Storage:
         awsDefaultRegion: region
         resticPassword: resticPassword
         resticRepo: s3:http://minio:9000/restic/subdirectory
+    rclone:
+        name: rclone
+        type: rclone
+        rcloneConfiguration: |
+            \[repo]
+            type = s3
+            provider = Other
+            env_auth = false
+            access_key_id = minioadmin
+            secret_access_key = minioadmin
+            region = region
+            endpoint = http://minio:9000
+            acl = private
+
+            \[crypt]
+            type = crypt
+            remote = repo:rclone-bucket/subdirectory
+            password = egtBWMUKof2xAPP_jYBrMu1VA4c
+            password2 = 7B_ZxzkfP6Q0ObYu5eWPDUnztoA
 App\Entity\S3Bucket:
     s3-bucket:
         name: s3-bucket
@@ -234,6 +253,21 @@ App\Entity\BackupConfiguration:
         storageSubPath: "daily-s3-bucket"
         minimumBackupSize: 1
         s3Bucket: "@s3-bucket"
+        enabled: false
+    daily-rclone:
+        name: rclone
+        type: rclone
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@rclone"
+        remotePath: "source:/app/fixtures"
+        storageSubPath: "crypt:/storage"
+        rcloneBackupDir: "crypt:/backup"
+        minimumBackupSize: 1
+        rcloneConfiguration: |
+            \[source]
+            type = local
         enabled: false
 
 App\Entity\Backup:

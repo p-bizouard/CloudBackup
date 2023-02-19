@@ -3,69 +3,134 @@
 {% block main %}
     {{ parent() }}
 
-    <h3>
-        Restic
-    </h3>
-    <div class="content-panel">
-        <div class="content-panel-body without-header without-footer without-padding">
-            <dl class="datalist">
-                <div class="data-row">
-                    <dd>Help</dd>
-                    <dl>
-                        <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet"
-                            target="_blank">
-                            Restic cheatsheet <i class="fas fa-external-link-alt"></i>
-                        </a>
-                    </dl>
-                </div>
-                <div class="data-row">
-                    <dd>Copy env</dd>
-                    <dl>
-                        <pre class="blur mb-0">
-                            {%- for envName, envValue in entity.instance.backupConfiguration.storage.env|merge(
-                                entity.instance.backupConfiguration.resticEnv
-                            ) -%}
-                                export {{ envName }}={{ envValue }}{{ '\n' }}
-                            {%- endfor -%}
-                        </pre>
-                    </dl>
-                </div>
-                <div class="data-row">
-                    <dd>List snapshots</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic snapshots
-                        </pre>
-                    </dl>
+    {% if entity.instance.backupConfiguration.storage.type == 'restic' %}
+        <h3>
+            Restic
+        </h3>
+        <div class="content-panel">
+            <div class="content-panel-body without-header without-footer without-padding">
+                <dl class="datalist">
+                    <div class="data-row">
+                        <dd>Help</dd>
+                        <dl>
+                            <a href="https://gist.github.com/perfecto25/f528f8d14e1c4b6e2a912513539a5af7"
+                                target="_blank">
+                                Restic cheatsheet <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>Copy env</dd>
+                        <dl>
+                            <pre class="blur mb-0">
+                                {%- for envName, envValue in entity.instance.backupConfiguration.storage.env|merge(
+                                    entity.instance.backupConfiguration.resticEnv
+                                ) -%}
+                                    export {{ envName }}={{ envValue }}{{
+                                        '\n'
+                                    }}
+                                {%- endfor -%}
+                            </pre>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>List snapshots</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic snapshots
+                            </pre>
+                        </dl>
 
-                    <dd>Mount backups on read-only</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic mount /mnt/restic
-                        </pre>
-                    </dl>
+                        <dd>Mount backups on read-only</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic mount /mnt/restic
+                            </pre>
+                        </dl>
 
-                    <dd>Restore backups in /tmp</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic restore latest --target /tmp/
-                        </pre>
-                    </dl>
+                        <dd>Restore backups in /tmp</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic restore latest --target /tmp/
+                            </pre>
+                        </dl>
 
-                    <dd>Print last backup on stdin</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic snapshots # List snapshots and copy path
-                        </pre>
-                        <pre class="mb-0">
-                            restic dump latest _PATH_
-                        </pre>
-                    </dl>
-                </div>
-            </dl>
+                        <dd>Print last backup on stdin</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic snapshots # List snapshots and copy path
+                            </pre>
+                            <pre class="mb-0">
+                                restic dump latest _PATH_
+                            </pre>
+                        </dl>
+                    </div>
+                </dl>
+            </div>
         </div>
-    </div>
+    {% elseif entity.instance.backupConfiguration.storage.type == 'rclone' %}
+        <h3>
+            Rclone
+        </h3>
+        <div class="content-panel">
+            <div class="content-panel-body without-header without-footer without-padding">
+                <dl class="datalist">
+                    <div class="data-row">
+                        <dd>Help</dd>
+                        <dl>
+                            <a href="https://rclone.org/docs/" target="_blank">
+                                Rclone doc <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>Rclone configuration</dd>
+                        <dl>
+                            <pre class="blur mb-0">
+                                {{-
+                                    entity.instance.backupConfiguration.storage.rcloneConfiguration
+                                -}}
+                            </pre>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>List files</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                {{- 'rclone --config _rclone_configuration_ ls '
+                                    ~ entity.instance.backupConfiguration.storageSubPath -}}
+                            </pre>
+                        </dl>
+                        <dd>List deleted files</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                {{- 'rclone --config _rclone_configuration_ ls '
+                                    ~ entity.instance.backupConfiguration.rcloneBackupDir -}}
+                            </pre>
+                        </dl>
 
+                        <dd>Mount read-only backups</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                {{- 'rclone mount --read-only --config _rclone_configuration_ '
+                                    ~ entity.instance.backupConfiguration.storageSubPath
+                                    ~ ' /path/to/local/mount' -}}
+                            </pre>
+                        </dl>
+
+                        <dd>Restore backups in /tmp</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                {{- 'rclone copy --config _rclone_configuration_ '
+                                    ~ entity.instance.backupConfiguration.storageSubPath
+                                    ~ ' /path/to/local/copy' -}}
+                            </pre>
+                        </dl>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    {% endif %}
     <h3>
         Logs
     </h3>
@@ -86,10 +151,10 @@
                         <dl>
                             {% if log.message matches '{\n}' %}
                                 <pre>
-                                    {{ log.message }}
+                                    {{- log.message -}}
                                 </pre>
                             {% else %}
-                                {{ log.message }}
+                                {{- log.message -}}
                             {% endif %}
                         </dl>
                     </div>
