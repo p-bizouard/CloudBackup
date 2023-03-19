@@ -14,6 +14,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -77,8 +78,15 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     return $return;
                 }),
                 BooleanField::new('enabled'),
-                IntegerField::new('keepDaily')->hideOnIndex(),
-                IntegerField::new('keepWeekly')->hideOnIndex(),
+                IntegerField::new('keepDaily')
+                    ->hideOnIndex()
+                    ->setHelp(sprintf('%s<br />%s',
+                        'Restic: how many time do we keep daily backups (keep at least 7)',
+                        'Rclone: how many time do we keep deleted or overwritten files (keep at least 180)',
+                    )),
+                IntegerField::new('keepWeekly')
+                    ->hideOnIndex()
+                    ->addCssClass(sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypesWithoutRclone()))),
 
                 IntegerField::new('notBefore')
                     ->hideOnIndex()
@@ -91,7 +99,16 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->setIcon('fas fa-hdd'),
 
                 AssociationField::new('storage'),
-                TextField::new('storageSubPath')->hideOnIndex(),
+                TextField::new('storageSubPath')
+                    ->hideOnIndex()
+                    ->setHelp('Restic subdirectory or Rclone full path with remote'),
+                TextField::new('rcloneBackupDir')
+                    ->hideOnIndex()
+                    ->addCssClass('backupConfigurationType-field rclone')
+                    ->setHelp('Rclone backup directory. If valued, modified or deleted files will be moved to this directory instead of being deleted.'),
+                TextareaField::new('rcloneConfiguration')
+                    ->hideOnIndex()
+                    ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here. It will be appended with the storage rclone configuration.'),
 
             FormField::addPanel('Backup source')
                 ->hideOnIndex()
@@ -129,7 +146,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
                 TextField::new('remotePath')
                     ->hideOnIndex()
-                    ->addCssClass('backupConfigurationType-field ssh-restic sshfs sftp')
+                    ->addCssClass('backupConfigurationType-field ssh-restic sshfs sftp rclone')
                     ->setHelp('Folder to backup'),
 
                 IntegerField::new('minimumBackupSize')

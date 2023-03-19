@@ -26,6 +26,10 @@ class BackupSubscriber implements EventSubscriberInterface
 
         if ($backup->getBackupConfiguration()->getStorage()->isRestic()) {
             $this->backupService->resticInitRepo($backup);
+        } elseif ($backup->getBackupConfiguration()->getStorage()->isRclone()) {
+            // Nothing to do
+        } else {
+            $this->backupService->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
         }
     }
 
@@ -39,6 +43,7 @@ class BackupSubscriber implements EventSubscriberInterface
                 $this->backupService->snapshotOSInstance($backup);
                 break;
             default:
+                $this->backupService->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
                 break;
         }
     }
@@ -83,6 +88,11 @@ class BackupSubscriber implements EventSubscriberInterface
         // Restic forget
         if ($backup->getBackupConfiguration()->getStorage()->isRestic() && BackupConfiguration::TYPE_READ_RESTIC !== $backup->getBackupConfiguration()->getType()) {
             $this->backupService->cleanBackupRestic($backup);
+        }
+
+        // Rclone forget
+        if ($backup->getBackupConfiguration()->getStorage()->isRclone()) {
+            $this->backupService->cleanBackupRclone($backup);
         }
     }
 
@@ -227,8 +237,16 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        if (null === $backup->getResticSize() || 0 === $backup->getResticSize()) {
+        if ($backup->getBackupConfiguration()->getStorage()->isRestic() && (null === $backup->getResticSize() || 0 === $backup->getResticSize())) {
             $message = 'Restic size not set from health check. Retry health check';
+
+            $event->setBlocked(true, $message);
+            $this->backupService->log($backup, Log::LOG_ERROR, $message);
+
+            // We retry the health check
+            $this->backupService->healhCheckBackup($backup);
+        } elseif ($backup->getBackupConfiguration()->getStorage()->isRclone() && (null === $backup->getSize() || 0 === $backup->getSize())) {
+            $message = 'Rclone size not set from health check. Retry health check';
 
             $event->setBlocked(true, $message);
             $this->backupService->log($backup, Log::LOG_ERROR, $message);

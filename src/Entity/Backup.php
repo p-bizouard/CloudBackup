@@ -17,7 +17,9 @@ class Backup
 
     /**
      * @ORM\Id
+     *
      * @ORM\GeneratedValue
+     *
      * @ORM\Column(type="integer")
      */
     private ?int $id = null;
@@ -34,6 +36,7 @@ class Backup
 
     /**
      * @ORM\OneToMany(targetEntity=Log::class, mappedBy="backup", cascade={"remove"})
+     *
      * @ORM\OrderBy({"id" = "DESC"})
      *
      * @var Collection<int, Log>

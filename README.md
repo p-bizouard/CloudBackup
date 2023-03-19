@@ -6,9 +6,12 @@ CloudBackup is a backup software powered by Restic. It can backup:
 
 -   Openstack instances
 -   MySQL/PostgreSQL databases (direct connection or with ssh gateway)
--   Custom remote command by ssh
+-   Custom remote command by ssh (download a single file. Should use tar to backup a directory)
 -   Remote directory mounted with sshfs
--   Remote directory backuped by restic if restic is locally available
+-   SFTP
+-   S3 buckets with s3fs (it's slow)
+-   Everything with Rclone (source and destination must both use rclone)
+-   Check and alert on en external restic repository
 
 The dashboard show all backup statuses, and provide the restic commands to download your data.
 
@@ -22,11 +25,6 @@ The dashboard show all backup statuses, and provide the restic commands to downl
 
 ## Todo
 
--   [x] Source - Remote directory
--   [x] Email reports
--   [x] Source - PostgreSQL
--   [x] Restic S3
--   [x] CAS authentication
 -   [ ] Optional restic backup arguments
 -   [ ] Start manual backup
 

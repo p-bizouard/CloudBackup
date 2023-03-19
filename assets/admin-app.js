@@ -2,9 +2,9 @@ import "./styles/admin-app.scss";
 import jQuery from "jquery";
 import filesize from "file-size";
 
-jQuery(function ($) {
-    if ($(".ea-edit-BackupConfiguration").length) {
-        const hideShowBackupConfigurationFields = function () {
+jQuery(function($) {
+    if ($("#BackupConfiguration_type").length) {
+        const hideShowBackupConfigurationFields = function() {
             const type = $("#BackupConfiguration_type").val();
 
             $(".backupConfigurationType-field").hide();
@@ -22,7 +22,7 @@ jQuery(function ($) {
     if ($("#BackupConfiguration_minimumBackupSize").length) {
         const $spanHelper = $("<span/>");
 
-        const showHumanBackupConfiguration_minimumBackupSize = function () {
+        const showHumanBackupConfiguration_minimumBackupSize = function() {
             const minimumBackupSize = $(
                 "#BackupConfiguration_minimumBackupSize"
             ).val();
@@ -48,5 +48,18 @@ jQuery(function ($) {
         );
 
         showHumanBackupConfiguration_minimumBackupSize();
+    }
+
+    if ($("#Storage_type").length) {
+        const hideShowStorageTypeConfigurations = function() {
+            const type = $("#Storage_type").val();
+
+            $(".storage-type-panel").hide();
+            $(".storage-type-panel.type-" + type).show();
+        };
+
+        $("#Storage_type").on("change", hideShowStorageTypeConfigurations);
+
+        hideShowStorageTypeConfigurations();
     }
 });

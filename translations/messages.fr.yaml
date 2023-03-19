@@ -1,8 +1,15 @@
+# Frequency
 daily: Backup quotidien
-mysql: MySQL
-os-instance: VM Openstack
-postgresql: PostgreSQL
-ssh-restic: Fichiers via Restic SSH (non sécurisé)
-read-restic: Backup restic externalisé
-ssh-cmd: Commande ssh personnalisée
-sshfs: Montage SSHFS
+
+# Backup types
+os-instance: "Openstack snapshot : create snapshot of instance and sync to Restic"
+mysql: "MySQL : dump with mysqldump and sync to Restic"
+sql-server: "SQL-Server :  and sync to Restic"
+postgresql: "PostgreSQL : dump with pg_dump and sync to Restic"
+ssh-restic: "Restic on remote ssh host : run restic on remote host (not secure)"
+read-restic: "External restic : only check restic repository, not backuped here"
+ssh-cmd: "SSH dump : dump one file with SSH command and sync to Restic"
+sshfs: "SSHFS mount : mount with SSHFS and sync to Restic"
+sftp: "SFTP : Download all with SFTP and sync to Restic"
+s3-bucket: "S3FS : mount with s3fs and sync to Restic (very slow on buckets with many files)"
+rclone: "Rclone : Sync with rclone"

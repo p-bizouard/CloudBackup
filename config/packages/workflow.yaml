@@ -32,10 +32,10 @@ framework:
                     from: dump
                     to: download
                 upload:
-                    from: [start, download]
+                    from: download
                     to: upload
                 cleanup:
-                    from: [start, upload]
+                    from: upload
                     to: cleanup
                 health_check:
                     from: [start, cleanup]

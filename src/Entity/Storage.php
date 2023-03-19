@@ -17,7 +17,9 @@ class Storage
 
     /**
      * @ORM\Id
+     *
      * @ORM\GeneratedValue
+     *
      * @ORM\Column(type="integer")
      */
     private ?int $id = null;
@@ -26,6 +28,11 @@ class Storage
      * @ORM\Column(type="string", length=255)
      */
     private ?string $name = null;
+
+    /**
+     * @ORM\Column(type="text", nullable=true)
+     */
+    private ?string $description = null;
 
     /**
      * @ORM\Column(type="string", length=255)
@@ -68,6 +75,11 @@ class Storage
     private ?string $resticRepo = null;
 
     /**
+     * @ORM\Column(type="text", nullable=true)
+     */
+    private ?string $rcloneConfiguration = null;
+
+    /**
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="storage")
      *
      * @var Collection<int, BackupConfiguration>
@@ -75,6 +87,7 @@ class Storage
     private Collection $backupConfigurations;
 
     public const TYPE_RESTIC = 'restic';
+    public const TYPE_RCLONE = 'rclone';
 
     public function __construct()
     {
@@ -127,12 +140,18 @@ class Storage
     {
         return [
             self::TYPE_RESTIC,
+            self::TYPE_RCLONE,
         ];
     }
 
     public function isRestic(): bool
     {
-        return null !== $this->getResticRepo() && '' !== $this->getResticRepo();
+        return Storage::TYPE_RESTIC === $this->getType();
+    }
+
+    public function isRclone(): bool
+    {
+        return Storage::TYPE_RCLONE === $this->getType();
     }
 
     public function getId(): ?int
@@ -242,6 +261,18 @@ class Storage
         return $this;
     }
 
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(string $description): self
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
     public function getAwsAccessKeyId(): ?string
     {
         return $this->awsAccessKeyId;
@@ -274,6 +305,18 @@ class Storage
     public function setAwsDefaultRegion(?string $awsDefaultRegion): self
     {
         $this->awsDefaultRegion = $awsDefaultRegion;
+
+        return $this;
+    }
+
+    public function getRcloneConfiguration(): ?string
+    {
+        return $this->rcloneConfiguration;
+    }
+
+    public function setRcloneConfiguration(?string $rcloneConfiguration): self
+    {
+        $this->rcloneConfiguration = $rcloneConfiguration;
 
         return $this;
     }
