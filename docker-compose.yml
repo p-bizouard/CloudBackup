@@ -24,7 +24,7 @@ services:
 
     phppgadmin_dev:
         container_name: cloudbkp-phppgadmin
-        image: bitnami/phppgadmin
+        image: bitnami/phppgadmin-archived
         restart: on-failure
         environment:
             DATABASE_HOST: postgres
