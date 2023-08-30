@@ -1,20 +1,20 @@
 ARG NGINX_DESTINATION=cloudbackup_nginx
 
 # Dev target
-FROM php:8.2-fpm AS dev
+FROM php:8.2-fpm-bullseye AS dev
 
 WORKDIR /app
 
 ENV APP_ENV=dev
 
 RUN apt update \
-    && apt install -y wget gnupg lsb-release software-properties-common \
+    && apt-get install -y wget gnupg lsb-release software-properties-common \
     && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
     && wget --quiet -O - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
-    &&  add-apt-repository "deb https://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" \
-    &&  add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
-    && apt update \
-    && apt install -y \
+    && add-apt-repository "deb https://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" \
+    && add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
+    && apt-get update \
+    && apt-get install -y \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
         git unzip procps \
         locales \
@@ -54,8 +54,6 @@ RUN echo "access.log = /dev/null" >> /usr/local/etc/php-fpm.d/www.conf
 
 ADD docker/php/symfony-entry-point.sh /
 ENTRYPOINT  ["/bin/bash", "/symfony-entry-point.sh"]
-
-COPY --from=symfonycorp/cli /symfony /usr/local/bin/symfony
 
 CMD  ["php-fpm"]
 
