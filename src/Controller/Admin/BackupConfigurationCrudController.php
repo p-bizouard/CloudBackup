@@ -125,9 +125,10 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->setHelp('S3 Bucket to backup'),
 
                 AssociationField::new('host')
+                    ->setRequired(false)
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd sftp')
-                    ->setHelp('Host to backup'),
+                    ->setHelp('Host to backup or to execute remote command'),
 
                 TextField::new('dumpCommand')
                     ->hideOnIndex()
