@@ -6,17 +6,19 @@ use App\Entity\Log;
 use App\Repository\BackupConfigurationRepository;
 use App\Service\BackupService;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Lock\LockFactory;
 
+#[AsCommand(
+    name: 'app:backup:start',
+    description: 'Start backups',
+)]
 class BackupStartCommand extends Command
 {
-    protected static $defaultName = 'app:backup:start';
-    protected static $defaultDescription = 'Start all backups';
-
     public const MAX_RETRY = 4;
     public const LOCK_TIMEOUT = 3600 * 6;
 
@@ -27,13 +29,6 @@ class BackupStartCommand extends Command
         private LockFactory $lockFactory,
     ) {
         parent::__construct();
-    }
-
-    protected function configure(): void
-    {
-        $this
-            ->setDescription(self::$defaultDescription)
-        ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
