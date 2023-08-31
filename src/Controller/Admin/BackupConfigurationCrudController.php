@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\BackupConfiguration;
+use Doctrine\Persistence\ManagerRegistry;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -21,7 +22,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class BackupConfigurationCrudController extends AbstractCrudController
 {
-    public function __construct(private AdminUrlGenerator $adminUrlGenerator)
+    public function __construct(private AdminUrlGenerator $adminUrlGenerator, private ManagerRegistry $doctrine)
     {
     }
 
@@ -167,7 +168,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
         $newBackupConfiguration->setName(sprintf('Copy %s', $newBackupConfiguration->getName()));
         $newBackupConfiguration->setEnabled(false);
 
-        $entityManager = $this->getDoctrine()->getManagerForClass(self::getEntityFqcn());
+        $entityManager = $this->doctrine->getManagerForClass(self::getEntityFqcn());
         $entityManager->persist($newBackupConfiguration);
         $entityManager->flush();
 
