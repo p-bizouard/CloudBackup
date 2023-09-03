@@ -26,11 +26,17 @@ RUN apt update \
         postgresql-client-13 \
         postgresql-client-14 \
         mongodb-org-tools \
-        python3-pip restic graphviz \
+        python3-pip graphviz \
         s3fs \
+        bzip2 \
     && curl https://rclone.org/install.sh | bash \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN wget --quiet https://github.com/restic/restic/releases/download/v0.16.0/restic_0.16.0_linux_amd64.bz2 && \
+    bzip2 -d restic_0.16.0_linux_amd64.bz2 && \
+    mv restic_0.16.0_linux_amd64 /usr/local/bin/restic && \
+    chmod +x /usr/local/bin/restic
 
 RUN echo 'fr_FR.UTF-8 UTF-8' >> /etc/locale.gen && \
     locale-gen
