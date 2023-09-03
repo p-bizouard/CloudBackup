@@ -62,7 +62,8 @@ class BackupCrudController extends AbstractCrudController
                 })
                 ->hideOnForm(),
             ChoiceField::new('currentPlace')
-                ->setChoices($this->workflowRegistry->get(new Backup())->getDefinition()->getPlaces()),
+                ->setChoices($this->workflowRegistry->get(new Backup())->getDefinition()->getPlaces())
+                ->setTemplatePath('admin/fields/currentPlace.html.twig'),
             IntegerField::new('size')
                 ->setLabel('Backup size')
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')

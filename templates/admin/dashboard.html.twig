@@ -31,21 +31,33 @@
                                             <td>{{ backupConfiguration.name }}</td>
                                             {% if backupConfiguration.backups.first %}
                                                 <td>
-                                                    <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
+                                                    <a href="{{ ea_url()
+                                                        .setController('App\\Controller\\Admin\\BackupCrudController')
+                                                        .setAction('detail')
+                                                        .setEntityId(backupConfiguration.backups.first.id)
+                                                    }}">
+                                                        <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
                                                         {{ backupConfiguration.backups.first.updatedAt | date('Y-m-d H:i') }}
-                                                    </span>
+                                                        </span>
+                                                    </a>
                                                 </td>
                                                 <td>
-                                                    <span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">
-                                                        {{ backupConfiguration.backups.first.currentPlace }} 
+                                                    <a href="{{ ea_url()
+                                                        .setController('App\\Controller\\Admin\\BackupCrudController')
+                                                        .setAction('detail')
+                                                        .setEntityId(backupConfiguration.backups.first.id)
+                                                    }}">
+                                                        <span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">
+                                                            {{ backupConfiguration.backups.first.currentPlace }} 
 
-                                                        {% if backupConfiguration.backups.first.resticSize %}
-                                                            : {{ backupConfiguration.backups.first.resticSize|humanizeFilesize }}
-                                                            {% if backupConfiguration.backups.first.resticSize|humanizeFilesize != backupConfiguration.backups.first.resticDedupSize|humanizeFilesize %}
-                                                                ({{ backupConfiguration.backups.first.resticDedupSize|humanizeFilesize }})
+                                                            {% if backupConfiguration.backups.first.resticSize %}
+                                                                : {{ backupConfiguration.backups.first.resticSize|humanizeFilesize }}
+                                                                {% if backupConfiguration.backups.first.resticSize|humanizeFilesize != backupConfiguration.backups.first.resticDedupSize|humanizeFilesize %}
+                                                                    ({{ backupConfiguration.backups.first.resticDedupSize|humanizeFilesize }})
+                                                                {% endif %}
                                                             {% endif %}
-                                                        {% endif %}
-                                                    </span>
+                                                        </span>
+                                                    </a>
                                                 </td>
                                                 <td>
                                                     {% if backupConfiguration.backups.first.resticTotalSize %}

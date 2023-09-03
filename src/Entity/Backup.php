@@ -78,6 +78,15 @@ class Backup
      */
     private ?int $resticTotalDedupSize = null;
 
+    public const BOOTSTRAP_COLOR = [
+        'failed' => 'danger',
+        'dump' => 'info',
+        'backuped' => 'success',
+        'failed' => 'danger',
+    ];
+
+    public const DEFAULT_BOOTSTRAP_COLOR = 'warning';
+
     public function __construct()
     {
         $this->logs = new ArrayCollection();
@@ -86,6 +95,20 @@ class Backup
     public function __toString(): string
     {
         return $this->getName();
+    }
+
+    public function getBootstrapColor(): string
+    {
+        return self::staticBootstrapColor($this->currentPlace);
+    }
+
+    public static function staticBootstrapColor(string $place): string
+    {
+        if (isset(self::BOOTSTRAP_COLOR[$place])) {
+            return self::BOOTSTRAP_COLOR[$place];
+        } else {
+            return self::DEFAULT_BOOTSTRAP_COLOR;
+        }
     }
 
     public function getName(bool $timestamp = true): string
@@ -109,20 +132,6 @@ class Backup
         return implode("\n", array_map(function (Log $log) {
             return sprintf('<pre style="color:%s">%s</pre>', $log->getMessageColor(), $log->getMessage());
         }, $this->logs->toArray()));
-    }
-
-    public function getBootstrapColor(): string
-    {
-        switch ($this->currentPlace) {
-            case 'failed':
-                return 'danger';
-            case 'dump':
-                return 'info';
-            case 'backuped':
-                return 'success';
-            default:
-                return 'warning';
-        }
     }
 
     public function getId(): ?int
