@@ -239,8 +239,12 @@ class BackupConfiguration
 
     public function getResticEnv(): array
     {
+        if (is_null($this->getStorage()) || is_null($this->getStorage()->getResticRepo())) {
+            return [];
+        }
+
         return [
-            'RESTIC_PASSWORD' => $this->getStorage()?->getResticPassword(),
+            'RESTIC_PASSWORD' => $this->getStorage()->getResticPassword(),
             'RESTIC_REPOSITORY' => sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
         ];
     }
