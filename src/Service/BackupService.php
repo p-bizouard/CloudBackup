@@ -809,7 +809,34 @@ class BackupService
         $configFile = $filesystem->tempnam('/tmp', 'key_');
         $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getStorage()->getRcloneConfiguration());
 
-        $command = 'rclone delete --rmdirs --min-age "${KEEP_DAILY}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
+        $backup_parent_directory = dirname($backup->getBackupConfiguration()->getRcloneBackupDir());
+        $backup_direcory = str_replace($backup_parent_directory.'/', '', $backup->getBackupConfiguration()->getRcloneBackupDir());
+
+        $command = 'rclone lsd "${REMOTE_STORAGE_DIRECTORY}" --config "${RCLONE_CONFIG}"';
+        $parameters = [
+            'REMOTE_STORAGE_DIRECTORY' => $backup_parent_directory,
+            'RCLONE_CONFIG' => $configFile,
+        ];
+
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+
+        $process = Process::fromShellCommandline($command, null, $parameters);
+        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone lsd  - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+            if (!preg_match('/\s'.$backup_direcory.'\n/', $process->getOutput())) {
+                $this->log($backup, Log::LOG_INFO, sprintf('INFO executing backup %s does not seems to exists', $backup->getBackupConfiguration()->getRcloneBackupDir()));
+
+                return;
+            }
+        }
+
+        $command = 'rclone delete --min-age "${KEEP_DAILY}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
         $parameters = [
             'KEEP_DAILY' => $backup->getBackupConfiguration()->getKeepDaily(),
             'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
@@ -824,6 +851,25 @@ class BackupService
 
         if (!$process->isSuccessful()) {
             $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone delete  - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+
+        $command = 'rclone rmdirs "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
+        $parameters = [
+            'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
+            'RCLONE_CONFIG' => $configFile,
+        ];
+
+        $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+
+        $process = Process::fromShellCommandline($command, null, $parameters);
+        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone rmdirs  - %s', $process->getErrorOutput()));
             throw new ProcessFailedException($process);
         } else {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
