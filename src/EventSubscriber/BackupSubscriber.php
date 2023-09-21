@@ -111,7 +111,7 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_INFO, sprintf('Transition from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
+        $this->backupService->log($backup, Log::LOG_INFO, sprintf('Transition %s from %s to %s', $backup->getBackupConfiguration()->getName(), $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
     public function guardStart(GuardEvent $event): void
