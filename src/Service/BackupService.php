@@ -1280,8 +1280,12 @@ class BackupService
         } elseif ('initialized' !== $backup->getCurrentPlace()) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('Resume backup with current state %s', $backup->getCurrentPlace()));
             if ($backup->getCreatedAt()->format('Y-m-d') !== $now->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
+                $this->log($backup, Log::LOG_NOTICE, sprintf('Backup is not from today, force fail it'));
                 if ('failed' !== $backup->getCurrentPlace()) {
                     $backupWorkflow->apply($backup, 'failed');
+
+                    $this->entityManager->persist($backup);
+                    $this->entityManager->flush();
                 }
 
                 $backup = new Backup();
