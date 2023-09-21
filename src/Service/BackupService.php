@@ -1032,6 +1032,8 @@ class BackupService
                 }
 
                 if (file_exists($this->getTemporaryBackupDestination($backup))) {
+                    $this->log($backup, Log::LOG_NOTICE, sprintf('Backup location does exists - %s', $this->getTemporaryBackupDestination($backup)));
+
                     return false;
                 }
                 break;
@@ -1043,6 +1045,8 @@ class BackupService
             case BackupConfiguration::TYPE_S3_BUCKET:
             case BackupConfiguration::TYPE_SFTP:
                 if (file_exists($this->getTemporaryBackupDestination($backup))) {
+                    $this->log($backup, Log::LOG_NOTICE, sprintf('Backup location does exists - %s', $this->getTemporaryBackupDestination($backup)));
+
                     return false;
                 }
                 break;
@@ -1265,6 +1269,7 @@ class BackupService
         }
 
         $backupWorkflow = $this->workflowRegistry->get($backup);
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
         if ('backuped' === $backup->getCurrentPlace()) {
             if ($backup->getCreatedAt()->format('Y-m-d') === $now->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
                 return;
@@ -1273,6 +1278,7 @@ class BackupService
                 $backup->setBackupConfiguration($backupConfiguration);
             }
         } elseif ('initialized' !== $backup->getCurrentPlace()) {
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Resume backup with current state %s', $backup->getCurrentPlace()));
             if ($backup->getCreatedAt()->format('Y-m-d') !== $now->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
                 if ('failed' !== $backup->getCurrentPlace()) {
                     $backupWorkflow->apply($backup, 'failed');
