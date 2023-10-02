@@ -65,6 +65,8 @@
                                                         {% if backupConfiguration.backups.first.resticTotalSize|humanizeFilesize != backupConfiguration.backups.first.resticTotalDedupSize|humanizeFilesize %}
                                                             (real : {{ backupConfiguration.backups.first.resticTotalDedupSize|humanizeFilesize }})
                                                         {% endif %}
+                                                    {% elseif backupConfiguration.backups.first.size %}
+                                                        {{ backupConfiguration.backups.first.size|humanizeFilesize }}
                                                     {% else %}
                                                         <span class="badge badge-danger">N/A</span>
                                                     {% endif %}
