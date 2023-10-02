@@ -65,15 +65,7 @@ App\Entity\Storage:
             remote = repo:rclone-bucket/subdirectory
             password = egtBWMUKof2xAPP_jYBrMu1VA4c
             password2 = 7B_ZxzkfP6Q0ObYu5eWPDUnztoA
-App\Entity\S3Bucket:
-    s3-bucket:
-        name: s3-bucket
-        accessKey: minioadmin
-        secretKey: minioadmin
-        region: region
-        bucket: "restic"
-        endpointUrl: http://minio:9000
-        usePathRequestStyle: true
+
 App\Entity\Host:
     host-by-key:
         name: host-by-key
@@ -242,17 +234,6 @@ App\Entity\BackupConfiguration:
         storageSubPath: "dev-postgres-s3"
         dumpCommand: "PGPASSWORD='db' /usr/lib/postgresql/13/bin/pg_dump -U db -h postgres -p 5432 db"
         minimumBackupSize: 5000
-        enabled: false
-    daily-s3-bucket:
-        name: s3-bucket
-        type: s3-bucket
-        periodicity: "daily"
-        keepDaily: 7
-        keepWeekly: 4
-        storage: "@s3"
-        storageSubPath: "daily-s3-bucket"
-        minimumBackupSize: 1
-        s3Bucket: "@s3-bucket"
         enabled: false
     daily-rclone:
         name: rclone

@@ -8,7 +8,6 @@ use App\Entity\Host;
 use App\Entity\Log;
 use App\Entity\OSInstance;
 use App\Entity\OSProject;
-use App\Entity\S3Bucket;
 use App\Entity\Storage;
 use App\Entity\User;
 use App\Repository\BackupConfigurationRepository;
@@ -86,7 +85,6 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::section('Sources');
         yield MenuItem::linkToCrud('Openstack instances', 'fas fa-cloud', OSInstance::class);
         yield MenuItem::linkToCrud('SSH hosts', 'fas fa-server', Host::class);
-        yield MenuItem::linkToCrud('S3 buckets', 'fas fa-archive', S3Bucket::class);
 
         yield MenuItem::section('Backups');
         yield MenuItem::linkToCrud('Schedulings', 'fas fa-cogs', BackupConfiguration::class);

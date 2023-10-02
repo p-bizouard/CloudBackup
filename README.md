@@ -9,7 +9,6 @@ CloudBackup is a backup software powered by Restic. It can backup:
 -   Custom remote command by ssh (download a single file. Should use tar to backup a directory)
 -   Remote directory mounted with sshfs
 -   SFTP
--   S3 buckets with s3fs (it's slow)
 -   Everything with Rclone (source and destination must both use rclone)
 -   Check and alert on en external restic repository
 

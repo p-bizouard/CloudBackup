@@ -120,11 +120,6 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->addCssClass('backupConfigurationType-field os-instance')
                     ->setHelp('Openstack Instance to backup'),
 
-                AssociationField::new('s3Bucket')
-                    ->hideOnIndex()
-                    ->addCssClass('backupConfigurationType-field s3-bucket')
-                    ->setHelp('S3 Bucket to backup'),
-
                 AssociationField::new('host')
                     ->setRequired(false)
                     ->hideOnIndex()

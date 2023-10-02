@@ -27,7 +27,6 @@ RUN apt update \
         postgresql-client-14 \
         mongodb-org-tools \
         python3-pip graphviz \
-        s3fs \
         bzip2 \
     && curl https://rclone.org/install.sh | bash \
     && apt-get autoremove && apt-get autoclean \

@@ -80,11 +80,6 @@ class BackupConfiguration
     private OSInstance $osInstance;
 
     /**
-     * @ORM\ManyToOne(targetEntity=S3Bucket::class, inversedBy="backupConfigurations")
-     */
-    private S3Bucket $s3Bucket;
-
-    /**
      * @ORM\OneToMany(targetEntity=Backup::class, mappedBy="backupConfiguration")
      *
      * @ORM\OrderBy({"id" = "DESC"})
@@ -154,7 +149,6 @@ class BackupConfiguration
     public const TYPE_READ_RESTIC = 'read-restic';
     public const TYPE_SSH_CMD = 'ssh-cmd';
     public const TYPE_SFTP = 'sftp';
-    public const TYPE_S3_BUCKET = 's3-bucket';
     public const TYPE_RCLONE = 'rclone';
 
     public function __construct()
@@ -195,7 +189,6 @@ class BackupConfiguration
             self::TYPE_READ_RESTIC,
             self::TYPE_SSH_CMD,
             self::TYPE_SFTP,
-            self::TYPE_S3_BUCKET,
             self::TYPE_RCLONE,
         ];
     }
@@ -429,18 +422,6 @@ class BackupConfiguration
     public function setHost(?Host $host): self
     {
         $this->host = $host;
-
-        return $this;
-    }
-
-    public function getS3Bucket(): ?S3Bucket
-    {
-        return $this->s3Bucket;
-    }
-
-    public function setS3Bucket(?S3Bucket $s3Bucket): self
-    {
-        $this->s3Bucket = $s3Bucket;
 
         return $this;
     }
