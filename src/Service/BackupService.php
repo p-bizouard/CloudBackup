@@ -1010,7 +1010,7 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
 
-                $command = 'restic snapshots --json --last -q';
+                $command = 'restic snapshots --json --latest 1 -q';
 
                 $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
                 $process = Process::fromShellCommandline($command, null, $env);
@@ -1128,7 +1128,7 @@ class BackupService
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
         $commands = [
-            'restic rebuild-index',
+            'restic repair index',
             'restic prune',
             'restic check',
         ];
