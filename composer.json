@@ -66,6 +66,7 @@
         "phpstan/phpstan-symfony": "^1.2",
         "phpunit/phpunit": "^10.0",
         "rector/rector": "^0.18",
+        "staabm/annotate-pull-request-from-checkstyle": "*",
         "symfony/browser-kit": "6.3.*",
         "symfony/css-selector": "6.3.*",
         "symfony/debug-bundle": "6.3.*",
