@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Security;
 
 use EcPhp\CasBundle\Security\CasAuthenticator as EcPhpCasdAuthenticator;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -15,21 +17,25 @@ use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Symfony\Component\Security\Http\Util\TargetPathTrait;
 
 /**
  * Override the default CasAuthenticator with a decorator pattern to return a user from a custom user provider.
  */
 class CasAuthenticator extends AbstractAuthenticator
 {
+    use TargetPathTrait;
+
     public function __construct(
-        private UserProviderInterface $userProvider,
-        private EcPhpCasdAuthenticator $ecpPhpcasAuthenticator
+        private readonly UserProviderInterface $userProvider,
+        private readonly EcPhpCasdAuthenticator $ecPhpCasdAuthenticator,
+        private readonly UrlGeneratorInterface $urlGenerator
     ) {
     }
 
     public function authenticate(Request $request): Passport
     {
-        $passport = $this->ecpPhpcasAuthenticator->authenticate($request);
+        $passport = $this->ecPhpCasdAuthenticator->authenticate($request);
 
         $userEmail = $passport->getBadge(UserBadge::class)?->getUserIdentifier();
 
@@ -39,10 +45,6 @@ class CasAuthenticator extends AbstractAuthenticator
 
         $user = $this->userProvider->loadUserByIdentifier($userEmail);
 
-        if (null === $user) {
-            throw new AuthenticationException('No user found.');
-        }
-
         return new SelfValidatingPassport(
             new UserBadge($userEmail, function (string $userIdentifier) use ($user) {
                 return $user;
@@ -50,23 +52,27 @@ class CasAuthenticator extends AbstractAuthenticator
         );
     }
 
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
+    public function onAuthenticationFailure(Request $request, AuthenticationException $authenticationException): ?Response
     {
         /** @var Session */
         $session = $request->getSession();
 
-        $session->getFlashBag()->add('danger', $exception->getMessage());
+        $session->getFlashBag()->add('danger', $authenticationException->getMessage());
 
-        return $this->ecpPhpcasAuthenticator->onAuthenticationFailure($request, $exception);
+        return $this->ecPhpCasdAuthenticator->onAuthenticationFailure($request, $authenticationException);
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $providerKey): Response
     {
-        return $this->ecpPhpcasAuthenticator->onAuthenticationSuccess($request, $token, $providerKey);
+        if ($targetPath = $this->getTargetPath($request->getSession(), 'main')) {
+            return new RedirectResponse($targetPath);
+        }
+
+        return new RedirectResponse($this->urlGenerator->generate('admin'));
     }
 
     public function supports(Request $request): bool
     {
-        return $this->ecpPhpcasAuthenticator->supports($request);
+        return $this->ecPhpCasdAuthenticator->supports($request);
     }
 }
