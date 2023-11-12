@@ -4,17 +4,20 @@ namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 
 /**
  * @ORM\Entity()
  */
-class Log
+class Log implements Stringable
 {
     use TimestampableEntity;
 
     /**
      * @ORM\Id
+     *
      * @ORM\Column(type="integer")
+     *
      * @ORM\GeneratedValue(strategy="AUTO")
      */
     protected ?int $id = null;
@@ -32,12 +35,12 @@ class Log
     /**
      * @ORM\ManyToOne(targetEntity=Backup::class, inversedBy="logs")
      */
-    private ?Backup $backup;
+    private ?Backup $backup = null;
 
-    public const LOG_ERROR = 'error';
-    public const LOG_WARNING = 'warning';
-    public const LOG_NOTICE = 'notice';
-    public const LOG_INFO = 'info';
+    final public const LOG_ERROR = 'error';
+    final public const LOG_WARNING = 'warning';
+    final public const LOG_NOTICE = 'notice';
+    final public const LOG_INFO = 'info';
 
     public function __toString(): string
     {
@@ -46,34 +49,24 @@ class Log
 
     public function getBootstrapColor(): ?string
     {
-        switch ($this->level) {
-            case self::LOG_ERROR:
-                return 'danger';
-            case self::LOG_WARNING:
-                return 'warning';
-            case self::LOG_NOTICE:
-                return 'secondary';
-            case self::LOG_INFO:
-                return 'info';
-        }
-
-        return null;
+        return match ($this->level) {
+            self::LOG_ERROR => 'danger',
+            self::LOG_WARNING => 'warning',
+            self::LOG_NOTICE => 'secondary',
+            self::LOG_INFO => 'info',
+            default => null,
+        };
     }
 
     public function getMessageColor(): ?string
     {
-        switch ($this->level) {
-            case self::LOG_ERROR:
-                return 'red';
-            case self::LOG_WARNING:
-                return 'orange';
-            case self::LOG_NOTICE:
-                return 'black';
-            case self::LOG_INFO:
-                return 'black';
-        }
-
-        return null;
+        return match ($this->level) {
+            self::LOG_ERROR => 'red',
+            self::LOG_WARNING => 'orange',
+            self::LOG_NOTICE => 'black',
+            self::LOG_INFO => 'black',
+            default => null,
+        };
     }
 
     /**

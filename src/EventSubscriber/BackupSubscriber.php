@@ -7,6 +7,7 @@ use App\Entity\BackupConfiguration;
 use App\Entity\Log;
 use App\Service\BackupService;
 use App\Service\MailerService;
+use Exception;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Workflow\Event\Event;
 use Symfony\Component\Workflow\Event\GuardEvent;
@@ -14,8 +15,8 @@ use Symfony\Component\Workflow\Event\GuardEvent;
 class BackupSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private BackupService $backupService,
-        private MailerService $mailerService,
+        private readonly BackupService $backupService,
+        private readonly MailerService $mailerService,
     ) {
     }
 
@@ -38,14 +39,10 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        switch ($backup->getBackupConfiguration()->getType()) {
-            case BackupConfiguration::TYPE_OS_INSTANCE:
-                $this->backupService->snapshotOSInstance($backup);
-                break;
-            default:
-                $this->backupService->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
-                break;
-        }
+        match ($backup->getBackupConfiguration()->getType()) {
+            BackupConfiguration::TYPE_OS_INSTANCE => $this->backupService->snapshotOSInstance($backup),
+            default => $this->backupService->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace())),
+        };
     }
 
     public function onDownload(Event $event): void
@@ -114,10 +111,10 @@ class BackupSubscriber implements EventSubscriberInterface
         $this->backupService->log($backup, Log::LOG_INFO, sprintf('Transition %s from %s to %s', $backup->getBackupConfiguration()->getName(), $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
-    public function guardStart(GuardEvent $event): void
+    public function guardStart(GuardEvent $guardEvent): void
     {
         /** @var Backup */
-        $backup = $event->getSubject();
+        $backup = $guardEvent->getSubject();
 
         if ($backup->getBackupConfiguration()->getNotBefore() > date('H')) {
             $message = sprintf('Cannot start backup before %s', $backup->getBackupConfiguration()->getNotBefore());
@@ -127,14 +124,14 @@ class BackupSubscriber implements EventSubscriberInterface
                 Log::LOG_NOTICE,
                 $message
             );
-            $event->setBlocked(true, $message);
+            $guardEvent->setBlocked(true, $message);
         }
     }
 
-    public function guardDownload(GuardEvent $event): void
+    public function guardDownload(GuardEvent $guardEvent): void
     {
         /** @var Backup */
-        $backup = $event->getSubject();
+        $backup = $guardEvent->getSubject();
 
         try {
             switch ($backup->getBackupConfiguration()->getType()) {
@@ -143,29 +140,29 @@ class BackupSubscriber implements EventSubscriberInterface
                     if (null === $status) {
                         $message = 'Snaphot not found';
 
-                        $event->setBlocked(true, $message);
+                        $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     } elseif ('active' !== $status) {
                         $message = sprintf('Snapshot not ready : %s', $status);
 
-                        $event->setBlocked(true, $message);
+                        $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_NOTICE, $message);
                     }
                     break;
                 default:
                     break;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->backupService->log($backup, Log::LOG_WARNING, sprintf('Guard download error : %s', $e->getMessage()));
 
-            $event->setBlocked(true, $e->getMessage());
+            $guardEvent->setBlocked(true, $e->getMessage());
         }
     }
 
-    public function guardUpload(GuardEvent $event): void
+    public function guardUpload(GuardEvent $guardEvent): void
     {
         /** @var Backup */
-        $backup = $event->getSubject();
+        $backup = $guardEvent->getSubject();
 
         try {
             switch ($backup->getBackupConfiguration()->getType()) {
@@ -173,7 +170,7 @@ class BackupSubscriber implements EventSubscriberInterface
                     if (!$this->backupService->checkDownloadedOSSnapshot($backup)) {
                         $message = 'Download not completed';
 
-                        $event->setBlocked(true, $message);
+                        $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     }
                     break;
@@ -181,7 +178,7 @@ class BackupSubscriber implements EventSubscriberInterface
                     if (!$this->backupService->checkDownloadedFUSE($backup)) {
                         $message = 'Download not completed';
 
-                        $event->setBlocked(true, $message);
+                        $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     }
                     break;
@@ -193,37 +190,34 @@ class BackupSubscriber implements EventSubscriberInterface
                     if (!$this->backupService->checkDownloadedDump($backup)) {
                         $message = 'Download not completed';
 
-                        $event->setBlocked(true, $message);
+                        $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     }
                     break;
                 default:
                     break;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->backupService->log($backup, Log::LOG_ERROR, sprintf('Guard upload error : %s', $e->getMessage()));
 
-            $event->setBlocked(true, $e->getMessage());
+            $guardEvent->setBlocked(true, $e->getMessage());
         }
     }
 
-    public function guardCleanup(GuardEvent $event): void
+    public function guardCleanup(GuardEvent $guardEvent): void
     {
-        /** @var Backup */
-        $backup = $event->getSubject();
-
         // Nothing to do
     }
 
-    public function guardHealhCheck(GuardEvent $event): void
+    public function guardHealhCheck(GuardEvent $guardEvent): void
     {
         /** @var Backup */
-        $backup = $event->getSubject();
+        $backup = $guardEvent->getSubject();
 
         if (!$this->backupService->isBackupCleaned($backup)) {
             $message = 'Temporary backup still exists';
 
-            $event->setBlocked(true, $message);
+            $guardEvent->setBlocked(true, $message);
             $this->backupService->log($backup, Log::LOG_ERROR, $message);
 
             // We retry the cleanup
@@ -231,15 +225,15 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function guardForget(GuardEvent $event): void
+    public function guardForget(GuardEvent $guardEvent): void
     {
         /** @var Backup */
-        $backup = $event->getSubject();
+        $backup = $guardEvent->getSubject();
 
         if ($backup->getBackupConfiguration()->getStorage()->isRestic() && (null === $backup->getResticSize() || 0 === $backup->getResticSize())) {
             $message = 'Restic size not set from health check. Retry health check';
 
-            $event->setBlocked(true, $message);
+            $guardEvent->setBlocked(true, $message);
             $this->backupService->log($backup, Log::LOG_ERROR, $message);
 
             // We retry the health check
@@ -247,7 +241,7 @@ class BackupSubscriber implements EventSubscriberInterface
         } elseif ($backup->getBackupConfiguration()->getStorage()->isRclone() && (null === $backup->getSize() || 0 === $backup->getSize())) {
             $message = 'Rclone size not set from health check. Retry health check';
 
-            $event->setBlocked(true, $message);
+            $guardEvent->setBlocked(true, $message);
             $this->backupService->log($backup, Log::LOG_ERROR, $message);
 
             // We retry the health check
@@ -255,12 +249,12 @@ class BackupSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function onGuardAll(GuardEvent $event): void
+    public function onGuardAll(GuardEvent $guardEvent): void
     {
         /** @var Backup */
-        $backup = $event->getSubject();
+        $backup = $guardEvent->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_INFO, sprintf('GuardAll from %s to %s', $backup->getCurrentPlace(), $event->getTransition()->getName()));
+        $this->backupService->log($backup, Log::LOG_INFO, sprintf('GuardAll from %s to %s', $backup->getCurrentPlace(), $guardEvent->getTransition()->getName()));
     }
 
     public static function getSubscribedEvents(): array

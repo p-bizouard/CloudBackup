@@ -7,11 +7,12 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 
 /**
  * @ORM\Entity(repositoryClass=BackupRepository::class)
  */
-class Backup
+class Backup implements Stringable
 {
     use TimestampableEntity;
 
@@ -78,14 +79,13 @@ class Backup
      */
     private ?int $resticTotalDedupSize = null;
 
-    public const BOOTSTRAP_COLOR = [
-        'failed' => 'danger',
+    final public const BOOTSTRAP_COLOR = [
         'dump' => 'info',
         'backuped' => 'success',
         'failed' => 'danger',
     ];
 
-    public const DEFAULT_BOOTSTRAP_COLOR = 'warning';
+    final public const DEFAULT_BOOTSTRAP_COLOR = 'warning';
 
     public function __construct()
     {
@@ -129,7 +129,7 @@ class Backup
 
     public function getLogsForReport(): string
     {
-        return implode("\n", array_map(function (Log $log) {
+        return implode("\n", array_map(function (Log $log): string {
             return sprintf('<pre style="color:%s">%s</pre>', $log->getMessageColor(), $log->getMessage());
         }, $this->logs->toArray()));
     }
@@ -183,11 +183,9 @@ class Backup
 
     public function removeLog(Log $log): self
     {
-        if ($this->logs->removeElement($log)) {
-            // set the owning side to null (unless already changed)
-            if ($log->getBackup() === $this) {
-                $log->setBackup(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->logs->removeElement($log) && $log->getBackup() === $this) {
+            $log->setBackup(null);
         }
 
         return $this;

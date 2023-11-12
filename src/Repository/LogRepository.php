@@ -11,9 +11,9 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class LogRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(ManagerRegistry $managerRegistry)
     {
-        parent::__construct($registry, Log::class);
+        parent::__construct($managerRegistry, Log::class);
     }
 
     // /**

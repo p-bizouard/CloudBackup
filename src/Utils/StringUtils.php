@@ -4,13 +4,14 @@ namespace App\Utils;
 
 class StringUtils
 {
-    public static function humanizeFilesize(null|int|string $size, int $precision = 0): string
+    public static function humanizeFileSize(null|int|string $size, int $precision = 0): string
     {
         if (null === $size) {
             return 'N/A';
         }
 
-        for ($i = 0; ($size / 1024) > 0.9; $i++, $size /= 1024) {
+        for ($i = 0; ($size / 1024) > 0.9; ++$i) {
+            $size /= 1024;
         }
 
         return round($size, $precision).['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'][$i];

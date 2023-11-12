@@ -1,7 +1,10 @@
 parameters:
     paths:
-        - src
-        - tests
+        - bin/
+        - config/
+        - public/
+        - src/
+        - tests/
     level: 6
     ignoreErrors:
     checkMissingIterableValueType: false

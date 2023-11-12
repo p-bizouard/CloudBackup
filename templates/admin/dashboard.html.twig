@@ -51,9 +51,9 @@
                                                             {{ backupConfiguration.backups.first.currentPlace }} 
 
                                                             {% if backupConfiguration.backups.first.resticSize %}
-                                                                : {{ backupConfiguration.backups.first.resticSize|humanizeFilesize }}
-                                                                {% if backupConfiguration.backups.first.resticSize|humanizeFilesize != backupConfiguration.backups.first.resticDedupSize|humanizeFilesize %}
-                                                                    ({{ backupConfiguration.backups.first.resticDedupSize|humanizeFilesize }})
+                                                                : {{ backupConfiguration.backups.first.resticSize|humanizeFileSize }}
+                                                                {% if backupConfiguration.backups.first.resticSize|humanizeFileSize != backupConfiguration.backups.first.resticDedupSize|humanizeFileSize %}
+                                                                    ({{ backupConfiguration.backups.first.resticDedupSize|humanizeFileSize }})
                                                                 {% endif %}
                                                             {% endif %}
                                                         </span>
@@ -61,12 +61,12 @@
                                                 </td>
                                                 <td>
                                                     {% if backupConfiguration.backups.first.resticTotalSize %}
-                                                        {{ backupConfiguration.backups.first.resticTotalSize|humanizeFilesize }}
-                                                        {% if backupConfiguration.backups.first.resticTotalSize|humanizeFilesize != backupConfiguration.backups.first.resticTotalDedupSize|humanizeFilesize %}
-                                                            (real : {{ backupConfiguration.backups.first.resticTotalDedupSize|humanizeFilesize }})
+                                                        {{ backupConfiguration.backups.first.resticTotalSize|humanizeFileSize }}
+                                                        {% if backupConfiguration.backups.first.resticTotalSize|humanizeFileSize != backupConfiguration.backups.first.resticTotalDedupSize|humanizeFileSize %}
+                                                            (real : {{ backupConfiguration.backups.first.resticTotalDedupSize|humanizeFileSize }})
                                                         {% endif %}
                                                     {% elseif backupConfiguration.backups.first.size %}
-                                                        {{ backupConfiguration.backups.first.size|humanizeFilesize }}
+                                                        {{ backupConfiguration.backups.first.size|humanizeFileSize }}
                                                     {% else %}
                                                         <span class="badge badge-danger">N/A</span>
                                                     {% endif %}
@@ -99,16 +99,16 @@
             {% endfor %}
 
             <ul class="alert alert-warning mt-2 mb-2 list list-unstyled">
-                <li>Total backups size : {{ totalSize|humanizeFilesize }}</li>
-                <li>Total repository usage : {{ totalRepositoryUsage|humanizeFilesize }}</li>
+                <li>Total backups size : {{ totalSize|humanizeFileSize }}</li>
+                <li>Total repository usage : {{ totalRepositoryUsage|humanizeFileSize }}</li>
                 <li>Backups are restored to /tmp/restore/xxx. Edit it if needed.</li>
             </ul>
             
             {%- for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) -%}
                 <h3># {{ backupConfiguration.name }} from {{ backupConfiguration.storage.name }}</h3>
                 <p>
-                    # Backup size : {{ backupConfiguration.backups.first.resticSize|humanizeFilesize }}.<br />
-                    # Total repository usage: {{ totalRepositoryUsage|humanizeFilesize }}
+                    # Backup size : {{ backupConfiguration.backups.first.resticSize|humanizeFileSize }}.<br />
+                    # Total repository usage: {{ totalRepositoryUsage|humanizeFileSize }}
                 </p>
 
                 <pre class="blur mb-0">

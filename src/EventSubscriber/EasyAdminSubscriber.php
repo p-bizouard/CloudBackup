@@ -11,7 +11,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class EasyAdminSubscriber implements EventSubscriberInterface
 {
-    public function __construct(private EntityManagerInterface $entityManager, private UserPasswordHasherInterface $passwordHasher)
+    public function __construct(private readonly EntityManagerInterface $entityManager, private readonly UserPasswordHasherInterface $userPasswordHasher)
     {
     }
 
@@ -23,9 +23,9 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         ];
     }
 
-    public function updateUser(BeforeEntityUpdatedEvent $event): void
+    public function updateUser(BeforeEntityUpdatedEvent $beforeEntityUpdatedEvent): void
     {
-        $entity = $event->getEntityInstance();
+        $entity = $beforeEntityUpdatedEvent->getEntityInstance();
 
         if (!($entity instanceof User)) {
             return;
@@ -33,9 +33,9 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         $this->setPassword($entity);
     }
 
-    public function addUser(BeforeEntityPersistedEvent $event): void
+    public function addUser(BeforeEntityPersistedEvent $beforeEntityPersistedEvent): void
     {
-        $entity = $event->getEntityInstance();
+        $entity = $beforeEntityPersistedEvent->getEntityInstance();
 
         if (!($entity instanceof User)) {
             return;
@@ -43,18 +43,18 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         $this->setPassword($entity);
     }
 
-    public function setPassword(User $entity): void
+    public function setPassword(User $user): void
     {
-        $pass = $entity->getPlainPassword();
+        $pass = $user->getPlainPassword();
 
         if (null !== $pass) {
-            $entity->setPassword(
-                $this->passwordHasher->hashPassword(
-                    $entity,
+            $user->setPassword(
+                $this->userPasswordHasher->hashPassword(
+                    $user,
                     $pass
                 )
             );
-            $this->entityManager->persist($entity);
+            $this->entityManager->persist($user);
             $this->entityManager->flush();
         }
     }

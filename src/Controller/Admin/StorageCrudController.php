@@ -20,8 +20,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class StorageCrudController extends AbstractCrudController
 {
     public function __construct(
-        private AdminUrlGenerator $adminUrlGenerator,
-        private EntityManagerInterface $entityManager)
+        private readonly AdminUrlGenerator $adminUrlGenerator,
+        private readonly EntityManagerInterface $entityManager)
     {
     }
 
@@ -35,8 +35,8 @@ class StorageCrudController extends AbstractCrudController
         return $crud
             ->setPageTitle('index', 'Storages')
             ->setPageTitle('new', 'New storage')
-            ->setPageTitle('detail', fn (Storage $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (Storage $entity) => sprintf('Edit <b>%s</b>', $entity))
+            ->setPageTitle('detail', fn (Storage $storage) => (string) $storage)
+            ->setPageTitle('edit', fn (Storage $storage) => sprintf('Edit <b>%s</b>', $storage))
         ;
     }
 
@@ -89,10 +89,10 @@ class StorageCrudController extends AbstractCrudController
         ];
     }
 
-    public function copyEntity(AdminContext $context): RedirectResponse
+    public function copyEntity(AdminContext $adminContext): RedirectResponse
     {
         /** @var Storage */
-        $storage = $context->getEntity()->getInstance();
+        $storage = $adminContext->getEntity()->getInstance();
         $newstorage = clone $storage;
 
         $newstorage->setName(sprintf('Copy %s', $newstorage->getName()));

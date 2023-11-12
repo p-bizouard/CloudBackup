@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class BackupConfigurationCrudController extends AbstractCrudController
 {
-    public function __construct(private AdminUrlGenerator $adminUrlGenerator, private ManagerRegistry $doctrine)
+    public function __construct(private readonly AdminUrlGenerator $adminUrlGenerator, private readonly ManagerRegistry $managerRegistry)
     {
     }
 
@@ -36,8 +36,8 @@ class BackupConfigurationCrudController extends AbstractCrudController
         return $crud
             ->setPageTitle('index', 'backup schedulings')
             ->setPageTitle('new', 'New backup scheduling')
-            ->setPageTitle('detail', fn (BackupConfiguration $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (BackupConfiguration $entity) => sprintf('Edit <b>%s</b>', $entity))
+            ->setPageTitle('detail', fn (BackupConfiguration $backupConfiguration) => (string) $backupConfiguration)
+            ->setPageTitle('edit', fn (BackupConfiguration $backupConfiguration) => sprintf('Edit <b>%s</b>', $backupConfiguration))
 
             ->overrideTemplate('crud/detail', 'admin/backup_configuration/detail.html.twig')
         ;
@@ -154,16 +154,16 @@ class BackupConfigurationCrudController extends AbstractCrudController
         ];
     }
 
-    public function copyEntity(AdminContext $context): RedirectResponse
+    public function copyEntity(AdminContext $adminContext): RedirectResponse
     {
         /** @var BackupConfiguration */
-        $backupConfiguration = $context->getEntity()->getInstance();
+        $backupConfiguration = $adminContext->getEntity()->getInstance();
         $newBackupConfiguration = clone $backupConfiguration;
 
         $newBackupConfiguration->setName(sprintf('Copy %s', $newBackupConfiguration->getName()));
         $newBackupConfiguration->setEnabled(false);
 
-        $entityManager = $this->doctrine->getManagerForClass(self::getEntityFqcn());
+        $entityManager = $this->managerRegistry->getManagerForClass(self::getEntityFqcn());
         $entityManager->persist($newBackupConfiguration);
         $entityManager->flush();
 

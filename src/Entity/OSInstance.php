@@ -8,45 +8,52 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Entity(repositoryClass=OSInstanceRepository::class)
  */
-class OSInstance
+class OSInstance implements Stringable
 {
     use TimestampableEntity;
 
     /**
      * @ORM\Id
+     *
      * @ORM\Column(type="uuid")
      */
     private ?string $id = null;
 
     /**
      * @ORM\Column(type="string", length=255)
+     *
      * @Assert\NotNull()
      */
     private ?string $name = null;
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
+     *
      * @Gedmo\Slug(fields={"name"})
      */
     private ?string $slug = null;
 
     /**
      * @ORM\Column(type="string", length=255)
+     *
      * @Assert\NotNull()
      */
     private ?string $osRegionName = null;
 
     /**
      * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="osInstances")
+     *
      * @Assert\NotNull()
+     *
      * @ORM\JoinColumn(nullable=false)
      */
-    private ?OSProject $osProject;
+    private ?OSProject $osProject = null;
 
     /**
      * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="osInstance")
@@ -62,7 +69,7 @@ class OSInstance
 
     public function __toString(): string
     {
-        return $this->name;
+        return (string) $this->name;
     }
 
     public function getOSEnv(): array
@@ -148,11 +155,9 @@ class OSInstance
 
     public function removeBackupConfiguration(BackupConfiguration $backupConfiguration): self
     {
-        if ($this->backupConfigurations->removeElement($backupConfiguration)) {
-            // set the owning side to null (unless already changed)
-            if ($this === $this) {
-                $backupConfiguration->setOsInstance(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->backupConfigurations->removeElement($backupConfiguration) && $backupConfiguration->getOsInstance() === $this) {
+            $backupConfiguration->setOsInstance(null);
         }
 
         return $this;

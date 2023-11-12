@@ -11,9 +11,9 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class BackupRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(ManagerRegistry $managerRegistry)
     {
-        parent::__construct($registry, Backup::class);
+        parent::__construct($managerRegistry, Backup::class);
     }
 
     // /**

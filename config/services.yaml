@@ -56,4 +56,4 @@ services:
         decorates: EcPhp\CasBundle\Security\CasAuthenticator
         arguments:
             $userProvider: "@security.user.provider.concrete.app_user_provider"
-            $ecpPhpcasAuthenticator: "@.inner"
+            $ecPhpCasdAuthenticator: "@.inner"

@@ -12,10 +12,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 class OSProjectCrudController extends AbstractCrudController
 {
     public function __construct(
-        private string $authUrl,
-        private int $identityApiVersion,
-        private string $userDomainName,
-        private string $projectDomainName
+        private readonly string $authUrl,
+        private readonly int $identityApiVersion,
+        private readonly string $userDomainName,
+        private readonly string $projectDomainName
     ) {
     }
 
@@ -29,20 +29,20 @@ class OSProjectCrudController extends AbstractCrudController
         return $crud
             ->setPageTitle('index', 'Openstack projects (for Swift storage or Instance backup)')
             ->setPageTitle('new', 'New Openstack project')
-            ->setPageTitle('detail', fn (OSProject $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (OSProject $entity) => sprintf('Edit <b>%s</b>', $entity))
+            ->setPageTitle('detail', fn (OSProject $osProject) => (string) $osProject)
+            ->setPageTitle('edit', fn (OSProject $osProject) => sprintf('Edit <b>%s</b>', $osProject))
         ;
     }
 
     public function createEntity(string $entityFqcn): OSProject
     {
-        $project = new OSProject();
-        $project->setAuthUrl($this->authUrl);
-        $project->setIdentityApiVersion($this->identityApiVersion);
-        $project->setUserDomainName($this->userDomainName);
-        $project->setProjectDomainName($this->projectDomainName);
+        $osProject = new OSProject();
+        $osProject->setAuthUrl($this->authUrl);
+        $osProject->setIdentityApiVersion($this->identityApiVersion);
+        $osProject->setUserDomainName($this->userDomainName);
+        $osProject->setProjectDomainName($this->projectDomainName);
 
-        return $project;
+        return $osProject;
     }
 
     public function configureFields(string $pageName): iterable

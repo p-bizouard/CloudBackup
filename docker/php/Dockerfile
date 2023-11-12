@@ -64,6 +64,7 @@ CMD  ["php-fpm"]
 
 RUN echo "user:user:${DOCKER_USER:-1000}:${DOCKER_USER:-1000}:Dev user:/:/sbin/nologin" >> /etc/passwd
 RUN mkdir /.ssh && chown ${DOCKER_USER:-1000}:${DOCKER_USER:-1000} /.ssh
+RUN mkdir /.cache && chown ${DOCKER_USER:-1000}:${DOCKER_USER:-1000} /.cache
 
 # Test image
 FROM dev AS test

@@ -7,11 +7,12 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 
 /**
  * @ORM\Entity(repositoryClass=StorageRepository::class)
  */
-class Storage
+class Storage implements Stringable
 {
     use TimestampableEntity;
 
@@ -42,7 +43,7 @@ class Storage
     /**
      * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="storages")
      */
-    private ?OSProject $osProject;
+    private ?OSProject $osProject = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
@@ -86,8 +87,8 @@ class Storage
      */
     private Collection $backupConfigurations;
 
-    public const TYPE_RESTIC = 'restic';
-    public const TYPE_RCLONE = 'rclone';
+    final public const TYPE_RESTIC = 'restic';
+    final public const TYPE_RCLONE = 'rclone';
 
     public function __construct()
     {
@@ -96,7 +97,7 @@ class Storage
 
     public function __toString(): string
     {
-        return $this->name;
+        return (string) $this->name;
     }
 
     public function getOSEnv(): array
@@ -239,11 +240,9 @@ class Storage
 
     public function removeBackupConfiguration(BackupConfiguration $backupConfiguration): self
     {
-        if ($this->backupConfigurations->removeElement($backupConfiguration)) {
-            // set the owning side to null (unless already changed)
-            if ($backupConfiguration->getStorage() === $this) {
-                $backupConfiguration->setStorage(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->backupConfigurations->removeElement($backupConfiguration) && $backupConfiguration->getStorage() === $this) {
+            $backupConfiguration->setStorage(null);
         }
 
         return $this;

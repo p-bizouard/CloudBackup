@@ -23,10 +23,8 @@ class AuthenticationSuccessHandler implements AuthenticationSuccessHandlerInterf
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token): Response
     {
-        if ($token instanceof UsernamePasswordToken) {
-            if ($targetPath = $this->getTargetPath($request->getSession(), $token->getFirewallName())) {
-                return new RedirectResponse($targetPath);
-            }
+        if ($token instanceof UsernamePasswordToken && ($targetPath = $this->getTargetPath($request->getSession(), $token->getFirewallName()))) {
+            return new RedirectResponse($targetPath);
         }
 
         return new RedirectResponse($this->urlGenerator->generate('admin'));

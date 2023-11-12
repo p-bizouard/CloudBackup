@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Backup;
+use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address;
@@ -11,10 +12,10 @@ use Symfony\Component\Mime\Email;
 class MailerService
 {
     public function __construct(
-        private string $from_address,
-        private array $report_addresses,
-        private MailerInterface $mailer,
-        private LoggerInterface $logger,
+        private readonly string $from_address,
+        private readonly array $report_addresses,
+        private readonly MailerInterface $mailer,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -32,12 +33,12 @@ class MailerService
                 ))
             ;
 
-            foreach ($this->report_addresses as $address) {
-                $email->addTo($address);
+            foreach ($this->report_addresses as $report_address) {
+                $email->addTo($report_address);
             }
 
             $this->mailer->send($email);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->logger->error(sprintf('Cannot send email [%s]', $e->getMessage()));
         }
     }

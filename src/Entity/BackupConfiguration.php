@@ -7,15 +7,17 @@ use App\Validator as AppAssert;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Exception;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Entity(repositoryClass=BackupConfigurationRepository::class)
  */
 #[AppAssert\BackupConfigurationTypeRclone]
-class BackupConfiguration
+class BackupConfiguration implements Stringable
 {
     use TimestampableEntity;
 
@@ -26,7 +28,7 @@ class BackupConfiguration
      *
      * @ORM\Column(type="integer")
      */
-    private ?int $id;
+    private ?int $id = null;
 
     /**
      * @ORM\Column(type="string", length=255)
@@ -67,7 +69,7 @@ class BackupConfiguration
      *
      * @ORM\JoinColumn(nullable=false)
      */
-    private ?Storage $storage;
+    private ?Storage $storage = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
@@ -101,7 +103,7 @@ class BackupConfiguration
     /**
      * @ORM\ManyToOne(targetEntity=Host::class, inversedBy="backupConfigurations")
      */
-    private ?Host $host;
+    private ?Host $host = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
@@ -138,18 +140,18 @@ class BackupConfiguration
      */
     private ?string $rcloneConfiguration = null;
 
-    public const PERIODICITY_DAILY = 'daily';
+    final public const PERIODICITY_DAILY = 'daily';
 
-    public const TYPE_OS_INSTANCE = 'os-instance';
-    public const TYPE_MYSQL = 'mysql';
-    public const TYPE_SQL_SERVER = 'sql-server';
-    public const TYPE_POSTGRESQL = 'postgresql';
-    public const TYPE_SSHFS = 'sshfs';
-    public const TYPE_SSH_RESTIC = 'ssh-restic';
-    public const TYPE_READ_RESTIC = 'read-restic';
-    public const TYPE_SSH_CMD = 'ssh-cmd';
-    public const TYPE_SFTP = 'sftp';
-    public const TYPE_RCLONE = 'rclone';
+    final public const TYPE_OS_INSTANCE = 'os-instance';
+    final public const TYPE_MYSQL = 'mysql';
+    final public const TYPE_SQL_SERVER = 'sql-server';
+    final public const TYPE_POSTGRESQL = 'postgresql';
+    final public const TYPE_SSHFS = 'sshfs';
+    final public const TYPE_SSH_RESTIC = 'ssh-restic';
+    final public const TYPE_READ_RESTIC = 'read-restic';
+    final public const TYPE_SSH_CMD = 'ssh-cmd';
+    final public const TYPE_SFTP = 'sftp';
+    final public const TYPE_RCLONE = 'rclone';
 
     public function __construct()
     {
@@ -158,7 +160,7 @@ class BackupConfiguration
 
     public function __toString(): string
     {
-        return $this->name;
+        return (string) $this->name;
     }
 
     public function getBackupDateFormat(): string
@@ -166,7 +168,7 @@ class BackupConfiguration
         if (self::PERIODICITY_DAILY === $this->getPeriodicity()) {
             return 'Y-m-d';
         } else {
-            throw new \Exception('Invalid periodicity');
+            throw new Exception('Invalid periodicity');
         }
     }
 
@@ -206,26 +208,20 @@ class BackupConfiguration
             return $this->getCustomExtension();
         }
 
-        switch ($this->getType()) {
-            case BackupConfiguration::TYPE_OS_INSTANCE:
-                return 'qcow2';
-            case BackupConfiguration::TYPE_MYSQL:
-                return 'sql';
-            case BackupConfiguration::TYPE_SQL_SERVER:
-                return 'bak';
-            case BackupConfiguration::TYPE_POSTGRESQL:
-                return 'sqlc';
-            case BackupConfiguration::TYPE_SSH_CMD:
-                return 'dump';
-        }
-
-        return null;
+        return match ($this->getType()) {
+            BackupConfiguration::TYPE_OS_INSTANCE => 'qcow2',
+            BackupConfiguration::TYPE_MYSQL => 'sql',
+            BackupConfiguration::TYPE_SQL_SERVER => 'bak',
+            BackupConfiguration::TYPE_POSTGRESQL => 'sqlc',
+            BackupConfiguration::TYPE_SSH_CMD => 'dump',
+            default => null,
+        };
     }
 
     public function getResticForgetArgs(): string
     {
-        $keepDaily = $this->getKeepDaily() ? sprintf('--keep-daily %s', (int) $this->getKeepDaily()) : null;
-        $keepWeekly = $this->getKeepDaily() ? sprintf('--keep-weekly %s', (int) $this->getKeepWeekly()) : null;
+        $keepDaily = 0 !== $this->getKeepDaily() ? sprintf('--keep-daily %s', (int) $this->getKeepDaily()) : null;
+        $keepWeekly = 0 !== $this->getKeepDaily() ? sprintf('--keep-weekly %s', (int) $this->getKeepWeekly()) : null;
 
         return sprintf('%s %s', $keepDaily, $keepWeekly);
     }
@@ -368,11 +364,9 @@ class BackupConfiguration
 
     public function removeBackup(Backup $backup): self
     {
-        if ($this->backups->removeElement($backup)) {
-            // set the owning side to null (unless already changed)
-            if ($backup->getBackupConfiguration() === $this) {
-                $backup->setBackupConfiguration(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->backups->removeElement($backup) && $backup->getBackupConfiguration() === $this) {
+            $backup->setBackupConfiguration(null);
         }
 
         return $this;

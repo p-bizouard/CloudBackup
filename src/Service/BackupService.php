@@ -8,7 +8,9 @@ use App\Entity\Log;
 use App\Entity\Storage;
 use App\Repository\BackupRepository;
 use App\Utils\StringUtils;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Exception\ProcessFailedException;
@@ -18,48 +20,39 @@ use Symfony\Component\Workflow\Registry;
 
 class BackupService
 {
-    public const RESTIC_INIT_TIMEOUT = 60;
-    public const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
-    public const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
-    public const RESTIC_CHECK_TIMEOUT = 3600;
-    public const RESTIC_REPAIR_TIMEOUT = 3600;
+    final public const RESTIC_INIT_TIMEOUT = 60;
+    final public const RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
+    final public const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
+    final public const RESTIC_CHECK_TIMEOUT = 3600;
+    final public const RESTIC_REPAIR_TIMEOUT = 3600;
 
-    public const OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
-    public const OS_IMAGE_LIST_TIMEOUT = 60;
-    public const OS_DOWNLOAD_TIMEOUT = 3600 * 4;
+    final public const OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
+    final public const OS_IMAGE_LIST_TIMEOUT = 60;
+    final public const OS_DOWNLOAD_TIMEOUT = 3600 * 4;
 
-    public const SSHFS_MOUNT_TIMEOUT = 60;
-    public const SSHFS_UMOUNT_TIMEOUT = 60;
+    final public const SSHFS_MOUNT_TIMEOUT = 60;
+    final public const SSHFS_UMOUNT_TIMEOUT = 60;
 
-    public const DOWNLOAD_SIZE_TIMEOUT = 60 * 10;
+    final public const DOWNLOAD_SIZE_TIMEOUT = 60 * 10;
 
     public function __construct(
-        private string $temporaryDownloadDirectory,
-        private LoggerInterface $logger,
-        private EntityManagerInterface $entityManager,
-        private Registry $workflowRegistry,
-        private BackupRepository $backupRepository,
+        private readonly string $temporaryDownloadDirectory,
+        private readonly LoggerInterface $logger,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly Registry $workflowRegistry,
+        private readonly BackupRepository $backupRepository,
     ) {
     }
 
     public function log(Backup $backup, string $level, string $message): void
     {
-        switch ($level) {
-            case Log::LOG_ERROR:
-                $this->logger->error($message);
-                break;
-            case Log::LOG_WARNING:
-                $this->logger->warning($message);
-                break;
-            case Log::LOG_INFO:
-                $this->logger->info($message);
-                break;
-            case Log::LOG_NOTICE:
-                $this->logger->notice($message);
-                break;
-            default:
-                throw new \Exception('Log level not found');
-        }
+        match ($level) {
+            Log::LOG_ERROR => $this->logger->error($message),
+            Log::LOG_WARNING => $this->logger->warning($message),
+            Log::LOG_INFO => $this->logger->info($message),
+            Log::LOG_NOTICE => $this->logger->notice($message),
+            default => throw new Exception('Log level not found'),
+        };
 
         $log = new Log();
         $log->setLevel($level);
@@ -88,7 +81,7 @@ class BackupService
 
     public function snapshotOSInstance(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $status = $this->getSnapshotOsInstanceStatus($backup);
         if (null !== $status) {
@@ -120,7 +113,7 @@ class BackupService
 
     public function getSnapshotOsInstanceStatus(Backup $backup): ?string
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
 
@@ -141,13 +134,13 @@ class BackupService
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
         }
 
-        $output = json_decode($process->getOutput(), true);
+        $output = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
         if (null === $output) {
             $this->log($backup, Log::LOG_ERROR, sprintf('Error executing snapshot - openstack image list - %s - %s', $process->getOutput(), $process->getErrorOutput()));
             throw new ProcessFailedException($process);
         }
 
-        if (!\count($output)) {
+        if ((is_countable($output) ? \count($output) : 0) === 0) {
             return null;
         }
 
@@ -187,7 +180,7 @@ class BackupService
 
     private function downloadOSSnapshot(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
 
@@ -209,13 +202,13 @@ class BackupService
                 $this->log($backup, Log::LOG_INFO, $process->getOutput());
             }
 
-            $output = json_decode($process->getOutput(), true);
+            $output = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
             if (null === $output) {
                 $this->log($backup, Log::LOG_ERROR, sprintf('Error executing download - openstack image list - %s - %s', $process->getOutput(), $process->getErrorOutput()));
                 throw new ProcessFailedException($process);
             }
 
-            if (!\count($output)) {
+            if ((is_countable($output) ? \count($output) : 0) === 0) {
                 return;
             }
 
@@ -260,7 +253,7 @@ class BackupService
 
     private function downloadCommandResult(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $filesystem = new Filesystem();
         $backupDestination = $this->getTemporaryBackupDestination($backup);
@@ -291,10 +284,7 @@ class BackupService
                 'DESTINATION' => $backupDestination,
             ];
         } else {
-            $command = sprintf(
-                // Unsafe use of shell command
-                'sh -c "${DUMP_COMMAND}" > "${DESTINATION}"',
-            );
+            $command = 'sh -c "${DUMP_COMMAND}" > "${DESTINATION}"';
             $parameters = [
                 'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
                 'DESTINATION' => $backupDestination,
@@ -314,14 +304,14 @@ class BackupService
         }
 
         $backup->setSize(filesize($backupDestination));
-        $this->log($backup, Log::LOG_INFO, sprintf('Backup size : %s', StringUtils::humanizeFilesize($backup->getSize())));
+        $this->log($backup, Log::LOG_INFO, sprintf('Backup size : %s', StringUtils::humanizeFileSize($backup->getSize())));
 
         $this->log($backup, Log::LOG_NOTICE, 'Dump done');
     }
 
     private function downloadSSHFS(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         if (!$this->checkDownloadedFUSE($backup)) {
             $filesystem = new Filesystem();
@@ -376,7 +366,7 @@ class BackupService
 
     private function downloadSftp(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $filesystem = new Filesystem();
 
@@ -418,31 +408,18 @@ class BackupService
 
     public function downloadBackup(Backup $backup): void
     {
-        switch ($backup->getBackupConfiguration()->getType()) {
-            case BackupConfiguration::TYPE_OS_INSTANCE:
-                $this->downloadOSSnapshot($backup);
-                break;
-            case BackupConfiguration::TYPE_MYSQL:
-            case BackupConfiguration::TYPE_POSTGRESQL:
-            case BackupConfiguration::TYPE_SQL_SERVER:
-            case BackupConfiguration::TYPE_SSH_CMD:
-                $this->downloadCommandResult($backup);
-                break;
-            case BackupConfiguration::TYPE_SFTP:
-                $this->downloadSftp($backup);
-                break;
-            case BackupConfiguration::TYPE_SSHFS:
-                $this->downloadSSHFS($backup);
-                break;
-            default:
-                $this->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
-                break;
-        }
+        match ($backup->getBackupConfiguration()->getType()) {
+            BackupConfiguration::TYPE_OS_INSTANCE => $this->downloadOSSnapshot($backup),
+            BackupConfiguration::TYPE_MYSQL, BackupConfiguration::TYPE_POSTGRESQL, BackupConfiguration::TYPE_SQL_SERVER, BackupConfiguration::TYPE_SSH_CMD => $this->downloadCommandResult($backup),
+            BackupConfiguration::TYPE_SFTP => $this->downloadSftp($backup),
+            BackupConfiguration::TYPE_SSHFS => $this->downloadSSHFS($backup),
+            default => $this->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace())),
+        };
     }
 
     public function checkDownloadedFUSE(Backup $backup): bool
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $command = 'grep -qs "${DIRECTORY}" /proc/mounts';
         $parameters = [
@@ -467,7 +444,7 @@ class BackupService
 
     public function checkDownloadedDump(Backup $backup): bool
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $dumpDestination = $this->getTemporaryBackupDestination($backup);
 
@@ -476,7 +453,7 @@ class BackupService
 
             return true;
         } else {
-            $this->log($backup, Log::LOG_NOTICE, sprintf('Backup not downloaded : %s < %s', StringUtils::humanizeFilesize(filesize($dumpDestination)), StringUtils::humanizeFilesize($backup->getBackupConfiguration()->getMinimumBackupSize())));
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Backup not downloaded : %s < %s', StringUtils::humanizeFileSize(filesize($dumpDestination)), StringUtils::humanizeFileSize($backup->getBackupConfiguration()->getMinimumBackupSize())));
 
             return false;
         }
@@ -484,7 +461,7 @@ class BackupService
 
     public function checkDownloadedOSSnapshot(Backup $backup): bool
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $imageDestination = $this->getTemporaryBackupDestination($backup);
 
@@ -495,7 +472,7 @@ class BackupService
         }
 
         if (!file_exists($imageDestination) || filesize($imageDestination) !== $backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, sprintf('Openstack image not downloaded : %s != %s', StringUtils::humanizeFilesize(filesize($imageDestination)), StringUtils::humanizeFilesize($backup->getSize())));
+            $this->log($backup, Log::LOG_NOTICE, sprintf('Openstack image not downloaded : %s != %s', StringUtils::humanizeFileSize(filesize($imageDestination)), StringUtils::humanizeFileSize($backup->getSize())));
 
             return false;
         }
@@ -505,7 +482,7 @@ class BackupService
 
     private function uploadBackupSSHResticRmScript(Backup $backup, string $privateKeypath, string $scriptFilePath): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $command = sprintf(
             'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "sudo rm -f %s"',
@@ -531,7 +508,7 @@ class BackupService
 
     private function uploadBackupSSHRestic(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
@@ -542,7 +519,7 @@ class BackupService
         $scriptFilePath = $filesystem->tempnam('/tmp', 'env_');
         $filesystem->appendToFile($scriptFilePath, sprintf('#!/bin/bash%s', \PHP_EOL));
         foreach ($env as $k => $v) {
-            $filesystem->appendToFile($scriptFilePath, sprintf('export %s="%s"%s', $k, str_replace('"', '\\"', $v), \PHP_EOL));
+            $filesystem->appendToFile($scriptFilePath, sprintf('export %s="%s"%s', $k, str_replace('"', '\\"', (string) $v), \PHP_EOL));
         }
         $filesystem->appendToFile($scriptFilePath, sprintf(
             'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s || exit 1%s',
@@ -603,7 +580,7 @@ class BackupService
 
     public function uploadBackup(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
@@ -635,7 +612,7 @@ class BackupService
             case BackupConfiguration::TYPE_SSH_CMD:
                 $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
                 $parameters = [
-                    'HOST' => $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
+                    'HOST' => null !== $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
                     'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
                     'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
                 ];
@@ -829,10 +806,10 @@ class BackupService
         }
 
         $this->log($backup, Log::LOG_NOTICE, sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
-        if (2 !== \count(scandir($this->getTemporaryBackupDestination($backup)))) {
+        if (2 !== (is_countable(scandir($this->getTemporaryBackupDestination($backup))) ? \count(scandir($this->getTemporaryBackupDestination($backup))) : 0)) {
             $message = sprintf('Error executing cleanup - %s directory is not empty', $this->getTemporaryBackupDestination($backup));
             $this->log($backup, Log::LOG_ERROR, $message);
-            throw new \Exception($message);
+            throw new Exception($message);
         } else {
             // php's rmdir function only remove empty directories
             rmdir($this->getTemporaryBackupDestination($backup));
@@ -873,7 +850,7 @@ class BackupService
 
     private function cleanRemoteByCommand(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $filesystem = new Filesystem();
 
@@ -918,7 +895,7 @@ class BackupService
 
     public function cleanBackup(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         // Remove local temporary file / directory
         if (file_exists($this->getTemporaryBackupDestination($backup))) {
@@ -946,14 +923,14 @@ class BackupService
         }
 
         // Execute remote clean command
-        if (BackupConfiguration::TYPE_SSH_CMD === $backup->getBackupConfiguration()->getType() && !empty($backup->getBackupConfiguration()->getRemoteCleanCommand())) {
+        if (BackupConfiguration::TYPE_SSH_CMD === $backup->getBackupConfiguration()->getType() && (null !== $backup->getBackupConfiguration()->getRemoteCleanCommand() && '' !== $backup->getBackupConfiguration()->getRemoteCleanCommand())) {
             $this->cleanRemoteByCommand($backup);
         }
     }
 
     public function isBackupCleaned(Backup $backup): bool
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         switch ($backup->getBackupConfiguration()->getType()) {
             case BackupConfiguration::TYPE_OS_INSTANCE:
@@ -998,7 +975,7 @@ class BackupService
                 $process->run();
 
                 if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
 
                     if ($tryRepair) {
                         $this->repairBackup($backup);
@@ -1018,26 +995,26 @@ class BackupService
                 $process->run();
 
                 if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
                     throw new ProcessFailedException($process);
                 } else {
-                    if (($json = json_decode($process->getOutput(), true)) === null || !\count($json)) {
+                    if (($json = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR)) === null || !(is_countable($json) ? \count($json) : 0)) {
                         $message = sprintf('Cannot decode json : %s', $process->getOutput());
                         $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new \Exception($message);
+                        throw new Exception($message);
                     }
 
                     $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
                     $this->log($backup, Log::LOG_INFO, $prettyJson);
 
-                    $lastBackup = new \DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', end($json)['time']));
+                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) end($json)['time']));
                     $this->log($backup, Log::LOG_NOTICE, sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
 
-                    $yesterday = new \DateTime('yesterday');
+                    $yesterday = new DateTime('yesterday');
                     if ($lastBackup < $yesterday) {
                         $message = 'Last backup older than 24h';
                         $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new \Exception($message);
+                        throw new Exception($message);
                     }
                 }
 
@@ -1057,13 +1034,13 @@ class BackupService
                     $process->run();
 
                     if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
+                        $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
                         throw new ProcessFailedException($process);
                     } else {
-                        if (($json = json_decode($process->getOutput(), true)) === null) {
+                        if (($json = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR)) === null) {
                             $message = sprintf('Cannot decode json : %s', $process->getOutput());
                             $this->log($backup, Log::LOG_ERROR, $message);
-                            throw new \Exception($message);
+                            throw new Exception($message);
                         }
 
                         $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
@@ -1072,7 +1049,7 @@ class BackupService
                         $accessor = PropertyAccess::createPropertyAccessor();
                         $accessor->setValue($backup, $backupAttribute, $json['total_size']);
 
-                        $this->log($backup, Log::LOG_NOTICE, sprintf('Stat %s : %s', $backupAttribute, StringUtils::humanizeFilesize($json['total_size'])));
+                        $this->log($backup, Log::LOG_NOTICE, sprintf('Stat %s : %s', $backupAttribute, StringUtils::humanizeFileSize($json['total_size'])));
                     }
                 }
 
@@ -1104,7 +1081,7 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
 
-                $output = json_decode($process->getOutput(), true);
+                $output = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
                 if (null === $output) {
                     $this->log($backup, Log::LOG_ERROR, sprintf('Error executing rclone size - %s - %s', $process->getOutput(), $process->getErrorOutput()));
                     throw new ProcessFailedException($process);
@@ -1113,9 +1090,9 @@ class BackupService
                 $backup->setSize($output['bytes']);
 
                 if ($output['bytes'] <= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
-                    $message = sprintf('Rclone failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFilesize($output['bytes']), StringUtils::humanizeFilesize($backup->getBackupConfiguration()->getMinimumBackupSize()));
+                    $message = sprintf('Rclone failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($output['bytes']), StringUtils::humanizeFileSize($backup->getBackupConfiguration()->getMinimumBackupSize()));
                     $this->log($backup, Log::LOG_NOTICE, $message);
-                    throw new \Exception($message);
+                    throw new Exception($message);
                 }
                 break;
         }
@@ -1123,7 +1100,7 @@ class BackupService
 
     public function repairBackup(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
@@ -1140,7 +1117,7 @@ class BackupService
             $process->run();
 
             if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
+                $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
                 throw new ProcessFailedException($process);
             } else {
                 $this->log($backup, Log::LOG_INFO, $process->getOutput());
@@ -1150,7 +1127,7 @@ class BackupService
 
     public function resticInitRepo(Backup $backup): void
     {
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
@@ -1162,7 +1139,7 @@ class BackupService
         $process->run();
 
         if (!$process->isSuccessful() && !preg_match(self::RESTIC_INIT_REGEX, $process->getErrorOutput())) {
-            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', __CLASS__, __FUNCTION__, $command, $process->getErrorOutput()));
+            $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
             throw new ProcessFailedException($process);
         } else {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
@@ -1185,7 +1162,7 @@ class BackupService
 
     public function initBackup(BackupConfiguration $backupConfiguration): void
     {
-        $now = new \DateTime();
+        $dateTime = new DateTime();
 
         $backup = $this->backupRepository->findOneBy([
             'backupConfiguration' => $backupConfiguration,
@@ -1197,9 +1174,9 @@ class BackupService
         }
 
         $backupWorkflow = $this->workflowRegistry->get($backup);
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
         if ('backuped' === $backup->getCurrentPlace()) {
-            if ($backup->getCreatedAt()->format('Y-m-d') === $now->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
+            if ($backup->getCreatedAt()->format('Y-m-d') === $dateTime->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
                 return;
             } else {
                 $backup = new Backup();
@@ -1207,8 +1184,8 @@ class BackupService
             }
         } elseif ('initialized' !== $backup->getCurrentPlace()) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('Resume backup with current state %s', $backup->getCurrentPlace()));
-            if ($backup->getCreatedAt()->format('Y-m-d') !== $now->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
-                $this->log($backup, Log::LOG_NOTICE, sprintf('Backup is not from today, force fail it'));
+            if ($backup->getCreatedAt()->format('Y-m-d') !== $dateTime->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
+                $this->log($backup, Log::LOG_NOTICE, 'Backup is not from today, force fail it');
                 if ('failed' !== $backup->getCurrentPlace()) {
                     $backupWorkflow->apply($backup, 'failed');
 
@@ -1224,7 +1201,7 @@ class BackupService
         }
 
         try {
-            $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', __CLASS__, __FUNCTION__));
+            $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s', self::class, __FUNCTION__));
 
             if ($backupWorkflow->can($backup, 'start')) {
                 $backupWorkflow->apply($backup, 'start');
@@ -1236,7 +1213,7 @@ class BackupService
             } elseif ($backupWorkflow->can($backup, 'dump')) {
                 $backupWorkflow->apply($backup, 'dump');
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('An error occured : %s', $e->getMessage()));
 
             if ($backupWorkflow->can($backup, 'failed')) {
@@ -1255,10 +1232,10 @@ class BackupService
         ], ['id' => 'DESC']);
 
         if (null === $backup) {
-            throw new \Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
+            throw new Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
         }
 
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
 
         try {
             $backupWorkflow = $this->workflowRegistry->get($backup);
@@ -1274,7 +1251,7 @@ class BackupService
             if ($backupWorkflow->can($backup, 'cleanup')) {
                 $backupWorkflow->apply($backup, 'cleanup');
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('An error occured : %s', $e->getMessage()));
 
             if ($backupWorkflow->can($backup, 'failed')) {
@@ -1293,10 +1270,10 @@ class BackupService
         ], ['id' => 'DESC']);
 
         if (null === $backup) {
-            throw new \Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
+            throw new Exception(sprintf('No backup found: %s', $backupConfiguration->getName()));
         }
 
-        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', __CLASS__, __FUNCTION__, $backup->getCurrentPlace()));
+        $this->log($backup, Log::LOG_NOTICE, sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
 
         $backupWorkflow = $this->workflowRegistry->get($backup);
 
@@ -1312,7 +1289,7 @@ class BackupService
             if ($backupWorkflow->can($backup, 'backuped')) {
                 $backupWorkflow->apply($backup, 'backuped');
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->log($backup, Log::LOG_NOTICE, sprintf('An error occured : %s', $e->getMessage()));
 
             if ($backupWorkflow->can($backup, 'failed')) {

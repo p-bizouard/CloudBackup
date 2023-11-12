@@ -12,8 +12,8 @@ class AppExtension extends AbstractExtension
     public function getFilters()
     {
         return [
-            new TwigFilter('humanizeFilesize', [StringUtils::class, 'humanizeFilesize']),
-            new TwigFilter('bootstrapColor', [Backup::class, 'staticBootstrapColor']),
+            new TwigFilter('humanizeFileSize', StringUtils::humanizeFileSize(...)),
+            new TwigFilter('bootstrapColor', Backup::staticBootstrapColor(...)),
         ];
     }
 }

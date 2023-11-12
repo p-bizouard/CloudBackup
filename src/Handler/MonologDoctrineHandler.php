@@ -10,29 +10,26 @@ use Monolog\LogRecord;
 class MonologDoctrineHandler extends AbstractProcessingHandler
 {
     private bool $initialized = false;
-    private EntityManagerInterface $entityManager;
     private string $channel = 'database';
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(private readonly EntityManagerInterface $entityManager)
     {
         parent::__construct();
-
-        $this->entityManager = $entityManager;
     }
 
-    protected function write(LogRecord $record): void
+    protected function write(LogRecord $logRecord): void
     {
         if (!$this->initialized) {
             $this->initialize();
         }
 
-        if ($this->channel != $record['channel']) {
+        if ($this->channel != $logRecord['channel']) {
             return;
         }
 
         $log = new Log();
-        $log->setMessage($record['message']);
-        $log->setLevel($record['level_name']);
+        $log->setMessage($logRecord['message']);
+        $log->setLevel($logRecord['level_name']);
 
         $this->entityManager->persist($log);
         $this->entityManager->flush();

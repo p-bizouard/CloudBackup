@@ -15,7 +15,7 @@ use Symfony\Component\Workflow\Registry;
 
 class BackupCrudController extends AbstractCrudController
 {
-    public function __construct(private Registry $workflowRegistry)
+    public function __construct(private readonly Registry $workflowRegistry)
     {
     }
 
@@ -29,8 +29,8 @@ class BackupCrudController extends AbstractCrudController
         return $crud
             ->setPageTitle('index', 'backups')
             ->setPageTitle('new', 'New sauvegardes')
-            ->setPageTitle('detail', fn (Backup $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (Backup $entity) => sprintf('Edit <b>%s</b>', $entity))
+            ->setPageTitle('detail', fn (Backup $backup) => (string) $backup)
+            ->setPageTitle('edit', fn (Backup $backup) => sprintf('Edit <b>%s</b>', $backup))
 
             ->overrideTemplate('crud/detail', 'admin/backup/detail.html.twig')
 

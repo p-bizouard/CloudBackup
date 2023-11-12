@@ -20,8 +20,8 @@ class OSInstanceCrudController extends AbstractCrudController
         return $crud
             ->setPageTitle('index', 'Openstack instances')
             ->setPageTitle('new', 'New Openstack instance')
-            ->setPageTitle('detail', fn (OSInstance $entity) => (string) $entity)
-            ->setPageTitle('edit', fn (OSInstance $entity) => sprintf('Edit <b>%s</b>', $entity))
+            ->setPageTitle('detail', fn (OSInstance $osInstance) => (string) $osInstance)
+            ->setPageTitle('edit', fn (OSInstance $osInstance) => sprintf('Edit <b>%s</b>', $osInstance))
         ;
     }
 

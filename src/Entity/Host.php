@@ -8,18 +8,22 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 
 /**
  * @ORM\Entity(repositoryClass=HostRepository::class)
+ *
  * @ORM\Table(name="`host`")
  */
-class Host
+class Host implements Stringable
 {
     use TimestampableEntity;
 
     /**
      * @ORM\Id
+     *
      * @ORM\GeneratedValue
+     *
      * @ORM\Column(type="integer")
      */
     private ?int $id = null;
@@ -31,6 +35,7 @@ class Host
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
+     *
      * @Gedmo\Slug(fields={"name"})
      */
     private ?string $slug = null;
@@ -74,7 +79,7 @@ class Host
 
     public function __toString(): string
     {
-        return $this->name;
+        return (string) $this->name;
     }
 
     public function getId(): ?int
@@ -186,11 +191,9 @@ class Host
 
     public function removeBackupConfiguration(BackupConfiguration $backupConfiguration): self
     {
-        if ($this->backupConfigurations->removeElement($backupConfiguration)) {
-            // set the owning side to null (unless already changed)
-            if ($backupConfiguration->getHost() === $this) {
-                $backupConfiguration->setHost(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->backupConfigurations->removeElement($backupConfiguration) && $backupConfiguration->getHost() === $this) {
+            $backupConfiguration->setHost(null);
         }
 
         return $this;

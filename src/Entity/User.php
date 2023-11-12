@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -17,10 +18,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * @ORM\Table(name="`user`")
  */
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, Stringable
 {
     use TimestampableEntity;
-
     /**
      * @ORM\Id
      *
@@ -29,31 +29,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @ORM\Column(type="integer")
      */
     private ?int $id = null;
-
     /**
      * @Assert\Email
      *
      * @ORM\Column(type="string", length=180, unique=true)
      */
     private ?string $email = null;
-
     /**
      * @ORM\Column(type="json")
      */
     private array $roles = [];
-
     /**
-     * @var string The hashed password
-     *
      * @ORM\Column(type="string")
      */
     private ?string $password = null;
-
     private ?string $plainPassword = null;
 
     public function __toString(): string
     {
-        return $this->email;
+        return (string) $this->email;
     }
 
     public function getId(): ?int

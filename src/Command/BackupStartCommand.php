@@ -6,6 +6,7 @@ use App\Entity\Log;
 use App\Repository\BackupConfigurationRepository;
 use App\Service\BackupService;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,26 +20,26 @@ use Symfony\Component\Lock\LockFactory;
 )]
 class BackupStartCommand extends Command
 {
-    public const MAX_RETRY = 4;
-    public const LOCK_TIMEOUT = 3600 * 6;
+    final public const MAX_RETRY = 4;
+    final public const LOCK_TIMEOUT = 3600 * 6;
 
     public function __construct(
-        private BackupConfigurationRepository $backupConfigurationRepository,
-        private EntityManagerInterface $entityManager,
-        private BackupService $backupService,
-        private LockFactory $lockFactory,
+        private readonly BackupConfigurationRepository $backupConfigurationRepository,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly BackupService $backupService,
+        private readonly LockFactory $lockFactory,
     ) {
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
+        $symfonyStyle = new SymfonyStyle($input, $output);
 
         $lock = $this->lockFactory->createLock($this->getName(), self::LOCK_TIMEOUT);
 
         if (!$lock->acquire()) {
-            $io->error('Cannot acquire lock');
+            $symfonyStyle->error('Cannot acquire lock');
 
             return Command::FAILURE;
         }
@@ -65,7 +66,7 @@ class BackupStartCommand extends Command
                 $this->backupService->completeBackup($backupConfiguration);
                 $lock->refresh();
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $log = new Log();
             $log->setLevel(Log::LOG_ERROR);
             $log->setMessage(sprintf('General error : %s', $e->getMessage()));
