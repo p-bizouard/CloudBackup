@@ -110,6 +110,10 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 TextareaField::new('rcloneConfiguration')
                     ->hideOnIndex()
                     ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here. It will be appended with the storage rclone configuration.'),
+                TextField::new('rcloneFlags')
+                    ->hideOnIndex()
+                    ->addCssClass('backupConfigurationType-field rclone')
+                    ->setHelp('Additional flags to pass to rclone sync command (--verbose, --ignore-errors, ...)'),
 
             FormField::addPanel('Backup source')
                 ->hideOnIndex()

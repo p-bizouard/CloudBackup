@@ -116,6 +116,11 @@ class BackupConfiguration implements Stringable
     private ?string $rcloneBackupDir = null;
 
     /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private ?string $rcloneFlags = null;
+
+    /**
      * @ORM\Column(type="bigint", nullable=true)
      */
     private ?string $minimumBackupSize = null;
@@ -505,6 +510,18 @@ class BackupConfiguration implements Stringable
     public function setRcloneBackupDir(?string $rcloneBackupDir): self
     {
         $this->rcloneBackupDir = $rcloneBackupDir;
+
+        return $this;
+    }
+
+    public function getRcloneFlags(): ?string
+    {
+        return $this->rcloneFlags;
+    }
+
+    public function setRcloneFlags(?string $rcloneFlags): self
+    {
+        $this->rcloneFlags = $rcloneFlags;
 
         return $this;
     }
