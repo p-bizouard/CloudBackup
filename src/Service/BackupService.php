@@ -656,12 +656,13 @@ class BackupService
                 $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
 
                 $daily_backup_dir = sprintf('%s/%s', $backup->getBackupConfiguration()->getRcloneBackupDir(), date('Y-m-d'));
-                $command = 'rclone sync "${SOURCE_LOCATION}" "${REMOTE_STORAGE_LOCATION}" --backup-dir "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
+                $command = 'rclone sync "${SOURCE_LOCATION}" "${REMOTE_STORAGE_LOCATION}" --backup-dir "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}" ${RCLONE_FLAGS}';
                 $parameters = [
                     'SOURCE_LOCATION' => $backup->getBackupConfiguration()->getRemotePath(),
                     'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
                     'REMOTE_STORAGE_BACKUP' => $daily_backup_dir,
                     'RCLONE_CONFIG' => $configFile,
+                    'RCLONE_FLAGS' => $backup->getBackupConfiguration()->getRcloneFlags(),
                 ];
 
                 $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
