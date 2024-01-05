@@ -136,6 +136,11 @@ class BackupConfiguration implements Stringable
     private ?string $customExtension = null;
 
     /**
+     * @ORM\Column(type="text", nullable=true)
+     */
+    private ?string $stdErrIgnore = null;
+
+    /**
      * @ORM\Column(type="smallint", nullable=true)
      */
     private ?int $notBefore = null;
@@ -522,6 +527,18 @@ class BackupConfiguration implements Stringable
     public function setRcloneFlags(?string $rcloneFlags): self
     {
         $this->rcloneFlags = $rcloneFlags;
+
+        return $this;
+    }
+
+    public function getStdErrIgnore(): ?string
+    {
+        return $this->stdErrIgnore;
+    }
+
+    public function setStdErrIgnore(?string $stdErrIgnore): static
+    {
+        $this->stdErrIgnore = $stdErrIgnore;
 
         return $this;
     }

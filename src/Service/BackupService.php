@@ -671,6 +671,14 @@ class BackupService
                 $process->run();
 
                 if (!$process->isSuccessful()) {
+                    if ($backup->getBackupConfiguration()->getStdErrIgnore()) {
+                        if ('' === preg_replace('/^\s+/m', '', preg_replace($backup->getBackupConfiguration()->getStdErrIgnore(), '', $process->getErrorOutput()))) {
+                            $this->log($backup, Log::LOG_WARNING, sprintf('Warning executing backup - rclone sync - %s', $process->getErrorOutput()));
+
+                            break;
+                        }
+                    }
+
                     $this->log($backup, Log::LOG_ERROR, sprintf('Error executing backup - rclone sync - %s', $process->getErrorOutput()));
                     throw new ProcessFailedException($process);
                 } else {

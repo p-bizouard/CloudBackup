@@ -140,6 +140,11 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->addCssClass('blur-input backupConfigurationType-field ssh-cmd')
                     ->setHelp('Command to clean the remote host after backup'),
 
+                TextField::new('stdErrIgnore')
+                    ->hideOnIndex()
+                    ->addCssClass('backupConfigurationType-field rclone')
+                    ->setHelp('Regex to ignore errors in stderr. If all lines are ignored, the backup will be considered as successful'),
+
                 TextField::new('customExtension')
                     ->hideOnIndex()
                     ->setHelp('Suffix the backup with custom extension')
