@@ -1016,10 +1016,15 @@ class BackupService
                         throw new Exception($message);
                     }
 
+                    usort($json, function ($a, $b) {
+                        // Sort latest in first
+                        return new Datetime($b['time']) <=> new Datetime($b['time']);
+                    });
+
                     $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
                     $this->log($backup, Log::LOG_INFO, $prettyJson);
 
-                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) end($json)['time']));
+                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) $json[0]['time']));
                     $this->log($backup, Log::LOG_NOTICE, sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
 
                     $yesterday = new DateTime('yesterday');
