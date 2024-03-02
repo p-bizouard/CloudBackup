@@ -35,6 +35,9 @@ class BackupService
 
     final public const DOWNLOAD_SIZE_TIMEOUT = 60 * 10;
 
+    final public const RCLONE_UPLOAD_TIMEOUT = 3600 * 4;
+    final public const RCLONE_CHECK_TIMEOUT = 3600;
+
     public function __construct(
         private readonly string $temporaryDownloadDirectory,
         private readonly LoggerInterface $logger,
@@ -667,7 +670,7 @@ class BackupService
 
                 $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
                 $process = Process::fromShellCommandline($command, null, $parameters);
-                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+                $process->setTimeout(self::RCLONE_UPLOAD_TIMEOUT);
                 $process->run();
 
                 if (!$process->isSuccessful()) {
@@ -1070,7 +1073,31 @@ class BackupService
             case Storage::TYPE_RCLONE:
                 $filesystem = new Filesystem();
                 $configFile = $filesystem->tempnam('/tmp', 'key_');
-                $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getStorage()->getRcloneConfiguration());
+                $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
+                $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
+
+                $isCrypt = preg_match('/^\s*type\s*=\s*crypt\s*$/m', $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
+
+                $command = 'rclone "${CHECK}" "${SOURCE_LOCATION}" "${REMOTE_STORAGE_LOCATION}" --config "${RCLONE_CONFIG}"';
+                $parameters = [
+                    'CHECK' => $isCrypt ? 'cryptcheck' : 'check',
+                    'SOURCE_LOCATION' => $backup->getBackupConfiguration()->getRemotePath(),
+                    'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
+                    'RCLONE_CONFIG' => $configFile,
+                ];
+
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
+                $process = Process::fromShellCommandline($command, null, $parameters);
+
+                $process->setTimeout(self::RCLONE_CHECK_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
 
                 $command = 'rclone size "${REMOTE_STORAGE_LOCATION}" --config "${RCLONE_CONFIG}" --json';
                 $parameters = [
@@ -1080,7 +1107,7 @@ class BackupService
 
                 $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                 $process = Process::fromShellCommandline($command, null, $parameters);
-                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+                $process->setTimeout(self::RCLONE_CHECK_TIMEOUT);
                 $process->run();
 
                 if (!$process->isSuccessful()) {
