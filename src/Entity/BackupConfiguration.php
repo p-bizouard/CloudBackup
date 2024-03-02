@@ -121,6 +121,11 @@ class BackupConfiguration implements Stringable
     private ?string $rcloneFlags = null;
 
     /**
+     * @ORM\Column(type="string", length=255, nullable=true)
+     */
+    private ?string $resticCheckTags = null;
+
+    /**
      * @ORM\Column(type="bigint", nullable=true)
      */
     private ?string $minimumBackupSize = null;
@@ -205,10 +210,13 @@ class BackupConfiguration implements Stringable
         ];
     }
 
-    public static function getAvailableTypesWithoutRclone(): array
+    /**
+     * @param string[] $except
+     */
+    public static function getAvailableTypesExept(array $except): array
     {
-        return array_filter(self::getAvailableTypes(), function ($type) {
-            return self::TYPE_RCLONE !== $type;
+        return array_filter(self::getAvailableTypes(), function ($type) use ($except) {
+            return !in_array($type, $except);
         });
     }
 
@@ -527,6 +535,18 @@ class BackupConfiguration implements Stringable
     public function setRcloneFlags(?string $rcloneFlags): self
     {
         $this->rcloneFlags = $rcloneFlags;
+
+        return $this;
+    }
+
+    public function getResticCheckTags(): ?string
+    {
+        return $this->resticCheckTags;
+    }
+
+    public function setResticCheckTags(?string $resticCheckTags): self
+    {
+        $this->resticCheckTags = $resticCheckTags;
 
         return $this;
     }
