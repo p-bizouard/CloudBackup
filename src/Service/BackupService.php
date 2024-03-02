@@ -999,10 +999,18 @@ class BackupService
                     $this->log($backup, Log::LOG_INFO, $process->getOutput());
                 }
 
-                $command = 'restic snapshots --json --latest 1 -q';
+                $command = sprintf('restic snapshots --json --latest 1 -q %s',
+                    $backup->getBackupConfiguration()->getResticCheckTags() ? '--tag "${RESTIC_CHECK_TAG}"' : ''
+                );
 
-                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-                $process = Process::fromShellCommandline($command, null, $env);
+                $parameters = [
+                    'RESTIC_CHECK_TAG' => $backup->getBackupConfiguration()->getResticCheckTags(),
+                ];
+
+                $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
+                $process = Process::fromShellCommandline($command, null, $parameters);
+
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
                 $process->run();
 

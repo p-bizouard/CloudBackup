@@ -87,7 +87,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     )),
                 IntegerField::new('keepWeekly')
                     ->hideOnIndex()
-                    ->addCssClass(sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypesWithoutRclone()))),
+                    ->addCssClass(sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypesExept([BackupConfiguration::TYPE_RCLONE])))),
 
                 IntegerField::new('notBefore')
                     ->hideOnIndex()
@@ -109,11 +109,16 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->setHelp('Rclone backup directory. If valued, modified or deleted files will be moved to this directory instead of being deleted.'),
                 TextareaField::new('rcloneConfiguration')
                     ->hideOnIndex()
+                    ->addCssClass('backupConfigurationType-field rclone')
                     ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here. It will be appended with the storage rclone configuration.'),
                 TextField::new('rcloneFlags')
                     ->hideOnIndex()
                     ->addCssClass('backupConfigurationType-field rclone')
                     ->setHelp('Additional flags to pass to rclone sync command (--verbose, --ignore-errors, ...)'),
+                TextField::new('resticCheckTags')
+                    ->hideOnIndex()
+                    ->addCssClass(sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypesExept([BackupConfiguration::TYPE_RCLONE]))))
+                    ->setHelp('Filter restic snapshot with provided tags. Usefull to check specific Velero volume'),
 
             FormField::addPanel('Backup source')
                 ->hideOnIndex()
@@ -142,7 +147,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
                 TextField::new('stdErrIgnore')
                     ->hideOnIndex()
-                    ->addCssClass('backupConfigurationType-field rclone')
+                    ->addCssClass('backupConfigurationStorage-field rclone')
                     ->setHelp('Regex to ignore errors in stderr. If all lines are ignored, the backup will be considered as successful'),
 
                 TextField::new('customExtension')
