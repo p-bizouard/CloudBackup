@@ -1008,7 +1008,6 @@ class BackupService
                 ];
 
                 $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
-                $process = Process::fromShellCommandline($command, null, $parameters);
 
                 $process = Process::fromShellCommandline($command, null, $env + $parameters);
                 $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
@@ -1051,10 +1050,17 @@ class BackupService
                 ];
 
                 foreach ($sizes as $resticCommandSuffix => $backupAttribute) {
-                    $command = sprintf('restic stats --json %s', $resticCommandSuffix);
+                    $command = sprintf('restic stats --json %s %s', $resticCommandSuffix,
+                        $backup->getBackupConfiguration()->getResticCheckTags() ? '--tag "${RESTIC_CHECK_TAG}"' : ''
+                    );
 
-                    $this->log($backup, Log::LOG_INFO, sprintf('Run `%s`', $command));
-                    $process = Process::fromShellCommandline($command, null, $env);
+                    $parameters = [
+                        'RESTIC_CHECK_TAG' => $backup->getBackupConfiguration()->getResticCheckTags(),
+                    ];
+
+                    $this->log($backup, Log::LOG_INFO, sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
+
+                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
                     $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
                     $process->run();
 
