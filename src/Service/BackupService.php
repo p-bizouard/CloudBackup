@@ -1026,7 +1026,7 @@ class BackupService
 
                     usort($json, function ($a, $b) {
                         // Sort latest in first
-                        return new Datetime($b['time']) <=> new Datetime($b['time']);
+                        return new Datetime($b['time']) <=> new Datetime($a['time']);
                     });
 
                     $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
