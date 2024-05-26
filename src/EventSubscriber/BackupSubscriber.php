@@ -5,6 +5,7 @@ namespace App\EventSubscriber;
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
 use App\Entity\Log;
+use App\Repository\BackupRepository;
 use App\Service\BackupService;
 use App\Service\MailerService;
 use Exception;
@@ -17,6 +18,7 @@ class BackupSubscriber implements EventSubscriberInterface
     public function __construct(
         private readonly BackupService $backupService,
         private readonly MailerService $mailerService,
+        private readonly BackupRepository $backupRepository,
     ) {
     }
 
@@ -100,7 +102,13 @@ class BackupSubscriber implements EventSubscriberInterface
 
         $this->backupService->log($backup, Log::LOG_ERROR, 'Backup failed');
 
-        $this->mailerService->sendFailedBackupReport($backup);
+        $countFailedBackupsSinceLastSuccess = $this->backupRepository->countFailedBackupsSinceLastSuccess($backup);
+        $notifyEvery = $backup->getBackupConfiguration()->getNotifyEvery();
+
+        // Notify every X failed backups, and do not notify if notifyEvery is 0
+        if ($backup->getBackupConfiguration()->getNotifyEvery() > 0 && 0 === ($countFailedBackupsSinceLastSuccess + 1) % $notifyEvery) {
+            $this->mailerService->sendFailedBackupReport($backup);
+        }
     }
 
     public function onEnterAll(Event $event): void

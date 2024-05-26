@@ -16,6 +16,37 @@ class BackupRepository extends ServiceEntityRepository
         parent::__construct($managerRegistry, Backup::class);
     }
 
+    /**
+     * @return int Return the number of failed backups since the last successful backup
+     */
+    public function countFailedBackupsSinceLastSuccess(Backup $backup): int
+    {
+        /** @var Backup */
+        $lastSuccessBackup = $this->createQueryBuilder('b')
+            ->where("b.currentPlace = 'backuped'")
+            ->andWhere('b.backupConfiguration = :backupConfiguration')
+            ->setParameter('backupConfiguration', $backup->getBackupConfiguration())
+            ->orderBy('b.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        $qb = $this->createQueryBuilder('b');
+        $qb->select($qb->expr()->count('b'))
+            ->where("b.currentPlace != 'backuped'")
+            ->andWhere('b.backupConfiguration = :backupConfiguration')
+            ->andWhere('b.id != :currentBackup')
+            ->setParameter('backupConfiguration', $backup->getBackupConfiguration())
+            ->setParameter('currentBackup', $backup->getId());
+
+        if (null !== $lastSuccessBackup) {
+            $qb->andWhere('b.createdAt > :lastSuccessDate')
+                ->setParameter('lastSuccessDate', $lastSuccessBackup->getCreatedAt());
+        }
+
+        return $qb->getQuery()->getSingleScalarResult();
+    }
+
     // /**
     //  * @return Backup[] Returns an array of Backup objects
     //  */

@@ -67,9 +67,13 @@ class BackupStartCommand extends Command
                 $lock->refresh();
             }
         } catch (Exception $e) {
+            $errorMessage = sprintf('General error : %s', $e->getMessage());
+
             $log = new Log();
             $log->setLevel(Log::LOG_ERROR);
-            $log->setMessage(sprintf('General error : %s', $e->getMessage()));
+            $log->setMessage($errorMessage);
+
+            $symfonyStyle->error($errorMessage);
 
             $this->entityManager->persist($log);
             $this->entityManager->flush();

@@ -93,6 +93,9 @@ class BackupConfigurationCrudController extends AbstractCrudController
                     ->hideOnIndex()
                     ->setHelp('Schedule after this hour'),
 
+                IntegerField::new('notifyEvery')
+                    ->setHelp('When error occured, notify every X runs. Use 0 to notifications'),
+
                 DateTimeField::new('createdAt')->hideOnForm()->hideOnIndex(),
                 DateTimeField::new('updatedAt')->hideOnForm()->hideOnIndex(),
 
