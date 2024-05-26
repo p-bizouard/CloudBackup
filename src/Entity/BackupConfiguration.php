@@ -155,6 +155,11 @@ class BackupConfiguration implements Stringable
      */
     private ?string $rcloneConfiguration = null;
 
+    /**
+     * @ORM\Column(type="smallint", options={"default" : 1})
+     */
+    private int $notifyEvery = 1;
+
     final public const PERIODICITY_DAILY = 'daily';
 
     final public const TYPE_OS_INSTANCE = 'os-instance';
@@ -559,6 +564,18 @@ class BackupConfiguration implements Stringable
     public function setStdErrIgnore(?string $stdErrIgnore): static
     {
         $this->stdErrIgnore = $stdErrIgnore;
+
+        return $this;
+    }
+
+    public function getNotifyEvery(): int
+    {
+        return $this->notifyEvery;
+    }
+
+    public function setNotifyEvery(int $notifyEvery): static
+    {
+        $this->notifyEvery = $notifyEvery;
 
         return $this;
     }
