@@ -20,7 +20,7 @@ use Symfony\Component\Lock\LockFactory;
 )]
 class BackupStartCommand extends Command
 {
-    final public const MAX_RETRY = 4;
+    final public const int MAX_RETRY = 4;
     final public const LOCK_TIMEOUT = 3600 * 6;
 
     public function __construct(
@@ -67,7 +67,7 @@ class BackupStartCommand extends Command
                 $lock->refresh();
             }
         } catch (Exception $e) {
-            $errorMessage = sprintf('General error : %s', $e->getMessage());
+            $errorMessage = \sprintf('General error : %s', $e->getMessage());
 
             $log = new Log();
             $log->setLevel(Log::LOG_ERROR);

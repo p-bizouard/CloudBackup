@@ -5,110 +5,73 @@ namespace App\Entity;
 use App\Repository\OSProjectRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Entity(repositoryClass=OSProjectRepository::class)
- */
+#[ORM\Entity(repositoryClass: OSProjectRepository::class)]
 class OSProject implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\GeneratedValue
-     *
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $name = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, unique=true)
-     *
-     * @Gedmo\Slug(fields={"name"})
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, unique: true)]
+    #[Gedmo\Slug(fields: ['name'])]
     private ?string $slug = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $authUrl = null;
 
-    /**
-     * @ORM\Column(type="integer")
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::INTEGER)]
+    #[Assert\NotNull]
     private ?int $identityApiVersion = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $userDomainName = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $projectDomainName = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $tenantId = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $tenantName = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $username = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $password = null;
 
     /**
      * @var Collection<int, OSInstance>
-     *
-     * @ORM\OneToMany(targetEntity=OSInstance::class, mappedBy="osProject")
      */
+    #[ORM\OneToMany(targetEntity: OSInstance::class, mappedBy: 'osProject')]
     private Collection $osInstances;
 
     /**
      * @var Collection<int, Storage>
-     *
-     * @ORM\OneToMany(targetEntity=Storage::class, mappedBy="osProject")
      */
+    #[ORM\OneToMany(targetEntity: Storage::class, mappedBy: 'osProject')]
     private Collection $storages;
 
     public function __construct()

@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
@@ -11,38 +12,30 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Entity(repositoryClass=UserRepository::class)
- *
- * @UniqueEntity("email")
- *
- * @ORM\Table(name="`user`")
- */
+#[ORM\Entity(repositoryClass: UserRepository::class)]
+#[UniqueEntity('email')]
+#[ORM\Table(name: '`user`')]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, Stringable
 {
     use TimestampableEntity;
-    /**
-     * @ORM\Id
-     *
-     * @ORM\GeneratedValue
-     *
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
-    /**
-     * @Assert\Email
-     *
-     * @ORM\Column(type="string", length=180, unique=true)
-     */
+
+    #[Assert\Email]
+    #[ORM\Column(type: Types::STRING, length: 180, unique: true)]
     private ?string $email = null;
+
     /**
-     * @ORM\Column(type="json")
+     * @var string[]
      */
+    #[ORM\Column(type: Types::JSON)]
     private array $roles = [];
-    /**
-     * @ORM\Column(type="string")
-     */
+
+    #[ORM\Column(type: Types::STRING)]
     private ?string $password = null;
+
     private ?string $plainPassword = null;
 
     public function __toString(): string
@@ -94,6 +87,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Stringa
         return (string) $this->email;
     }
 
+    /**
+     * @param string[] $roles
+     */
     public function setRoles(array $roles): self
     {
         $this->roles = $roles;

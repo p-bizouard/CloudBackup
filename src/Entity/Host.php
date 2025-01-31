@@ -5,71 +5,49 @@ namespace App\Entity;
 use App\Repository\HostRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
 
-/**
- * @ORM\Entity(repositoryClass=HostRepository::class)
- *
- * @ORM\Table(name="`host`")
- */
+#[ORM\Entity(repositoryClass: HostRepository::class)]
+#[ORM\Table(name: '`host`')]
 class Host implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\GeneratedValue
-     *
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $name = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, unique=true)
-     *
-     * @Gedmo\Slug(fields={"name"})
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, unique: true)]
+    #[Gedmo\Slug(fields: ['name'])]
     private ?string $slug = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $ip = null;
 
-    /**
-     * @ORM\Column(type="integer", nullable=true)
-     */
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
     private ?int $port = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $login = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $password = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $privateKey = null;
 
     /**
-     * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="host")
-     *
      * @var Collection<int, BackupConfiguration>
      */
+    #[ORM\OneToMany(targetEntity: BackupConfiguration::class, mappedBy: 'host')]
     private Collection $backupConfigurations;
 
     public function __construct()

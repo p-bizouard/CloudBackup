@@ -13,6 +13,7 @@ class MailerService
 {
     public function __construct(
         private readonly string $from_address,
+        /** @var string[] */
         private readonly array $report_addresses,
         private readonly MailerInterface $mailer,
         private readonly LoggerInterface $logger,
@@ -26,8 +27,8 @@ class MailerService
             $email
                 ->from(new Address($this->from_address))
                 ->returnPath($this->from_address)
-                ->subject(sprintf('[CloudBackup] %s failed', $backup->getName()))
-                ->html(sprintf("Backup %s failed.\nLast logs : %s",
+                ->subject(\sprintf('[CloudBackup] %s failed', $backup->getName()))
+                ->html(\sprintf("Backup %s failed.\nLast logs : %s",
                     $backup->getName(),
                     $backup->getLogsForReport()
                 ))
@@ -39,7 +40,7 @@ class MailerService
 
             $this->mailer->send($email);
         } catch (Exception $e) {
-            $this->logger->error(sprintf('Cannot send email [%s]', $e->getMessage()));
+            $this->logger->error(\sprintf('Cannot send email [%s]', $e->getMessage()));
         }
     }
 }

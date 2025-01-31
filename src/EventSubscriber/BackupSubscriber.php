@@ -32,7 +32,7 @@ class BackupSubscriber implements EventSubscriberInterface
         } elseif ($backup->getBackupConfiguration()->getStorage()->isRclone()) {
             // Nothing to do
         } else {
-            $this->backupService->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
+            $this->backupService->log($backup, Log::LOG_INFO, \sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
         }
     }
 
@@ -43,7 +43,7 @@ class BackupSubscriber implements EventSubscriberInterface
 
         match ($backup->getBackupConfiguration()->getType()) {
             BackupConfiguration::TYPE_OS_INSTANCE => $this->backupService->snapshotOSInstance($backup),
-            default => $this->backupService->log($backup, Log::LOG_INFO, sprintf('%s : Nothing to do', $backup->getCurrentPlace())),
+            default => $this->backupService->log($backup, Log::LOG_INFO, \sprintf('%s : Nothing to do', $backup->getCurrentPlace())),
         };
     }
 
@@ -116,7 +116,7 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $event->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_INFO, sprintf('Transition %s from %s to %s', $backup->getBackupConfiguration()->getName(), $backup->getCurrentPlace(), $event->getTransition()->getName()));
+        $this->backupService->log($backup, Log::LOG_INFO, \sprintf('Transition %s from %s to %s', $backup->getBackupConfiguration()->getName(), $backup->getCurrentPlace(), $event->getTransition()->getName()));
     }
 
     public function guardStart(GuardEvent $guardEvent): void
@@ -125,7 +125,7 @@ class BackupSubscriber implements EventSubscriberInterface
         $backup = $guardEvent->getSubject();
 
         if ($backup->getBackupConfiguration()->getNotBefore() > date('H')) {
-            $message = sprintf('Cannot start backup before %s', $backup->getBackupConfiguration()->getNotBefore());
+            $message = \sprintf('Cannot start backup before %s', $backup->getBackupConfiguration()->getNotBefore());
 
             $this->backupService->log(
                 $backup,
@@ -151,7 +151,7 @@ class BackupSubscriber implements EventSubscriberInterface
                         $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_WARNING, $message);
                     } elseif ('active' !== $status) {
-                        $message = sprintf('Snapshot not ready : %s', $status);
+                        $message = \sprintf('Snapshot not ready : %s', $status);
 
                         $guardEvent->setBlocked(true, $message);
                         $this->backupService->log($backup, Log::LOG_NOTICE, $message);
@@ -161,7 +161,7 @@ class BackupSubscriber implements EventSubscriberInterface
                     break;
             }
         } catch (Exception $e) {
-            $this->backupService->log($backup, Log::LOG_WARNING, sprintf('Guard download error : %s', $e->getMessage()));
+            $this->backupService->log($backup, Log::LOG_WARNING, \sprintf('Guard download error : %s', $e->getMessage()));
 
             $guardEvent->setBlocked(true, $e->getMessage());
         }
@@ -206,7 +206,7 @@ class BackupSubscriber implements EventSubscriberInterface
                     break;
             }
         } catch (Exception $e) {
-            $this->backupService->log($backup, Log::LOG_ERROR, sprintf('Guard upload error : %s', $e->getMessage()));
+            $this->backupService->log($backup, Log::LOG_ERROR, \sprintf('Guard upload error : %s', $e->getMessage()));
 
             $guardEvent->setBlocked(true, $e->getMessage());
         }
@@ -262,7 +262,7 @@ class BackupSubscriber implements EventSubscriberInterface
         /** @var Backup */
         $backup = $guardEvent->getSubject();
 
-        $this->backupService->log($backup, Log::LOG_INFO, sprintf('GuardAll from %s to %s', $backup->getCurrentPlace(), $guardEvent->getTransition()->getName()));
+        $this->backupService->log($backup, Log::LOG_INFO, \sprintf('GuardAll from %s to %s', $backup->getCurrentPlace(), $guardEvent->getTransition()->getName()));
     }
 
     public static function getSubscribedEvents(): array

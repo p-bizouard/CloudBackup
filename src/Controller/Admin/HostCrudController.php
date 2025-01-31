@@ -9,6 +9,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Override;
 
 class HostCrudController extends AbstractCrudController
 {
@@ -17,16 +18,18 @@ class HostCrudController extends AbstractCrudController
         return Host::class;
     }
 
+    #[Override]
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
             ->setPageTitle('index', 'SSH hosts (sftp, sshfs, custom ssh command to stdout, ...)')
             ->setPageTitle('new', 'New SSH host')
             ->setPageTitle('detail', fn (Host $host) => (string) $host)
-            ->setPageTitle('edit', fn (Host $host) => sprintf('Edit <b>%s</b>', $host))
+            ->setPageTitle('edit', fn (Host $host) => \sprintf('Edit <b>%s</b>', $host))
         ;
     }
 
+    #[Override]
     public function configureFields(string $pageName): iterable
     {
         return [

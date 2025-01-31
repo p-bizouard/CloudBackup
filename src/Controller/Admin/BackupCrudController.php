@@ -11,6 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use Override;
 use Symfony\Component\Workflow\Registry;
 
 class BackupCrudController extends AbstractCrudController
@@ -24,13 +25,14 @@ class BackupCrudController extends AbstractCrudController
         return Backup::class;
     }
 
+    #[Override]
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
             ->setPageTitle('index', 'backups')
             ->setPageTitle('new', 'New sauvegardes')
             ->setPageTitle('detail', fn (Backup $backup) => (string) $backup)
-            ->setPageTitle('edit', fn (Backup $backup) => sprintf('Edit <b>%s</b>', $backup))
+            ->setPageTitle('edit', fn (Backup $backup) => \sprintf('Edit <b>%s</b>', $backup))
 
             ->overrideTemplate('crud/detail', 'admin/backup/detail.html.twig')
 
@@ -38,6 +40,7 @@ class BackupCrudController extends AbstractCrudController
         ;
     }
 
+    #[Override]
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
@@ -45,6 +48,7 @@ class BackupCrudController extends AbstractCrudController
         ;
     }
 
+    #[Override]
     public function configureFields(string $pageName): iterable
     {
         return [

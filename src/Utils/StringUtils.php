@@ -4,7 +4,7 @@ namespace App\Utils;
 
 class StringUtils
 {
-    public static function humanizeFileSize(null|int|string $size, int $precision = 0): string
+    public static function humanizeFileSize(int|string|null $size, int $precision = 0): string
     {
         if (null === $size) {
             return 'N/A';

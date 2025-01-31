@@ -15,6 +15,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Override;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class StorageCrudController extends AbstractCrudController
@@ -30,16 +31,18 @@ class StorageCrudController extends AbstractCrudController
         return Storage::class;
     }
 
+    #[Override]
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
             ->setPageTitle('index', 'Storages')
             ->setPageTitle('new', 'New storage')
             ->setPageTitle('detail', fn (Storage $storage) => (string) $storage)
-            ->setPageTitle('edit', fn (Storage $storage) => sprintf('Edit <b>%s</b>', $storage))
+            ->setPageTitle('edit', fn (Storage $storage) => \sprintf('Edit <b>%s</b>', $storage))
         ;
     }
 
+    #[Override]
     public function configureActions(Actions $actions): Actions
     {
         $copyEntity = Action::new('copyEntity', 'Duplicate')
@@ -52,40 +55,41 @@ class StorageCrudController extends AbstractCrudController
         ;
     }
 
+    #[Override]
     public function configureFields(string $pageName): iterable
     {
         return [
             FormField::addPanel('General configuration'),
-                TextField::new('name'),
-                TextareaField::new('description'),
-                ChoiceField::new('type')->setChoices(function () {
-                    $return = [];
-                    foreach (Storage::getAvailableTypes() as $type) {
-                        $return[$type] = $type;
-                    }
+            TextField::new('name'),
+            TextareaField::new('description'),
+            ChoiceField::new('type')->setChoices(function () {
+                $return = [];
+                foreach (Storage::getAvailableTypes() as $type) {
+                    $return[$type] = $type;
+                }
 
-                    return $return;
-                }),
-                AssociationField::new('backupConfigurations')->hideOnForm(),
+                return $return;
+            }),
+            AssociationField::new('backupConfigurations')->hideOnForm(),
             FormField::addPanel('Restic configuration')->addCssClass('storage-type-panel type-restic'),
-                TextField::new('resticRepo')
-                    ->setHelp(sprintf('%s<br />%s<br />%s',
-                        'Local : /data',
-                        'S3 : s3:https://minio/bucket/subdirectory',
-                        'Swift : swift:container:/subdirectory'
-                    )),
-                TextField::new('resticPassword')->hideOnIndex(),
+            TextField::new('resticRepo')
+                ->setHelp(\sprintf('%s<br />%s<br />%s',
+                    'Local : /data',
+                    'S3 : s3:https://minio/bucket/subdirectory',
+                    'Swift : swift:container:/subdirectory'
+                )),
+            TextField::new('resticPassword')->hideOnIndex(),
             FormField::addPanel('Restic with Openstack Swift storage')->addCssClass('storage-type-panel type-restic'),
-                AssociationField::new('osProject'),
-                TextField::new('osRegionName'),
+            AssociationField::new('osProject'),
+            TextField::new('osRegionName'),
             FormField::addPanel('Restic with S3 storage')->addCssClass('storage-type-panel type-restic'),
-                TextField::new('awsAccessKeyId')->hideOnIndex(),
-                TextField::new('awsSecretAccessKey')->hideOnIndex(),
-                TextField::new('awsDefaultRegion')->hideOnIndex(),
+            TextField::new('awsAccessKeyId')->hideOnIndex(),
+            TextField::new('awsSecretAccessKey')->hideOnIndex(),
+            TextField::new('awsDefaultRegion')->hideOnIndex(),
             FormField::addPanel('Rclone configuration')->addCssClass('storage-type-panel type-rclone'),
-                TextareaField::new('rcloneConfiguration')
-                    ->hideOnIndex()
-                    ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here.<br />Must not contain password and password2, we will add them automatically from password and salt fields.'),
+            TextareaField::new('rcloneConfiguration')
+                ->hideOnIndex()
+                ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here.<br />Must not contain password and password2, we will add them automatically from password and salt fields.'),
         ];
     }
 
@@ -95,7 +99,7 @@ class StorageCrudController extends AbstractCrudController
         $storage = $adminContext->getEntity()->getInstance();
         $newstorage = clone $storage;
 
-        $newstorage->setName(sprintf('Copy %s', $newstorage->getName()));
+        $newstorage->setName(\sprintf('Copy %s', $newstorage->getName()));
 
         $this->entityManager->persist($newstorage);
         $this->entityManager->flush();

@@ -1,20 +1,20 @@
 ARG NGINX_DESTINATION=cloudbackup_nginx
 
 # Dev target
-FROM php:8.2-fpm-bullseye AS dev
+FROM php:8.4-fpm-bullseye AS dev
 
 WORKDIR /app
 
 ENV APP_ENV=dev
 
 RUN apt update \
-    && apt-get install -y wget gnupg lsb-release software-properties-common \
+    && apt install -y wget gnupg lsb-release software-properties-common \
     && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
     && wget --quiet -O - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
     && add-apt-repository "deb https://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" \
     && add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
-    && apt-get update \
-    && apt-get install -y \
+    && apt update \
+    && apt install -y \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
         git unzip procps \
         locales \
@@ -25,16 +25,19 @@ RUN apt update \
         postgresql-client-12 \
         postgresql-client-13 \
         postgresql-client-14 \
-        mongodb-org-tools \
+        postgresql-client-15 \
+        postgresql-client-16 \
+        postgresql-client-17 \
         python3-pip graphviz \
-        bzip2 \
-    && curl https://rclone.org/install.sh | bash \
+        bzip2 
+        # mongodb-org-tools \
+RUN curl https://rclone.org/install.sh | bash \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget --quiet https://github.com/restic/restic/releases/download/v0.16.0/restic_0.16.0_linux_amd64.bz2 && \
-    bzip2 -d restic_0.16.0_linux_amd64.bz2 && \
-    mv restic_0.16.0_linux_amd64 /usr/local/bin/restic && \
+RUN wget --quiet https://github.com/restic/restic/releases/download/v0.17.3/restic_0.17.3_linux_amd64.bz2 && \
+    bzip2 -d restic_0.17.3_linux_amd64.bz2 && \
+    mv restic_0.17.3_linux_amd64 /usr/local/bin/restic && \
     chmod +x /usr/local/bin/restic
 
 RUN echo 'fr_FR.UTF-8 UTF-8' >> /etc/locale.gen && \
@@ -77,7 +80,8 @@ COPY composer.json \
     ./
 
 # Install composer dependencies
-RUN APP_ENV=prod composer install \
+# COMPOSER_ALLOW_SUPERUSER=1 is required to run plugins, and write autoload_runtime.php
+RUN APP_ENV=prod COMPOSER_ALLOW_SUPERUSER=1 composer install \
     --no-dev \
     --no-interaction \
     --optimize-autoloader \

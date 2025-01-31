@@ -6,6 +6,7 @@ use App\Repository\BackupConfigurationRepository;
 use App\Validator as AppAssert;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Exception;
 use Gedmo\Mapping\Annotation as Gedmo;
@@ -13,165 +14,108 @@ use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Entity(repositoryClass=BackupConfigurationRepository::class)
- */
 #[AppAssert\BackupConfigurationTypeRclone]
+#[ORM\Entity(repositoryClass: BackupConfigurationRepository::class)]
 class BackupConfiguration implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\GeneratedValue
-     *
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $name = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, unique=true)
-     *
-     * @Gedmo\Slug(fields={"name"})
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, unique: true)]
+    #[Gedmo\Slug(fields: ['name'])]
     private ?string $slug = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $type = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\Choice(callback={BackupConfiguration::class, "getAvailablePeriodicity"})
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\Choice(callback: [self::class, 'getAvailablePeriodicity'])]
     private string $periodicity = 'daily';
 
-    /**
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Column(type: Types::INTEGER)]
     private int $keepDaily = 7;
 
-    /**
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Column(type: Types::INTEGER)]
     private int $keepWeekly = 4;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=Storage::class, inversedBy="backupConfigurations")
-     *
-     * @ORM\JoinColumn(nullable=false)
-     */
+    #[ORM\ManyToOne(targetEntity: Storage::class, inversedBy: 'backupConfigurations')]
+    #[ORM\JoinColumn(nullable: false)]
     private ?Storage $storage = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $storageSubPath = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=OSInstance::class, inversedBy="backupConfigurations")
-     */
+    #[ORM\ManyToOne(targetEntity: OSInstance::class, inversedBy: 'backupConfigurations')]
     private OSInstance $osInstance;
 
     /**
-     * @ORM\OneToMany(targetEntity=Backup::class, mappedBy="backupConfiguration")
-     *
-     * @ORM\OrderBy({"id" = "DESC"})
-     *
      * @var Collection<int, Backup>
      */
+    #[ORM\OneToMany(targetEntity: Backup::class, mappedBy: 'backupConfiguration')]
+    #[ORM\OrderBy(['id' => 'DESC'])]
     private Collection $backups;
 
-    /**
-     * @ORM\Column(type="boolean", options={"default" : true})
-     */
+    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => true])]
     private bool $enabled = true;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $dumpCommand = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=Host::class, inversedBy="backupConfigurations")
-     */
+    #[ORM\ManyToOne(targetEntity: Host::class, inversedBy: 'backupConfigurations')]
     private ?Host $host = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $remotePath = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $rcloneBackupDir = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $rcloneFlags = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $resticCheckTags = null;
 
-    /**
-     * @ORM\Column(type="bigint", nullable=true)
-     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?string $minimumBackupSize = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $remoteCleanCommand = null;
 
-    /**
-     * @ORM\Column(type="string", length=20, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 20, nullable: true)]
     private ?string $customExtension = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $stdErrIgnore = null;
 
-    /**
-     * @ORM\Column(type="smallint", nullable=true)
-     */
+    #[ORM\Column(type: Types::SMALLINT, nullable: true)]
     private ?int $notBefore = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $rcloneConfiguration = null;
 
-    /**
-     * @ORM\Column(type="smallint", options={"default" : 1})
-     */
+    #[ORM\Column(type: Types::SMALLINT, options: ['default' => 1])]
     private int $notifyEvery = 1;
 
-    final public const PERIODICITY_DAILY = 'daily';
+    final public const string PERIODICITY_DAILY = 'daily';
 
-    final public const TYPE_OS_INSTANCE = 'os-instance';
-    final public const TYPE_MYSQL = 'mysql';
-    final public const TYPE_SQL_SERVER = 'sql-server';
-    final public const TYPE_POSTGRESQL = 'postgresql';
-    final public const TYPE_SSHFS = 'sshfs';
-    final public const TYPE_SSH_RESTIC = 'ssh-restic';
-    final public const TYPE_READ_RESTIC = 'read-restic';
-    final public const TYPE_SSH_CMD = 'ssh-cmd';
-    final public const TYPE_SFTP = 'sftp';
-    final public const TYPE_RCLONE = 'rclone';
+    final public const string TYPE_OS_INSTANCE = 'os-instance';
+    final public const string TYPE_MYSQL = 'mysql';
+    final public const string TYPE_SQL_SERVER = 'sql-server';
+    final public const string TYPE_POSTGRESQL = 'postgresql';
+    final public const string TYPE_SSHFS = 'sshfs';
+    final public const string TYPE_SSH_RESTIC = 'ssh-restic';
+    final public const string TYPE_READ_RESTIC = 'read-restic';
+    final public const string TYPE_SSH_CMD = 'ssh-cmd';
+    final public const string TYPE_SFTP = 'sftp';
+    final public const string TYPE_RCLONE = 'rclone';
 
     public function __construct()
     {
@@ -192,6 +136,9 @@ class BackupConfiguration implements Stringable
         }
     }
 
+    /**
+     * @return string[]
+     */
     public static function getAvailablePeriodicity(): array
     {
         return [
@@ -199,6 +146,9 @@ class BackupConfiguration implements Stringable
         ];
     }
 
+    /**
+     * @return string[]
+     */
     public static function getAvailableTypes(): array
     {
         return [
@@ -217,11 +167,13 @@ class BackupConfiguration implements Stringable
 
     /**
      * @param string[] $except
+     *
+     * @return string[]
      */
     public static function getAvailableTypesExept(array $except): array
     {
         return array_filter(self::getAvailableTypes(), function ($type) use ($except) {
-            return !in_array($type, $except);
+            return !\in_array($type, $except);
         });
     }
 
@@ -232,38 +184,41 @@ class BackupConfiguration implements Stringable
         }
 
         return match ($this->getType()) {
-            BackupConfiguration::TYPE_OS_INSTANCE => 'qcow2',
-            BackupConfiguration::TYPE_MYSQL => 'sql',
-            BackupConfiguration::TYPE_SQL_SERVER => 'bak',
-            BackupConfiguration::TYPE_POSTGRESQL => 'sqlc',
-            BackupConfiguration::TYPE_SSH_CMD => 'dump',
+            self::TYPE_OS_INSTANCE => 'qcow2',
+            self::TYPE_MYSQL => 'sql',
+            self::TYPE_SQL_SERVER => 'bak',
+            self::TYPE_POSTGRESQL => 'sqlc',
+            self::TYPE_SSH_CMD => 'dump',
             default => null,
         };
     }
 
     public function getResticForgetArgs(): string
     {
-        $keepDaily = 0 !== $this->getKeepDaily() ? sprintf('--keep-daily %s', (int) $this->getKeepDaily()) : null;
-        $keepWeekly = 0 !== $this->getKeepDaily() ? sprintf('--keep-weekly %s', (int) $this->getKeepWeekly()) : null;
+        $keepDaily = 0 !== $this->getKeepDaily() ? \sprintf('--keep-daily %s', (int) $this->getKeepDaily()) : null;
+        $keepWeekly = 0 !== $this->getKeepDaily() ? \sprintf('--keep-weekly %s', (int) $this->getKeepWeekly()) : null;
 
-        return sprintf('%s %s', $keepDaily, $keepWeekly);
+        return \sprintf('%s %s', $keepDaily, $keepWeekly);
     }
 
+    /**
+     * @return string[]
+     */
     public function getResticEnv(): array
     {
-        if (is_null($this->getStorage()) || is_null($this->getStorage()->getResticRepo())) {
+        if (null === $this->getStorage() || null === $this->getStorage()->getResticRepo()) {
             return [];
         }
 
         return [
             'RESTIC_PASSWORD' => $this->getStorage()->getResticPassword(),
-            'RESTIC_REPOSITORY' => sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim($this->getStorageSubPath(), '/')),
+            'RESTIC_REPOSITORY' => \sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim((string) $this->getStorageSubPath(), '/')),
         ];
     }
 
     public function getCompleteRcloneConfiguration(): ?string
     {
-        return sprintf("%s\n%s", $this->getStorage()->getRcloneConfiguration(), $this->rcloneConfiguration);
+        return \sprintf("%s\n%s", $this->getStorage()->getRcloneConfiguration(), $this->rcloneConfiguration);
     }
 
     public function getId(): int

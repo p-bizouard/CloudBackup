@@ -11,6 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Override;
 
 class LogCrudController extends AbstractCrudController
 {
@@ -19,14 +20,16 @@ class LogCrudController extends AbstractCrudController
         return Log::class;
     }
 
+    #[Override]
     public function configureActions(Actions $actions): Actions
     {
         return $actions
-            ->remove(Crud::PAGE_INDEX, ACTION::EDIT)
-            ->remove(Crud::PAGE_DETAIL, ACTION::EDIT)
+            ->remove(Crud::PAGE_INDEX, Action::EDIT)
+            ->remove(Crud::PAGE_DETAIL, Action::EDIT)
         ;
     }
 
+    #[Override]
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
@@ -34,6 +37,7 @@ class LogCrudController extends AbstractCrudController
         ;
     }
 
+    #[Override]
     public function configureFields(string $pageName): iterable
     {
         return [

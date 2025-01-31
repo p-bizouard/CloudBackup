@@ -4,12 +4,14 @@ namespace App\Twig;
 
 use App\Entity\Backup;
 use App\Utils\StringUtils;
+use Override;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
 class AppExtension extends AbstractExtension
 {
-    public function getFilters()
+    #[Override]
+    public function getFilters(): array
     {
         return [
             new TwigFilter('humanizeFileSize', StringUtils::humanizeFileSize(...)),

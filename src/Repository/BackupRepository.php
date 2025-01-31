@@ -21,7 +21,7 @@ class BackupRepository extends ServiceEntityRepository
      */
     public function countFailedBackupsSinceLastSuccess(Backup $backup): int
     {
-        /** @var Backup */
+        /** @var ?Backup */
         $lastSuccessBackup = $this->createQueryBuilder('b')
             ->where("b.currentPlace = 'backuped'")
             ->andWhere('b.backupConfiguration = :backupConfiguration')

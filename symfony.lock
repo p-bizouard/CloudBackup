@@ -102,15 +102,6 @@
             "ref": "b131e6cbfe1b898a508987851963fff485986285"
         }
     },
-    "ecphp/cas-bundle": {
-        "version": "2.3",
-        "recipe": {
-            "repo": "github.com/symfony/recipes-contrib",
-            "branch": "main",
-            "version": "2.0",
-            "ref": "11ab180a0614a2cf2c76a732f719a04484f2ad74"
-        }
-    },
     "egulias/email-validator": {
         "version": "3.1.1"
     },
@@ -129,9 +120,6 @@
             ".php-cs-fixer.dist.php"
         ]
     },
-    "friendsofphp/proxy-manager-lts": {
-        "version": "v1.0.3"
-    },
     "gedmo/doctrine-extensions": {
         "version": "v3.0.4"
     },
@@ -148,17 +136,11 @@
             "fixtures/.gitignore"
         ]
     },
-    "laminas/laminas-code": {
-        "version": "4.1.0"
-    },
     "laminas/laminas-eventmanager": {
         "version": "3.3.1"
     },
     "laminas/laminas-zendframework-bridge": {
         "version": "1.2.0"
-    },
-    "loophp/psr-http-message-bridge-bundle": {
-        "version": "1.0.0"
     },
     "monolog/monolog": {
         "version": "2.2.0"
@@ -183,18 +165,6 @@
     },
     "nikic/php-parser": {
         "version": "v4.10.4"
-    },
-    "nyholm/psr7": {
-        "version": "1.5",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "1.0",
-            "ref": "0cd4d2d0e7f646fda75f9944f747a56e6ed13d4c"
-        },
-        "files": [
-            "config/packages/nyholm_psr7.yaml"
-        ]
     },
     "phpdocumentor/reflection-common": {
         "version": "2.2.0"
@@ -514,9 +484,6 @@
     "symfony/property-info": {
         "version": "v5.2.4"
     },
-    "symfony/proxy-manager-bridge": {
-        "version": "v5.2.4"
-    },
     "symfony/routing": {
         "version": "6.2",
         "recipe": {
@@ -600,6 +567,18 @@
     },
     "symfony/uid": {
         "version": "v5.2.6"
+    },
+    "symfony/ux-twig-component": {
+        "version": "2.22",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "2.13",
+            "ref": "67814b5f9794798b885cec9d3f48631424449a01"
+        },
+        "files": [
+            "config/packages/twig_component.yaml"
+        ]
     },
     "symfony/validator": {
         "version": "6.2",

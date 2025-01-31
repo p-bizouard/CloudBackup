@@ -5,90 +5,62 @@ namespace App\Entity;
 use App\Repository\StorageRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
 
-/**
- * @ORM\Entity(repositoryClass=StorageRepository::class)
- */
+#[ORM\Entity(repositoryClass: StorageRepository::class)]
 class Storage implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\GeneratedValue
-     *
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $name = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
     private ?string $type = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="storages")
-     */
+    #[ORM\ManyToOne(targetEntity: OSProject::class, inversedBy: 'storages')]
     private ?OSProject $osProject = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $osRegionName = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $awsAccessKeyId = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $awsSecretAccessKey = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $awsDefaultRegion = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $resticPassword = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $resticRepo = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $rcloneConfiguration = null;
 
     /**
-     * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="storage")
-     *
      * @var Collection<int, BackupConfiguration>
      */
+    #[ORM\OneToMany(targetEntity: BackupConfiguration::class, mappedBy: 'storage')]
     private Collection $backupConfigurations;
 
-    final public const TYPE_RESTIC = 'restic';
-    final public const TYPE_RCLONE = 'rclone';
+    final public const string TYPE_RESTIC = 'restic';
+    final public const string TYPE_RCLONE = 'rclone';
 
     public function __construct()
     {
@@ -100,6 +72,9 @@ class Storage implements Stringable
         return (string) $this->name;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getOSEnv(): array
     {
         if (null !== $this->getOSProject()) {
@@ -119,6 +94,9 @@ class Storage implements Stringable
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getAwsEnv(): array
     {
         if (null !== $this->getAwsAccessKeyId()) {
@@ -132,11 +110,17 @@ class Storage implements Stringable
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getEnv(): array
     {
         return $this->getOSEnv() + $this->getAwsEnv();
     }
 
+    /**
+     * @return string[]
+     */
     public static function getAvailableTypes(): array
     {
         return [
@@ -147,12 +131,12 @@ class Storage implements Stringable
 
     public function isRestic(): bool
     {
-        return Storage::TYPE_RESTIC === $this->getType();
+        return self::TYPE_RESTIC === $this->getType();
     }
 
     public function isRclone(): bool
     {
-        return Storage::TYPE_RCLONE === $this->getType();
+        return self::TYPE_RCLONE === $this->getType();
     }
 
     public function getId(): ?int

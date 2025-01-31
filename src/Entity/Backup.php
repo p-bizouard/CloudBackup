@@ -5,87 +5,62 @@ namespace App\Entity;
 use App\Repository\BackupRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
 
-/**
- * @ORM\Entity(repositoryClass=BackupRepository::class)
- */
+#[ORM\Entity(repositoryClass: BackupRepository::class)]
 class Backup implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\GeneratedValue
-     *
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=BackupConfiguration::class, inversedBy="backups")
-     */
+    #[ORM\ManyToOne(targetEntity: BackupConfiguration::class, inversedBy: 'backups')]
     private ?BackupConfiguration $backupConfiguration = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    private ?string $currentPlace = 'initialized';
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    private string $currentPlace = 'initialized';
 
     /**
-     * @ORM\OneToMany(targetEntity=Log::class, mappedBy="backup", cascade={"remove"})
-     *
-     * @ORM\OrderBy({"id" = "DESC"})
-     *
      * @var Collection<int, Log>
      */
+    #[ORM\OneToMany(targetEntity: Log::class, mappedBy: 'backup', cascade: ['remove'])]
+    #[ORM\OrderBy(['id' => 'DESC'])]
     private Collection $logs;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $osImageId = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $checksum = null;
 
-    /**
-     * @ORM\Column(type="bigint", nullable=true)
-     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $size = null;
 
-    /**
-     * @ORM\Column(type="bigint", nullable=true)
-     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $resticSize = null;
 
-    /**
-     * @ORM\Column(type="bigint", nullable=true)
-     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $resticDedupSize = null;
 
-    /**
-     * @ORM\Column(type="bigint", nullable=true)
-     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $resticTotalSize = null;
 
-    /**
-     * @ORM\Column(type="bigint", nullable=true)
-     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $resticTotalDedupSize = null;
 
-    final public const BOOTSTRAP_COLOR = [
+    final public const array BOOTSTRAP_COLOR = [
         'dump' => 'info',
         'backuped' => 'success',
         'failed' => 'danger',
     ];
 
-    final public const DEFAULT_BOOTSTRAP_COLOR = 'warning';
+    final public const string DEFAULT_BOOTSTRAP_COLOR = 'warning';
 
     public function __construct()
     {
@@ -114,13 +89,13 @@ class Backup implements Stringable
     public function getName(bool $timestamp = true): string
     {
         if ($timestamp) {
-            return sprintf(
+            return \sprintf(
                 '%s-%s',
                 $this->getBackupConfiguration()->getSlug(),
                 $this->getCreatedAt()->format('Y-m-d')
             );
         } else {
-            return sprintf(
+            return \sprintf(
                 '%s',
                 $this->getBackupConfiguration()->getSlug(),
             );
@@ -130,7 +105,7 @@ class Backup implements Stringable
     public function getLogsForReport(): string
     {
         return implode("\n", array_map(function (Log $log): string {
-            return sprintf('<pre style="color:%s">%s</pre>', $log->getMessageColor(), $log->getMessage());
+            return \sprintf('<pre style="color:%s">%s</pre>', $log->getMessageColor(), $log->getMessage());
         }, $this->logs->toArray()));
     }
 
