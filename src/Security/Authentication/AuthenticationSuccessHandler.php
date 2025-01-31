@@ -4,16 +4,16 @@
 
 namespace App\Security\Authentication;
 
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
-use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
+use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
+use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 use Symfony\Component\Security\Http\Util\TargetPathTrait;
 
-class AuthenticationSuccessHandler implements AuthenticationSuccessHandlerInterface
+#[AsEventListener(event: LoginSuccessEvent::class, method: 'onLoginSuccessEvent')]
+class AuthenticationSuccessHandler
 {
     use TargetPathTrait;
 
@@ -21,12 +21,16 @@ class AuthenticationSuccessHandler implements AuthenticationSuccessHandlerInterf
     {
     }
 
-    public function onAuthenticationSuccess(Request $request, TokenInterface $token): Response
+    public function onLoginSuccessEvent(LoginSuccessEvent $loginSuccessEvent): void
     {
-        if ($token instanceof UsernamePasswordToken && ($targetPath = $this->getTargetPath($request->getSession(), $token->getFirewallName()))) {
-            return new RedirectResponse($targetPath);
+        $token = $loginSuccessEvent->getAuthenticatedToken();
+
+        if (($token instanceof UsernamePasswordToken || $token instanceof PostAuthenticationToken) && ($targetPath = $this->getTargetPath($loginSuccessEvent->getRequest()->getSession(), $token->getFirewallName()))) {
+            $response = new RedirectResponse($targetPath);
+        } else {
+            $response = new RedirectResponse($this->urlGenerator->generate('admin_dashboard'));
         }
 
-        return new RedirectResponse($this->urlGenerator->generate('admin'));
+        $loginSuccessEvent->setResponse($response);
     }
 }

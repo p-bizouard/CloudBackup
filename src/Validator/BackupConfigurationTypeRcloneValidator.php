@@ -11,7 +11,7 @@ use Symfony\Component\Validator\Exception\UnexpectedValueException;
 class BackupConfigurationTypeRcloneValidator extends ConstraintValidator
 {
     /**
-     * @param BackupConfiguration $backupConfiguration
+     * @param BackupConfiguration|mixed $backupConfiguration
      */
     public function validate($backupConfiguration, Constraint $constraint): void
     {

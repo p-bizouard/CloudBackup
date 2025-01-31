@@ -2,49 +2,38 @@
 
 namespace App\Entity;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
 
-/**
- * @ORM\Entity()
- */
+#[ORM\Entity]
 class Log implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\Column(type="integer")
-     *
-     * @ORM\GeneratedValue(strategy="AUTO")
-     */
+    #[ORM\Id]
+    #[ORM\Column(type: Types::INTEGER)]
+    #[ORM\GeneratedValue]
     protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="message", type="text")
-     */
+    #[ORM\Column(name: 'message', type: Types::TEXT)]
     private ?string $message = null;
 
-    /**
-     * @ORM\Column(name="level", type="string", length=50)
-     */
+    #[ORM\Column(name: 'level', type: Types::STRING, length: 50)]
     private ?string $level = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=Backup::class, inversedBy="logs")
-     */
+    #[ORM\ManyToOne(targetEntity: Backup::class, inversedBy: 'logs')]
     private ?Backup $backup = null;
 
-    final public const LOG_ERROR = 'error';
-    final public const LOG_WARNING = 'warning';
-    final public const LOG_NOTICE = 'notice';
-    final public const LOG_INFO = 'info';
+    final public const string LOG_ERROR = 'error';
+    final public const string LOG_WARNING = 'warning';
+    final public const string LOG_NOTICE = 'notice';
+    final public const string LOG_INFO = 'info';
 
     public function __toString(): string
     {
-        return sprintf('%s - %s', $this->level, $this->message);
+        return \sprintf('%s - %s', $this->level, $this->message);
     }
 
     public function getBootstrapColor(): ?string

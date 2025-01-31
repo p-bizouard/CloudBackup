@@ -11,6 +11,7 @@ use App\Entity\OSProject;
 use App\Entity\Storage;
 use App\Entity\User;
 use App\Repository\BackupConfigurationRepository;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -18,19 +19,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+use Override;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
 
+#[AdminDashboard(routePath: '/', routeName: 'admin_dashboard')]
 class DashboardController extends AbstractDashboardController
 {
     public function __construct(
-        private readonly BackupConfigurationRepository $backupConfigurationRepository
+        private readonly BackupConfigurationRepository $backupConfigurationRepository,
     ) {
     }
 
-    /**
-     * @Route("/", name="admin_dashboard")
-     */
+    #[Override]
     public function index(): Response
     {
         return $this->render('admin/dashboard.html.twig', [
@@ -39,12 +39,14 @@ class DashboardController extends AbstractDashboardController
         ]);
     }
 
+    #[Override]
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
             ->setTitle('Backups manager');
     }
 
+    #[Override]
     public function configureCrud(): Crud
     {
         return Crud::new()
@@ -52,6 +54,7 @@ class DashboardController extends AbstractDashboardController
         ;
     }
 
+    #[Override]
     public function configureAssets(): Assets
     {
         $assets = parent::configureAssets();
@@ -61,6 +64,7 @@ class DashboardController extends AbstractDashboardController
         ;
     }
 
+    #[Override]
     public function configureActions(): Actions
     {
         $actions = parent::configureActions();
@@ -72,6 +76,7 @@ class DashboardController extends AbstractDashboardController
         ;
     }
 
+    #[Override]
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linktoDashboard('Dashboard', 'fa fa-home');

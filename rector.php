@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\Config\RectorConfig;
-use Rector\Core\ValueObject\PhpVersion;
 use Rector\DeadCode\Rector\Cast\RecastingRemovalRector;
 use Rector\DeadCode\Rector\Node\RemoveNonExistingVarAnnotationRector;
+use Rector\Doctrine\Set\DoctrineSetList;
 use Rector\Naming\Rector\Assign\RenameVariableToMatchMethodCallReturnTypeRector;
 use Rector\Naming\Rector\Class_\RenamePropertyToMatchTypeRector;
 use Rector\Naming\Rector\ClassMethod\RenameParamToMatchTypeRector;
@@ -21,22 +21,25 @@ return static function (RectorConfig $rectorConfig): void {
 
     $rectorConfig->paths([
         __DIR__.'/src',
-//        __DIR__.'/tests',
+        //        __DIR__.'/tests',
     ]);
 
     $rectorConfig->autoloadPaths([
         __DIR__.'/vendor/autoload.php',
     ]);
 
-    $rectorConfig->phpVersion(PhpVersion::PHP_82);
-
     $rectorConfig->sets([
         SetList::DEAD_CODE,
-        LevelSetList::UP_TO_PHP_82,
+        LevelSetList::UP_TO_PHP_84,
         SetList::CODE_QUALITY,
         SetList::NAMING,
-        SymfonySetList::SYMFONY_63,
+        SymfonySetList::SYMFONY_72,
         SymfonySetList::SYMFONY_CODE_QUALITY,
+        SymfonySetList::SYMFONY_CONSTRUCTOR_INJECTION,
+        SymfonySetList::ANNOTATIONS_TO_ATTRIBUTES,
+        DoctrineSetList::DOCTRINE_CODE_QUALITY,
+        DoctrineSetList::ANNOTATIONS_TO_ATTRIBUTES,
+        DoctrineSetList::GEDMO_ANNOTATIONS_TO_ATTRIBUTES,
     ]);
 
     $rectorConfig->skip([
