@@ -5,6 +5,8 @@
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     cas_base_url: "%env(CAS_BASE_URL)%"
+    cas_validate_url: "%cas_base_url%%env(CAS_VALIDATE_PATH)%"
+    cas_login_url: "%cas_base_url%%env(CAS_LOGIN_PATH)%"
 
 services:
     # default configuration for services in *this* file
@@ -42,6 +44,11 @@ services:
         arguments:
             - "@doctrine.orm.entity_manager"
 
+    security.access_token_extractor.cas:
+        class: Symfony\Component\Security\Http\AccessToken\QueryAccessTokenExtractor
+        arguments:
+            - "ticket"
+
     App\Service\BackupService:
         arguments:
             - "%env(TEMPORARY_DOWNLOAD_DIRECTORY)%"
@@ -51,9 +58,3 @@ services:
             - "%env(FROM_ADDRESS)%"
             - "%env(csv:CSV_REPORT_ADDRESSES)%"
             - "@mailer"
-
-    App\Security\CasAuthenticator:
-        decorates: EcPhp\CasBundle\Security\CasAuthenticator
-        arguments:
-            $userProvider: "@security.user.provider.concrete.app_user_provider"
-            $ecPhpCasdAuthenticator: "@.inner"

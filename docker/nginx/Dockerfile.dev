@@ -1,5 +1,5 @@
 # build dev assets
-FROM node:14-alpine3.13 AS assets-dev
+FROM node:22-alpine3.21 AS assets-dev
 ARG NODE_ENV=dev
 ENV NODE_ENV=dev
 
@@ -12,7 +12,7 @@ ENTRYPOINT  ["/bin/sh", "-c"]
 CMD ["npm install && npm run build && npm run watch"]
 
 # run dev web server
-FROM nginx:1.19-alpine AS nginx-dev
+FROM nginx:1.27-alpine AS nginx-dev
 ARG PHP_BACKEND="php"
 
 WORKDIR /app/public

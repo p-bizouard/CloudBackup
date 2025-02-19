@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -12,9 +13,10 @@ use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
 /**
  * @extends ServiceEntityRepository<User>
  */
+// @phpstan-ignore missingType.generics
 class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
 {
-    public function __construct(ManagerRegistry $managerRegistry)
+    public function __construct(ManagerRegistry $managerRegistry, private readonly EntityManagerInterface $entityManager)
     {
         parent::__construct($managerRegistry, User::class);
     }
@@ -25,12 +27,13 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     public function upgradePassword(PasswordAuthenticatedUserInterface $passwordAuthenticatedUser, string $newEncodedPassword): void
     {
         if (!$passwordAuthenticatedUser instanceof User) {
-            throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', $passwordAuthenticatedUser::class));
+            throw new UnsupportedUserException(\sprintf('Instances of "%s" are not supported.', $passwordAuthenticatedUser::class));
         }
 
         $passwordAuthenticatedUser->setPassword($newEncodedPassword);
-        $this->_em->persist($passwordAuthenticatedUser);
-        $this->_em->flush();
+
+        $this->entityManager->persist($passwordAuthenticatedUser);
+        $this->entityManager->flush();
     }
 
     // /**

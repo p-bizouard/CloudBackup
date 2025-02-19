@@ -7,6 +7,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Override;
 
 class OSInstanceCrudController extends AbstractCrudController
 {
@@ -15,16 +16,18 @@ class OSInstanceCrudController extends AbstractCrudController
         return OSInstance::class;
     }
 
+    #[Override]
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
             ->setPageTitle('index', 'Openstack instances')
             ->setPageTitle('new', 'New Openstack instance')
             ->setPageTitle('detail', fn (OSInstance $osInstance) => (string) $osInstance)
-            ->setPageTitle('edit', fn (OSInstance $osInstance) => sprintf('Edit <b>%s</b>', $osInstance))
+            ->setPageTitle('edit', fn (OSInstance $osInstance) => \sprintf('Edit <b>%s</b>', $osInstance))
         ;
     }
 
+    #[Override]
     public function configureFields(string $pageName): iterable
     {
         return [

@@ -1,6 +1,4 @@
 security:
-    enable_authenticator_manager: true
-
     # https://symfony.com/doc/current/security.html#where-do-users-come-from-user-providers
     # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
@@ -20,12 +18,15 @@ security:
             lazy: true
             provider: app_user_provider
             entry_point: form_login
-            custom_authenticators:
-                - App\Security\CasAuthenticator
+            access_token:
+                token_handler:
+                    cas:
+                        validation_url: '%cas_base_url%/serviceValidate'
+                token_extractors:
+                    - security.access_token_extractor.cas
             form_login:
                 login_path: app_login
                 check_path: app_login
-                success_handler: App\Security\Authentication\AuthenticationSuccessHandler
             logout:
                 path: app_logout
                 # where to redirect after logout

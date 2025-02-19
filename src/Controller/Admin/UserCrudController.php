@@ -7,6 +7,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Override;
 
 class UserCrudController extends AbstractCrudController
 {
@@ -15,16 +16,18 @@ class UserCrudController extends AbstractCrudController
         return User::class;
     }
 
+    #[Override]
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
             ->setPageTitle('index', 'Users list')
             ->setPageTitle('new', 'New user')
             ->setPageTitle('detail', fn (User $user) => (string) $user)
-            ->setPageTitle('edit', fn (User $user) => sprintf('Edit <b>%s</b>', $user->getEmail()))
+            ->setPageTitle('edit', fn (User $user) => \sprintf('Edit <b>%s</b>', $user->getEmail()))
         ;
     }
 
+    #[Override]
     public function configureFields(string $pageName): iterable
     {
         $return = [EmailField::new('email')];
@@ -38,6 +41,7 @@ class UserCrudController extends AbstractCrudController
         return $return;
     }
 
+    #[Override]
     public function createEntity(string $entityFqcn): User
     {
         $user = new User();

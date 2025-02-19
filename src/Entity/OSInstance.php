@@ -5,62 +5,43 @@ namespace App\Entity;
 use App\Repository\OSInstanceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
-use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Entity(repositoryClass=OSInstanceRepository::class)
- */
+#[ORM\Entity(repositoryClass: OSInstanceRepository::class)]
 class OSInstance implements Stringable
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Id
-     *
-     * @ORM\Column(type="uuid")
-     */
+    #[ORM\Id]
+    #[ORM\Column(type: 'uuid')]
     private ?string $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $name = null;
 
-    /**
-     * @ORM\Column(type="string", length=255, unique=true)
-     *
-     * @Gedmo\Slug(fields={"name"})
-     */
+    #[ORM\Column(type: Types::STRING, length: 255, unique: true)]
+    #[Gedmo\Slug(fields: ['name'])]
     private ?string $slug = null;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     *
-     * @Assert\NotNull()
-     */
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Assert\NotNull]
     private ?string $osRegionName = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=OSProject::class, inversedBy="osInstances")
-     *
-     * @Assert\NotNull()
-     *
-     * @ORM\JoinColumn(nullable=false)
-     */
+    #[ORM\ManyToOne(targetEntity: OSProject::class, inversedBy: 'osInstances')]
+    #[Assert\NotNull]
+    #[ORM\JoinColumn(nullable: false)]
     private ?OSProject $osProject = null;
 
     /**
-     * @ORM\OneToMany(targetEntity=BackupConfiguration::class, mappedBy="osInstance")
-     *
      * @var Collection<int, BackupConfiguration>
      */
+    #[ORM\OneToMany(targetEntity: BackupConfiguration::class, mappedBy: 'osInstance')]
     private Collection $backupConfigurations;
 
     public function __construct()
@@ -73,6 +54,9 @@ class OSInstance implements Stringable
         return (string) $this->name;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getOSEnv(): array
     {
         return [

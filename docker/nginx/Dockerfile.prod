@@ -1,5 +1,5 @@
 # build production assets
-FROM node:14-alpine3.13 AS assets-prod
+FROM node:22-alpine3.21 AS assets-prod
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY webpack.config.js \
 RUN npm run build
 
 # run production web server
-FROM nginx:1.19-alpine AS nginx
+FROM nginx:1.27-alpine AS nginx
 ARG PHP_BACKEND=php
 
 WORKDIR /app/public

@@ -1,4 +1,7 @@
 parameters:
+    ignoreErrors:
+        - identifier: doctrine.columnType
+        - identifier: doctrine.associationType
     paths:
         - bin/
         - config/
@@ -6,5 +9,3 @@ parameters:
         - src/
         - tests/
     level: 6
-    ignoreErrors:
-    checkMissingIterableValueType: false
