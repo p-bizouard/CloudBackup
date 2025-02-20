@@ -38,7 +38,7 @@ class BackupCrudController extends AbstractCrudController
 
             ->overrideTemplate('crud/detail', 'admin/backup/detail.html.twig')
 
-            ->setSearchFields(['backupConfiguration.name', 'backupConfiguration.type', 'backup.currentPlace'])
+            ->setSearchFields(['backupConfiguration.name', 'backupConfiguration.type', 'currentPlace'])
         ;
     }
 
