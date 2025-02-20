@@ -18,13 +18,13 @@ class BackupController extends AbstractController
     {
         set_time_limit(0);
 
-        $input = new ArrayInput([
+        $arrayInput = new ArrayInput([
             'command' => BackupStartCommand::getDefaultName(),
         ]);
 
         $application = new Application($kernel);
         $application->setAutoExit(false);
-        $application->run($input);
+        $application->run($arrayInput);
 
         $route = $request->headers->get('referer', $this->generateUrl('admin_dashboard_backup_index'));
 
