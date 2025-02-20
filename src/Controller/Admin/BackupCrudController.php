@@ -4,6 +4,8 @@ namespace App\Controller\Admin;
 
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -37,6 +39,20 @@ class BackupCrudController extends AbstractCrudController
             ->overrideTemplate('crud/detail', 'admin/backup/detail.html.twig')
 
             ->setSearchFields(['backupConfiguration.name', 'backupConfiguration.type', 'backup.currentPlace'])
+        ;
+    }
+
+    public function configureActions(Actions $actions): Actions
+    {
+        $startBackup = Action::new('goToStripe', 'Start backup', 'fa fa-play')
+            ->linkToRoute('app_backup_executebackupstart')
+            ->createAsGlobalAction()
+            ->setCssClass('btn btn-primary')
+        ;
+
+        return $actions
+            ->disable(Action::NEW)
+            ->add(Crud::PAGE_INDEX, $startBackup)
         ;
     }
 
