@@ -42,6 +42,7 @@ class BackupCrudController extends AbstractCrudController
         ;
     }
 
+    #[Override]
     public function configureActions(Actions $actions): Actions
     {
         $startBackup = Action::new('goToStripe', 'Start backup', 'fa fa-play')
