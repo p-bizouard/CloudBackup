@@ -131,6 +131,10 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->hideOnIndex()
                 ->setIcon('fas fa-server'),
 
+            TextField::new('lastBackup')
+                ->setTemplatePath('admin/fields/backupBadge.html.twig')
+                ->onlyOnIndex(),
+
             AssociationField::new('osInstance')
                 ->hideOnIndex()
                 ->addCssClass('backupConfigurationType-field os-instance')

@@ -1,0 +1,15 @@
+{% if field.value %}
+    <span class="badge badge-{{ field.value.currentPlace|bootstrapColor }}">
+        <a href="{{
+            ea_url().setController(
+                'App\\Controller\\Admin\\BackupCrudController'
+            ).setAction(
+                'detail'
+            ).setEntityId(
+                field.value.id
+            )
+            }}">
+            {{ field.value.currentPlace }}
+        </a>
+    </span>
+{% endif %}
