@@ -312,6 +312,44 @@ class BackupService
         $this->log($backup, Log::LOG_NOTICE, 'Dump done');
     }
 
+    private function downloadKubeCommandResult(Backup $backup): void
+    {
+        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
+
+        $filesystem = new Filesystem();
+        $backupDestination = $this->getTemporaryBackupDestination($backup);
+
+        $kubeconfigPath = $filesystem->tempnam('/tmp', 'kubeconfig_');
+        $filesystem->appendToFile($kubeconfigPath, str_replace("\r", '', $backup->getBackupConfiguration()->getKubeconfig()->getKubeconfig()."\n"));
+
+        $command = 'kubectl --kubeconfig ${KUBECONFIG_PATH} --namespace ${KUBE_NAMESPACE} exec --tty=false ${KUBE_RESOURCE} -- ${DUMP_COMMAND} > "${DESTINATION}"';
+        $parameters = [
+            'KUBECONFIG_PATH' => $kubeconfigPath,
+            'KUBE_NAMESPACE' => $backup->getBackupConfiguration()->getKubeNamespace(),
+            'KUBE_RESOURCE' => $backup->getBackupConfiguration()->getKubeResource(),
+            'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
+            'DESTINATION' => $backupDestination,
+        ];
+    
+
+        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+        $process = Process::fromShellCommandline($command, null, $parameters);
+        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
+            throw new ProcessFailedException($process);
+        } else {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+
+        $backup->setSize(filesize($backupDestination));
+        $this->log($backup, Log::LOG_INFO, \sprintf('Backup size : %s', StringUtils::humanizeFileSize($backup->getSize())));
+
+        $this->log($backup, Log::LOG_NOTICE, 'Dump done');
+    }
+
     private function downloadSSHFS(Backup $backup): void
     {
         $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
@@ -414,6 +452,7 @@ class BackupService
         match ($backup->getBackupConfiguration()->getType()) {
             BackupConfiguration::TYPE_OS_INSTANCE => $this->downloadOSSnapshot($backup),
             BackupConfiguration::TYPE_MYSQL, BackupConfiguration::TYPE_POSTGRESQL, BackupConfiguration::TYPE_SQL_SERVER, BackupConfiguration::TYPE_SSH_CMD => $this->downloadCommandResult($backup),
+            BackupConfiguration::TYPE_KUBECONFIG => $this->downloadKubeCommandResult($backup),
             BackupConfiguration::TYPE_SFTP => $this->downloadSftp($backup),
             BackupConfiguration::TYPE_SSHFS => $this->downloadSSHFS($backup),
             default => $this->log($backup, Log::LOG_INFO, \sprintf('%s : Nothing to do', $backup->getCurrentPlace())),
@@ -616,6 +655,26 @@ class BackupService
                 $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
                 $parameters = [
                     'HOST' => null !== $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
+                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
+                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
+                ];
+
+                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
+                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - restic upload - %s', $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
+                break;
+            case BackupConfiguration::TYPE_KUBECONFIG:
+                $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
+                $parameters = [
+                    'HOST' => null !== $backup->getBackupConfiguration()->getKubeconfig() ? $backup->getBackupConfiguration()->getKubeconfig()->getName() : 'direct',
                     'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
                     'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
                 ];

@@ -13,6 +13,10 @@ RUN apt update \
     && wget --quiet -O - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
     && add-apt-repository "deb https://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" \
     && add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
+    && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor -o /etc/apt/kubernetes-apt-keyring.gpg \
+    && chmod 644 /etc/apt/kubernetes-apt-keyring.gpg \
+    && echo 'deb [signed-by=/etc/apt/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list \
+    && chmod 644 /etc/apt/sources.list.d/kubernetes.list \
     && apt update \
     && apt install -y \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
@@ -29,15 +33,16 @@ RUN apt update \
         postgresql-client-16 \
         postgresql-client-17 \
         python3-pip graphviz \
-        bzip2 
+        kubectl \
+        bzip2
         # mongodb-org-tools \
 RUN curl https://rclone.org/install.sh | bash \
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget --quiet https://github.com/restic/restic/releases/download/v0.17.3/restic_0.17.3_linux_amd64.bz2 && \
-    bzip2 -d restic_0.17.3_linux_amd64.bz2 && \
-    mv restic_0.17.3_linux_amd64 /usr/local/bin/restic && \
+RUN wget --quiet https://github.com/restic/restic/releases/download/v0.18.0/restic_0.18.0_linux_amd64.bz2 && \
+    bzip2 -d restic_0.18.0_linux_amd64.bz2 && \
+    mv restic_0.18.0_linux_amd64 /usr/local/bin/restic && \
     chmod +x /usr/local/bin/restic
 
 RUN echo 'fr_FR.UTF-8 UTF-8' >> /etc/locale.gen && \
@@ -99,7 +104,7 @@ COPY translations translations
 COPY migrations migrations
 
 #  Hack to copy files from our nginx custom image
-FROM $NGINX_DESTINATION as nginx-build
+FROM $NGINX_DESTINATION AS nginx-build
 
 # Prod image
 FROM test AS prod

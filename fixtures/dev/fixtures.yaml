@@ -84,6 +84,12 @@ App\Entity\Host:
         password: password
         privateKey: ~
         port: 22
+
+App\Entity\Kubeconfig:
+    kubeconfig:
+        name: kubeconfig
+        kubeconfig: |
+            kubeconfig
 App\Entity\BackupConfiguration:
     daily-instance:
         name: daily-instance
@@ -249,6 +255,21 @@ App\Entity\BackupConfiguration:
         rcloneConfiguration: |
             \[source]
             type = local
+        enabled: false
+    backupconfiguration-kubeconfig:
+        name: kubeconfig
+        type: kubeconfig
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@s3"
+        host: ~
+        kubeconfig: "@kubeconfig"
+        kubeNamespace: default
+        kubeResource: pod/nginx
+        storageSubPath: "kubeconfig"
+        dumpCommand: "ls -la"
+        minimumBackupSize: 1
         enabled: false
 
 App\Entity\Backup:

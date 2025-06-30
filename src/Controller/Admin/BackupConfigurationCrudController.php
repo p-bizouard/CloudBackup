@@ -124,8 +124,25 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->setHelp('Additional flags to pass to rclone sync command (--verbose, --ignore-errors, ...)'),
             TextField::new('resticCheckTags')
                 ->hideOnIndex()
-                ->addCssClass(\sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypesExept([BackupConfiguration::TYPE_RCLONE]))))
+                ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_READ_RESTIC))
                 ->setHelp('Filter restic snapshot with provided tags. Usefull to check specific Velero volume'),
+                
+
+            AssociationField::new('kubeconfig')
+                ->setRequired(false)
+                ->hideOnIndex()
+                ->addCssClass('backupConfigurationType-field kubeconfig')
+                ->setHelp('kubeconfig to backup or to execute remote command'),
+
+            TextField::new('kubeNamespace')
+                ->hideOnIndex()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_KUBECONFIG))
+                ->setHelp('Kubeconfig namespace'),
+                
+            TextField::new('kubeResource')
+                ->hideOnIndex()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_KUBECONFIG))
+                ->setHelp('Kubeconfig resource (pod/nginx, deployment/back, ...)'),
 
             FormField::addPanel('Backup source')
                 ->hideOnIndex()
@@ -148,7 +165,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
 
             TextField::new('dumpCommand')
                 ->hideOnIndex()
-                ->addCssClass('blur-input backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd sftp')
+                ->addCssClass('blur-input backupConfigurationType-field postgresql mysql ssh-restic sshfs ssh-cmd sftp kubeconfig')
                 ->setHelp('MySQL/PostgreSQL dump command, or SSHFS options'),
 
             TextField::new('remoteCleanCommand')

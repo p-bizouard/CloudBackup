@@ -83,6 +83,15 @@ class BackupConfiguration implements Stringable
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $resticCheckTags = null;
 
+    #[ORM\ManyToOne(targetEntity: Kubeconfig::class, inversedBy: 'backupConfigurations')]
+    private ?Kubeconfig $kubeconfig = null;
+
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $kubeNamespace = null;
+
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $kubeResource = null;
+
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?string $minimumBackupSize = null;
 
@@ -116,6 +125,7 @@ class BackupConfiguration implements Stringable
     final public const string TYPE_SSH_CMD = 'ssh-cmd';
     final public const string TYPE_SFTP = 'sftp';
     final public const string TYPE_RCLONE = 'rclone';
+    final public const string TYPE_KUBECONFIG = 'kubeconfig';
 
     public function __construct()
     {
@@ -167,6 +177,7 @@ class BackupConfiguration implements Stringable
             self::TYPE_SSH_CMD,
             self::TYPE_SFTP,
             self::TYPE_RCLONE,
+            self::TYPE_KUBECONFIG,
         ];
     }
 
@@ -536,6 +547,42 @@ class BackupConfiguration implements Stringable
     public function setNotifyEvery(int $notifyEvery): static
     {
         $this->notifyEvery = $notifyEvery;
+
+        return $this;
+    }
+
+    public function getKubeconfig(): ?Kubeconfig
+    {
+        return $this->kubeconfig;
+    }
+
+    public function setKubeconfig(?Kubeconfig $kubeconfig): static
+    {
+        $this->kubeconfig = $kubeconfig;
+
+        return $this;
+    }
+
+    public function getKubeNamespace(): ?string
+    {
+        return $this->kubeNamespace;
+    }
+
+    public function setKubeNamespace(?string $kubeNamespace): static
+    {
+        $this->kubeNamespace = $kubeNamespace;
+
+        return $this;
+    }
+
+    public function getKubeResource(): ?string
+    {
+        return $this->kubeResource;
+    }
+
+    public function setKubeResource(?string $kubeResource): static
+    {
+        $this->kubeResource = $kubeResource;
 
         return $this;
     }

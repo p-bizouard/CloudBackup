@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
 use App\Entity\Host;
+use App\Entity\Kubeconfig;
 use App\Entity\Log;
 use App\Entity\OSInstance;
 use App\Entity\OSProject;
@@ -90,6 +91,7 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::section('Sources');
         yield MenuItem::linkToCrud('Openstack instances', 'fas fa-cloud', OSInstance::class);
         yield MenuItem::linkToCrud('SSH hosts', 'fas fa-server', Host::class);
+        yield MenuItem::linkToCrud('Kubeconfigs', 'far fa-life-ring', Kubeconfig::class);
 
         yield MenuItem::section('Backups');
         yield MenuItem::linkToCrud('Schedulings', 'fas fa-cogs', BackupConfiguration::class);
