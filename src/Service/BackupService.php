@@ -1242,7 +1242,7 @@ class BackupService
 
         $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
 
-        $command = 'restic init';
+        $command = '(restic snapshots > /dev/null 2>&1) || restic init';
 
         $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
         $process = Process::fromShellCommandline($command, null, $env);
