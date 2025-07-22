@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\BackupConfiguration;
 use Doctrine\Persistence\ManagerRegistry;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -196,6 +197,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
         ];
     }
 
+    #[AdminAction('{entityId}/copy_entity', 'admin_backup_configuration_copy_entity')]
     public function copyEntity(AdminContext $adminContext): RedirectResponse
     {
         /** @var BackupConfiguration */
@@ -203,6 +205,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
         $newBackupConfiguration = clone $backupConfiguration;
 
         $newBackupConfiguration->setName(\sprintf('Copy %s', $newBackupConfiguration->getName()));
+        $newBackupConfiguration->setSlug(null);
         $newBackupConfiguration->setEnabled(false);
 
         $entityManager = $this->managerRegistry->getManagerForClass(self::getEntityFqcn());

@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Storage;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -93,6 +94,7 @@ class StorageCrudController extends AbstractCrudController
         ];
     }
 
+    #[AdminAction('{entityId}/copy_entity', 'admin_storage_copy_entity')]
     public function copyEntity(AdminContext $adminContext): RedirectResponse
     {
         /** @var Storage */
