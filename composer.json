@@ -17,6 +17,7 @@
         "phpdocumentor/reflection-docblock": "^5.6",
         "phpstan/phpdoc-parser": "^2.2",
         "predis/predis": "^3.1",
+        "runtime/frankenphp-symfony": "^0.2.0",
         "stof/doctrine-extensions-bundle": "^1.14",
         "symfony/asset": "7.3.*",
         "symfony/cache": "7.3.*",

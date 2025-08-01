@@ -9,6 +9,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Override;
 
+/**
+ * @extends AbstractCrudController<OSInstance>
+ */
 class OSInstanceCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string

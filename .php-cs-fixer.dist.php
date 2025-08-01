@@ -13,7 +13,7 @@ if (!file_exists(__DIR__.'/src')) {
     exit(0);
 }
 
-return (new PhpCsFixer\Config())
+return new PhpCsFixer\Config()
     // @see https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/pull/7777
     ->setParallelConfig(PhpCsFixer\Runner\Parallel\ParallelConfigFactory::detect())
     ->setRules([
@@ -26,7 +26,7 @@ return (new PhpCsFixer\Config())
     ])
     ->setRiskyAllowed(true)
     ->setFinder(
-        (new PhpCsFixer\Finder())
+        new PhpCsFixer\Finder()
             ->in(__DIR__.'/src')
             ->append([__FILE__])
             ->notPath('#/Fixtures/#')

@@ -13,6 +13,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Override;
 
+/**
+ * @extends AbstractCrudController<Log>
+ */
 class LogCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
