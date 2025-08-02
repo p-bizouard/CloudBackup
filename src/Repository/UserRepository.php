@@ -13,7 +13,6 @@ use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
 /**
  * @extends ServiceEntityRepository<User>
  */
-// @phpstan-ignore missingType.generics
 class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
 {
     public function __construct(ManagerRegistry $managerRegistry, private readonly EntityManagerInterface $entityManager)

@@ -19,6 +19,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Override;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+/**
+ * @extends AbstractCrudController<Storage>
+ */
 class StorageCrudController extends AbstractCrudController
 {
     public function __construct(
@@ -60,7 +63,7 @@ class StorageCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-            FormField::addPanel('General configuration'),
+            FormField::addFieldset('General configuration'),
             TextField::new('name'),
             TextareaField::new('description'),
             ChoiceField::new('type')->setChoices(function () {
@@ -72,7 +75,7 @@ class StorageCrudController extends AbstractCrudController
                 return $return;
             }),
             AssociationField::new('backupConfigurations')->hideOnForm(),
-            FormField::addPanel('Restic configuration')->addCssClass('storage-type-panel type-restic'),
+            FormField::addFieldset('Restic configuration')->addCssClass('storage-type-panel type-restic'),
             TextField::new('resticRepo')
                 ->setHelp(\sprintf('%s<br />%s<br />%s',
                     'Local : /data',
@@ -80,14 +83,14 @@ class StorageCrudController extends AbstractCrudController
                     'Swift : swift:container:/subdirectory'
                 )),
             TextField::new('resticPassword')->hideOnIndex(),
-            FormField::addPanel('Restic with Openstack Swift storage')->addCssClass('storage-type-panel type-restic'),
+            FormField::addFieldset('Restic with Openstack Swift storage')->addCssClass('storage-type-panel type-restic'),
             AssociationField::new('osProject'),
             TextField::new('osRegionName'),
-            FormField::addPanel('Restic with S3 storage')->addCssClass('storage-type-panel type-restic'),
+            FormField::addFieldset('Restic with S3 storage')->addCssClass('storage-type-panel type-restic'),
             TextField::new('awsAccessKeyId')->hideOnIndex(),
             TextField::new('awsSecretAccessKey')->hideOnIndex(),
             TextField::new('awsDefaultRegion')->hideOnIndex(),
-            FormField::addPanel('Rclone configuration')->addCssClass('storage-type-panel type-rclone'),
+            FormField::addFieldset('Rclone configuration')->addCssClass('storage-type-panel type-rclone'),
             TextareaField::new('rcloneConfiguration')
                 ->hideOnIndex()
                 ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here.<br />Must not contain password and password2, we will add them automatically from password and salt fields.'),

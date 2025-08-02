@@ -109,11 +109,9 @@ class Kubeconfig implements Stringable
 
     public function removeBackupConfiguration(BackupConfiguration $backupConfiguration): static
     {
-        if ($this->backupConfigurations->removeElement($backupConfiguration)) {
-            // set the owning side to null (unless already changed)
-            if ($backupConfiguration->getKubeconfig() === $this) {
-                $backupConfiguration->setKubeconfig(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->backupConfigurations->removeElement($backupConfiguration) && $backupConfiguration->getKubeconfig() === $this) {
+            $backupConfiguration->setKubeconfig(null);
         }
 
         return $this;

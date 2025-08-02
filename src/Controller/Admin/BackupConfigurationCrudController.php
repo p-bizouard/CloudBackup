@@ -22,6 +22,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Override;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+/**
+ * @extends AbstractCrudController<BackupConfiguration>
+ */
 class BackupConfigurationCrudController extends AbstractCrudController
 {
     public function __construct(private readonly AdminUrlGenerator $adminUrlGenerator, private readonly ManagerRegistry $managerRegistry)
@@ -63,7 +66,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-            FormField::addPanel('General configuration')
+            FormField::addFieldset('General configuration')
                 ->setIcon('fas fa-cogs'),
 
             TextField::new('name'),
@@ -104,7 +107,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
             DateTimeField::new('createdAt')->hideOnForm()->hideOnIndex(),
             DateTimeField::new('updatedAt')->hideOnForm()->hideOnIndex(),
 
-            FormField::addPanel('Backup storage')
+            FormField::addFieldset('Backup storage')
                 ->setIcon('fas fa-hdd'),
 
             AssociationField::new('storage'),
@@ -127,7 +130,6 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_READ_RESTIC))
                 ->setHelp('Filter restic snapshot with provided tags. Usefull to check specific Velero volume'),
-                
 
             AssociationField::new('kubeconfig')
                 ->setRequired(false)
@@ -139,13 +141,13 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_KUBECONFIG))
                 ->setHelp('Kubeconfig namespace'),
-                
+
             TextField::new('kubeResource')
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_KUBECONFIG))
                 ->setHelp('Kubeconfig resource (pod/nginx, deployment/back, ...)'),
 
-            FormField::addPanel('Backup source')
+            FormField::addFieldset('Backup source')
                 ->hideOnIndex()
                 ->setIcon('fas fa-server'),
 

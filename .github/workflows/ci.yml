@@ -3,24 +3,24 @@ name: CI
 on: [push]
 
 jobs:
-    linting:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - uses: shivammathur/setup-php@v2
-              with:
-                  php-version: "8.4"
-                  coverage: none
-                  extensions: gd
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+          extensions: gd
 
-            - name: Composer install
-              run: composer install --prefer-dist --no-progress --ansi
+      - name: Composer install
+        run: composer install --prefer-dist --no-progress --ansi
 
-            - name: Run PHPStan
-              run: vendor/bin/phpstan --error-format=github
+      - name: Run PHPStan
+        run: vendor/bin/phpstan --error-format=github
 
-            - name: Run PHP CS Fixer
-              run: PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix -vvv --dry-run --format=checkstyle | vendor/bin/cs2pr
+      - name: Run PHP CS Fixer
+        run: PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix -vvv --dry-run --format=checkstyle | vendor/bin/cs2pr
 
-            - name: Run Rector
-              run: vendor/bin/rector --dry-run
+      - name: Run Rector
+        run: vendor/bin/rector --dry-run
