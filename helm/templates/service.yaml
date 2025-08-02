@@ -1,31 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx
-  labels:
-    {{- include "openstack-backup.labels" . | nindent 4 }}
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-    - port: 80
-      targetPort: 80
-      protocol: TCP
-      name: nginx
-  selector:
-    app: nginx
-    {{- include "openstack-backup.selectorLabels" . | nindent 4 }}
----
-apiVersion: v1
-kind: Service
-metadata:
   name: php
   labels:
     {{- include "openstack-backup.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: 9000
-      targetPort: 9000
+    - port: 443
+      targetPort: 443
       protocol: TCP
       name: php
   selector:

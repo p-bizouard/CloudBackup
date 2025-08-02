@@ -18,6 +18,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Override;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+/**
+ * @extends AbstractCrudController<Host>
+ */
 class HostCrudController extends AbstractCrudController
 {
     public function __construct(private readonly AdminUrlGenerator $adminUrlGenerator, private readonly ManagerRegistry $managerRegistry)

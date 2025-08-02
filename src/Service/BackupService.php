@@ -330,7 +330,6 @@ class BackupService
             'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
             'DESTINATION' => $backupDestination,
         ];
-    
 
         $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
         $process = Process::fromShellCommandline($command, null, $parameters);

@@ -12,6 +12,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Override;
 
+/**
+ * @extends AbstractCrudController<Kubeconfig>
+ */
 class KubeconfigCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
@@ -25,7 +28,7 @@ class KubeconfigCrudController extends AbstractCrudController
         return $crud
             ->setPageTitle('index', 'Kubeconfigs')
             ->setPageTitle('new', 'New Kubeconfig')
-            ->setPageTitle('detail', fn (Kubeconfig $host) => (string) $host)
+            ->setPageTitle('detail', fn (Kubeconfig $kubeconfig) => (string) $kubeconfig)
             // ->setPageTitle('edit', fn (Kubeconfig $host) => \sprintf('Edit <b>%s</b>', $host))
         ;
     }

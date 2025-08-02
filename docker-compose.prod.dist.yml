@@ -1,0 +1,23 @@
+services:
+    php:
+        container_name: php
+        image: bizouap/cloud-backup:latest
+        restart: on-failure
+        volumes:
+            - ".env.local:/app/.env:ro"
+            - "${DATA_PATH:-/data}:/data:rw"
+        devices:
+            - /dev/fuse
+        cap_add:
+            - SYS_ADMIN
+        extra_hosts:
+            - host.docker.internal:host-gateway
+        security_opt:
+            - apparmor:unconfined
+        ports:
+            - "${HTTPS_PORT:-3000}:443"
+    redis:
+        container_name: redis
+        image: redis:7-alpine
+        restart: on-failure
+        command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password} --appendonly yes

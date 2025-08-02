@@ -31,7 +31,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: php
-          image: "{{ .Values.image.repository }}-php:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           volumeMounts:
             - name: "env"
@@ -39,6 +39,18 @@ spec:
               subPath: ".env"
           resources:
             {{- toYaml .Values.php.resources | nindent 12 }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: SERVER_NAME
+              value: $(POD_IP), :443
+          ports:
+            - containerPort: 443
+              name: php
+              protocol: TCP
       volumes:
         - name: "env"
           secret:

@@ -10,6 +10,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Override;
 
+/**
+ * @extends AbstractCrudController<OSProject>
+ */
 class OSProjectCrudController extends AbstractCrudController
 {
     public function __construct(

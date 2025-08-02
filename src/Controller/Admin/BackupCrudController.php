@@ -16,6 +16,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use Override;
 use Symfony\Component\Workflow\Registry;
 
+/**
+ * @extends AbstractCrudController<Backup>
+ */
 class BackupCrudController extends AbstractCrudController
 {
     public function __construct(private readonly Registry $workflowRegistry)
