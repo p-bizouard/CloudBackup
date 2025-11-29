@@ -61,4 +61,5 @@ return new PhpCsFixer\Config()
             ->notPath('#Symfony/.*\.html\.php#')
     )
     ->setCacheFile('.php-cs-fixer.cache')
+    ->setUnsupportedPhpVersionAllowed(true)
 ;

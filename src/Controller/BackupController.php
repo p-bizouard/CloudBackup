@@ -13,6 +13,19 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BackupController extends AbstractController
 {
+<<<<<<< Updated upstream
+=======
+    /**
+     * @var KernelInterface
+     */
+    private $kernel;
+
+    public function __construct(KernelInterface $kernel)
+    {
+        $this->kernel = $kernel;
+    }
+
+>>>>>>> Stashed changes
     #[Route('/command/backup/start')]
     public function executeBackupStart(Request $request, KernelInterface $kernel): Response
     {

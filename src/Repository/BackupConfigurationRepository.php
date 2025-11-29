@@ -33,7 +33,7 @@ class BackupConfigurationRepository extends ServiceEntityRepository
             ->andWhere('bc.enabled = true')
             ->andWhere($qb->expr()->orX(
                 'b.id IS NULL',
-                'b.id = (' . $sub->getDQL() . ')'
+                'b.id = ('.$sub->getDQL().')'
             ))
             ->orderBy('bc.type', 'ASC')
             ->addOrderBy('bc.name', 'ASC');
