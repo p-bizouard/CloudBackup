@@ -23,6 +23,9 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         ];
     }
 
+    /**
+     * @param BeforeEntityUpdatedEvent<object> $beforeEntityUpdatedEvent
+     */
     public function updateUser(BeforeEntityUpdatedEvent $beforeEntityUpdatedEvent): void
     {
         $entity = $beforeEntityUpdatedEvent->getEntityInstance();
@@ -33,6 +36,9 @@ class EasyAdminSubscriber implements EventSubscriberInterface
         $this->setPassword($entity);
     }
 
+    /**
+     * @param BeforeEntityPersistedEvent<object> $beforeEntityPersistedEvent
+     */
     public function addUser(BeforeEntityPersistedEvent $beforeEntityPersistedEvent): void
     {
         $entity = $beforeEntityPersistedEvent->getEntityInstance();
