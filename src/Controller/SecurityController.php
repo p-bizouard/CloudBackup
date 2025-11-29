@@ -13,8 +13,6 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 class SecurityController extends AbstractController
 {
-<<<<<<< Updated upstream
-=======
     /**
      * @var AuthenticationUtils
      */
@@ -25,17 +23,11 @@ class SecurityController extends AbstractController
         $this->authenticationUtils = $authenticationUtils;
     }
 
->>>>>>> Stashed changes
     #[Route(path: '/login', name: 'app_login')]
     public function login(AuthenticationUtils $authenticationUtils): Response
     {
-<<<<<<< Updated upstream
-        $error = $authenticationUtils->getLastAuthenticationError();
-        $lastUsername = $authenticationUtils->getLastUsername();
-=======
         $error = $this->authenticationUtils->getLastAuthenticationError();
         $lastUsername = $this->authenticationUtils->getLastUsername();
->>>>>>> Stashed changes
 
         return $this->render('bundles/EasyAdmin/page/login.html.twig', [
             // parameters usually defined in Symfony login forms

@@ -15,6 +15,7 @@ use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
 use Rector\Symfony\CodeQuality\Rector\ClassMethod\ActionSuffixRemoverRector;
 use Rector\Symfony\Set\SymfonySetList;
+use Rector\Symfony\CodeQuality\Rector\Class_\ControllerMethodInjectionToConstructorRector;
 
 return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->importNames();
@@ -30,10 +31,10 @@ return static function (RectorConfig $rectorConfig): void {
 
     $rectorConfig->sets([
         SetList::DEAD_CODE,
-        LevelSetList::UP_TO_PHP_84,
+        LevelSetList::UP_TO_PHP_85,
         SetList::CODE_QUALITY,
         SetList::NAMING,
-        SymfonySetList::SYMFONY_72,
+        SymfonySetList::SYMFONY_74,
         SymfonySetList::SYMFONY_CODE_QUALITY,
         SymfonySetList::SYMFONY_CONSTRUCTOR_INJECTION,
         SymfonySetList::ANNOTATIONS_TO_ATTRIBUTES,
@@ -57,6 +58,9 @@ return static function (RectorConfig $rectorConfig): void {
         ],
         RenameParamToMatchTypeRector::class => [
             __DIR__.'/src/Admin/*',
+        ],
+        ControllerMethodInjectionToConstructorRector::class => [
+            __DIR__.'/src/Controller/Admin/*',
         ],
         ActionSuffixRemoverRector::class,
     ]);

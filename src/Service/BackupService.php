@@ -535,7 +535,7 @@ class BackupService
         );
 
         $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null);
+        $process = Process::fromShellCommandline($command);
         $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
         $process->run();
 
@@ -580,7 +580,7 @@ class BackupService
         );
 
         $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null);
+        $process = Process::fromShellCommandline($command);
         $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
         $process->run();
 
@@ -605,7 +605,7 @@ class BackupService
 
         $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
 
-        $process = Process::fromShellCommandline($command, null);
+        $process = Process::fromShellCommandline($command);
         $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
         $process->run();
 

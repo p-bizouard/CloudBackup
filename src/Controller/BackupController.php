@@ -13,8 +13,6 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BackupController extends AbstractController
 {
-<<<<<<< Updated upstream
-=======
     /**
      * @var KernelInterface
      */
@@ -25,9 +23,8 @@ class BackupController extends AbstractController
         $this->kernel = $kernel;
     }
 
->>>>>>> Stashed changes
     #[Route('/command/backup/start')]
-    public function executeBackupStart(Request $request, KernelInterface $kernel): Response
+    public function executeBackupStart(Request $request): Response
     {
         set_time_limit(0);
 
@@ -35,7 +32,7 @@ class BackupController extends AbstractController
             'command' => BackupStartCommand::getDefaultName(),
         ]);
 
-        $application = new Application($kernel);
+        $application = new Application($this->kernel);
         $application->setAutoExit(false);
         $application->run($arrayInput);
 
