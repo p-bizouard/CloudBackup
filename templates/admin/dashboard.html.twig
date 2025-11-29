@@ -29,15 +29,15 @@
                                     {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => backupConfiguration.type is same as(currentType)) %}
                                         <tr class="data-row {{ loop.index is even ? 'with-background' }}">
                                             <td>{{ backupConfiguration.name }}</td>
-                                            {% if backupConfiguration.backups.first %}
+                                            {% if backupConfiguration.getLastBackup() %}
                                                 <td>
                                                     <a href="{{ ea_url()
                                                         .setController('App\\Controller\\Admin\\BackupCrudController')
                                                         .setAction('detail')
-                                                        .setEntityId(backupConfiguration.backups.first.id)
+                                                        .setEntityId(backupConfiguration.getLastBackup().id)
                                                     }}">
-                                                        <span class="{% if backupConfiguration.backups.first.createdAt < date('-1days') %}badge badge-danger{% endif %}">
-                                                        {{ backupConfiguration.backups.first.updatedAt | date('Y-m-d H:i') }}
+                                                        <span class="{% if backupConfiguration.getLastBackup().createdAt < date('-1days') %}badge badge-danger{% endif %}">
+                                                        {{ backupConfiguration.getLastBackup().updatedAt | date('Y-m-d H:i') }}
                                                         </span>
                                                     </a>
                                                 </td>
@@ -45,28 +45,28 @@
                                                     <a href="{{ ea_url()
                                                         .setController('App\\Controller\\Admin\\BackupCrudController')
                                                         .setAction('detail')
-                                                        .setEntityId(backupConfiguration.backups.first.id)
+                                                        .setEntityId(backupConfiguration.getLastBackup().id)
                                                     }}">
-                                                        <span class="badge badge-{{ backupConfiguration.backups.first.bootstrapColor }}">
-                                                            {{ backupConfiguration.backups.first.currentPlace }} 
+                                                        <span class="badge badge-{{ backupConfiguration.getLastBackup().bootstrapColor }}">
+                                                            {{ backupConfiguration.getLastBackup().currentPlace }} 
 
-                                                            {% if backupConfiguration.backups.first.resticSize %}
-                                                                : {{ backupConfiguration.backups.first.resticSize|humanizeFileSize }}
-                                                                {% if backupConfiguration.backups.first.resticSize|humanizeFileSize != backupConfiguration.backups.first.resticDedupSize|humanizeFileSize %}
-                                                                    ({{ backupConfiguration.backups.first.resticDedupSize|humanizeFileSize }})
+                                                            {% if backupConfiguration.getLastBackup().resticSize %}
+                                                                : {{ backupConfiguration.getLastBackup().resticSize|humanizeFileSize }}
+                                                                {% if backupConfiguration.getLastBackup().resticSize|humanizeFileSize != backupConfiguration.getLastBackup().resticDedupSize|humanizeFileSize %}
+                                                                    ({{ backupConfiguration.getLastBackup().resticDedupSize|humanizeFileSize }})
                                                                 {% endif %}
                                                             {% endif %}
                                                         </span>
                                                     </a>
                                                 </td>
                                                 <td>
-                                                    {% if backupConfiguration.backups.first.resticTotalSize %}
-                                                        {{ backupConfiguration.backups.first.resticTotalSize|humanizeFileSize }}
-                                                        {% if backupConfiguration.backups.first.resticTotalSize|humanizeFileSize != backupConfiguration.backups.first.resticTotalDedupSize|humanizeFileSize %}
-                                                            (real : {{ backupConfiguration.backups.first.resticTotalDedupSize|humanizeFileSize }})
+                                                    {% if backupConfiguration.getLastBackup().resticTotalSize %}
+                                                        {{ backupConfiguration.getLastBackup().resticTotalSize|humanizeFileSize }}
+                                                        {% if backupConfiguration.getLastBackup().resticTotalSize|humanizeFileSize != backupConfiguration.getLastBackup().resticTotalDedupSize|humanizeFileSize %}
+                                                            (real : {{ backupConfiguration.getLastBackup().resticTotalDedupSize|humanizeFileSize }})
                                                         {% endif %}
-                                                    {% elseif backupConfiguration.backups.first.size %}
-                                                        {{ backupConfiguration.backups.first.size|humanizeFileSize }}
+                                                    {% elseif backupConfiguration.getLastBackup().size %}
+                                                        {{ backupConfiguration.getLastBackup().size|humanizeFileSize }}
                                                     {% else %}
                                                         <span class="badge badge-danger">N/A</span>
                                                     {% endif %}
@@ -89,13 +89,13 @@
         </div>
         <div class="tab-pane fade" id="restore" role="tabpanel" aria-labelledby="restore-tab">
             {% set totalSize = 0 %}
-            {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) %}
-                {% set totalSize = totalSize + backupConfiguration.backups.first.resticSize %}
+            {% for backupConfiguration in backupConfigurations | filter(bc => bc.getLastBackup()) %}
+                {% set totalSize = totalSize + backupConfiguration.getLastBackup().resticSize %}
             {% endfor %}
 
             {% set totalRepositoryUsage = 0 %}
-            {% for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) %}
-                {% set totalRepositoryUsage = totalRepositoryUsage + backupConfiguration.backups.first.resticTotalDedupSize %}
+            {% for backupConfiguration in backupConfigurations | filter(bc => bc.getLastBackup()) %}
+                {% set totalRepositoryUsage = totalRepositoryUsage + backupConfiguration.getLastBackup().resticTotalDedupSize %}
             {% endfor %}
 
             <ul class="alert alert-warning mt-2 mb-2 list list-unstyled">
@@ -104,10 +104,10 @@
                 <li>Backups are restored to /tmp/restore/xxx. Edit it if needed.</li>
             </ul>
             
-            {%- for backupConfiguration in backupConfigurations | filter(backupConfiguration => (backupConfiguration.backups | length)) -%}
+            {%- for backupConfiguration in backupConfigurations | filter(bc => bc.getLastBackup()) -%}
                 <h3># {{ backupConfiguration.name }} from {{ backupConfiguration.storage.name }}</h3>
                 <p>
-                    # Backup size : {{ backupConfiguration.backups.first.resticSize|humanizeFileSize }}.<br />
+                    # Backup size : {{ backupConfiguration.getLastBackup().resticSize|humanizeFileSize }}.<br />
                     # Total repository usage: {{ totalRepositoryUsage|humanizeFileSize }}
                 </p>
 

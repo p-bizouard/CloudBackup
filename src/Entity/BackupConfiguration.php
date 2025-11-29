@@ -151,6 +151,11 @@ class BackupConfiguration implements Stringable
         return $this->backups->isEmpty() ? null : $this->backups[0];
     }
 
+    public function getLatestBackup(): ?Backup
+    {
+        return $this->backups->first() ?: null;
+    }
+
     /**
      * @return string[]
      */
