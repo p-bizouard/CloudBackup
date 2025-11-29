@@ -10,7 +10,7 @@ ENTRYPOINT  ["/bin/sh", "-c"]
 # Install on launch, build to produce entrypoints and manifest.json, then watch for changes
 CMD ["npm install && npm run build && npm run watch"]
 
-FROM dunglas/frankenphp:1.9 AS dev
+FROM dunglas/frankenphp:1.10 AS dev
 
 ENV DOCKER_USER=1000
 
@@ -22,13 +22,9 @@ RUN cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini
 RUN echo "memory_limit = 512M" >> $PHP_INI_DIR/conf.d/memory-limit.ini
 
 RUN apt update \
-    && apt install -y wget gnupg lsb-release software-properties-common \
-    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-    && add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
-    && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor -o /etc/apt/kubernetes-apt-keyring.gpg \
-    && chmod 644 /etc/apt/kubernetes-apt-keyring.gpg \
-    && echo 'deb [signed-by=/etc/apt/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list \
-    && chmod 644 /etc/apt/sources.list.d/kubernetes.list \
+    && apt install -y wget gnupg lsb-release \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt update \
     && apt install -y \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
@@ -38,14 +34,20 @@ RUN apt update \
         postgresql-client \
         mariadb-client \
         graphviz \
-        kubectl \
         bzip2 \
         python3-keystoneclient \
         python3-swiftclient \
         python3-openstackclient
 
+ARG KUBE_VERSION=1.33
+RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/kubernetes-apt-keyring.gpg \
+    && chmod 644 /etc/apt/kubernetes-apt-keyring.gpg \
+    && echo 'deb [signed-by=/etc/apt/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v'${KUBE_VERSION}'/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list \
+    && chmod 644 /etc/apt/sources.list.d/kubernetes.list \
+    && apt update \
+    && apt install -y kubectl
 
-ARG RCLONE_VERSION=1.70.3
+ARG RCLONE_VERSION=1.72.0
 RUN curl -fsSL "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.zip" -o rclone.zip \
     && unzip rclone.zip \
     && mv "rclone-v${RCLONE_VERSION}-linux-amd64/rclone" /usr/local/bin/ \
@@ -54,7 +56,7 @@ RUN curl -fsSL "https://github.com/rclone/rclone/releases/download/v${RCLONE_VER
     && apt-get autoremove && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG RESTIC_VERSION=0.18.0
+ARG RESTIC_VERSION=0.18.1
 RUN wget --quiet "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" \
     && bzip2 -d "restic_${RESTIC_VERSION}_linux_amd64.bz2" \
     && mv "restic_${RESTIC_VERSION}_linux_amd64" /usr/local/bin/restic \
