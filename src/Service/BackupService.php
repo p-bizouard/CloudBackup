@@ -25,6 +25,7 @@ class BackupService
     final public const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
     final public const int RESTIC_CHECK_TIMEOUT = 3600;
     final public const int RESTIC_REPAIR_TIMEOUT = 3600;
+    final public const int RESTIC_LOCK_MAX_AGE_SECONDS = 3600 * 20;
 
     final public const int OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
     final public const int OS_IMAGE_LIST_TIMEOUT = 60;
@@ -1045,7 +1046,7 @@ class BackupService
                     $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
 
                     if ($tryRepair) {
-                        $this->repairBackup($backup);
+                        $this->repairBackup($backup, $process->getErrorOutput());
                         $this->healhCheckBackup($backup, false);
                     } else {
                         throw new ProcessFailedException($process);
@@ -1208,7 +1209,7 @@ class BackupService
         }
     }
 
-    public function repairBackup(Backup $backup): void
+    public function repairBackup(Backup $backup, ?string $errorOutput = null): void
     {
         $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
 
@@ -1219,6 +1220,24 @@ class BackupService
             'restic prune',
             'restic check',
         ];
+
+        // If the repository is locked for more than RESTIC_LOCK_MAX_AGE_SECONDS, try to unlock it
+        if (null !== $errorOutput && preg_match('/repository is already locked/m', $errorOutput) && preg_match('/lock was created at .* \((\d+)h(\d+)m(\d+)\.(\d+)s ago/m', $errorOutput, $matches)) {
+            $hours = (int) $matches[1];
+            $minutes = (int) $matches[2];
+            $seconds = (int) $matches[3];
+            $totalSeconds = ($hours * 3600) + ($minutes * 60) + $seconds;
+
+            $message = \sprintf('Repository is locked since %dh%dm%ds', $hours, $minutes, $seconds);
+            $this->log($backup, Log::LOG_ERROR, $message);
+
+            if ($totalSeconds > self::RESTIC_LOCK_MAX_AGE_SECONDS) {
+                $message = \sprintf('Repository is locked since %dh%dm%ds which is more than the max allowed lock age of %ds', $hours, $minutes, $seconds, self::RESTIC_LOCK_MAX_AGE_SECONDS);
+                $this->log($backup, Log::LOG_ERROR, $message);
+
+                array_unshift($commands, 'restic unlock');
+            }
+        }
 
         foreach ($commands as $command) {
             $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
