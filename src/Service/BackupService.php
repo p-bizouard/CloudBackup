@@ -490,7 +490,7 @@ class BackupService
 
         $dumpDestination = $this->getTemporaryBackupDestination($backup);
 
-        if (file_exists($dumpDestination) && filesize($dumpDestination) >= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
+        if ($backup->getSize() >= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
             $this->log($backup, Log::LOG_NOTICE, 'Backup downloaded');
 
             return true;
