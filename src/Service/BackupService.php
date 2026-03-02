@@ -876,7 +876,13 @@ class BackupService
                 // Check if directory matches YYYY-MM-DD format
                 if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $dir, $matches)) {
                     try {
-                        $dirDate = new DateTime($matches[1]);
+                        // Use createFromFormat with strict validation to ensure valid dates
+                        $dirDate = DateTime::createFromFormat('Y-m-d', $matches[1]);
+                        if (false === $dirDate || $dirDate->format('Y-m-d') !== $matches[1]) {
+                            $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date format in directory name: %s', $dir));
+                            continue;
+                        }
+                        
                         if ($dirDate < $cutoffDate) {
                             // Delete old archive directory
                             $archiveDir = rtrim($backup->getBackupConfiguration()->getRcloneBackupDir(), '/').'/'.$dir;
