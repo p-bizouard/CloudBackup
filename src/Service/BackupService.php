@@ -1251,7 +1251,7 @@ class BackupService
 
                 // List snapshots to check for recent backups
                 $command = \sprintf('kopia snapshot list --json %s',
-                    $backup->getBackupConfiguration()->getResticCheckTags() ? '--tags="${KOPIA_CHECK_TAG}"' : ''
+                    $backup->getBackupConfiguration()->getResticCheckTags() ? '--tags=${KOPIA_CHECK_TAG}' : ''
                 );
 
                 $parameters = [
