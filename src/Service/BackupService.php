@@ -1448,13 +1448,22 @@ class BackupService
 
     /**
      * Build SSH options string from host configuration
+     * Validates SSH options to prevent command injection
      */
     private function buildSshOptionsString(?Host $host): string
     {
-        if (null === $host || null === $host->getSshOptions() || '' === $host->getSshOptions()) {
+        if (!$host?->getSshOptions()) {
             return '';
         }
 
-        return ' '.$host->getSshOptions();
+        $sshOptions = trim($host->getSshOptions());
+        
+        // Validate that SSH options only contain safe characters
+        // Allow: letters, numbers, spaces, hyphens, equals, commas, plus, periods, colons, forward slashes, underscores
+        if (!preg_match('/^[-a-zA-Z0-9\s=,+.\/:_]+$/', $sshOptions)) {
+            throw new \InvalidArgumentException('SSH options contain invalid characters. Only alphanumeric characters, spaces, and the following special characters are allowed: - = , + . / : _');
+        }
+        
+        return ' '.$sshOptions;
     }
 }

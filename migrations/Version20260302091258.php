@@ -20,7 +20,7 @@ final class Version20260302091258 extends AbstractMigration
     public function up(Schema $schema): void
     {
         // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql('ALTER TABLE `host` ADD ssh_options VARCHAR(255) DEFAULT NULL');
+        $this->addSql('ALTER TABLE `host` ADD ssh_options LONGTEXT DEFAULT NULL');
     }
 
     public function down(Schema $schema): void
