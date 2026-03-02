@@ -813,11 +813,23 @@ class BackupService
         }
 
         // Calculate retention period as max of keepDaily and keepWeekly
-        $keepDays = max($backup->getBackupConfiguration()->getKeepDaily(), $backup->getBackupConfiguration()->getKeepWeekly() * 7);
+        $keepDaily = $backup->getBackupConfiguration()->getKeepDaily();
+        $keepWeekly = $backup->getBackupConfiguration()->getKeepWeekly();
         
-        // Validate keepDays is a positive integer
-        if ($keepDays < 0) {
-            $keepDays = 0;
+        // Ensure both values are non-negative
+        if ($keepDaily < 0) {
+            $keepDaily = 0;
+        }
+        if ($keepWeekly < 0) {
+            $keepWeekly = 0;
+        }
+        
+        $keepDays = max($keepDaily, $keepWeekly * 7);
+        
+        // If both are 0, use a default of 7 days to prevent immediate deletion
+        if ($keepDays === 0) {
+            $keepDays = 7;
+            $this->log($backup, Log::LOG_WARNING, 'Both keepDaily and keepWeekly are 0. Using default retention of 7 days.');
         }
 
         $command = 'rclone delete --min-age "${KEEP_DAYS}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
@@ -856,7 +868,15 @@ class BackupService
         if ($process->isSuccessful()) {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
             $directories = array_filter(explode("\n", trim($process->getOutput())));
-            $cutoffDate = (new DateTime())->modify("-{$keepDays} days");
+            
+            // Validate keepDays is a non-negative integer before using in date calculation
+            if (!is_int($keepDays) || $keepDays < 0) {
+                $this->log($backup, Log::LOG_ERROR, \sprintf('Invalid keepDays value: %s. Skipping archive cleanup.', $keepDays));
+                
+                return;
+            }
+            
+            $cutoffDate = (new DateTime())->modify(\sprintf('-%d days', $keepDays));
 
             foreach ($directories as $dir) {
                 $dir = rtrim($dir, '/');
@@ -873,7 +893,7 @@ class BackupService
                                 'RCLONE_CONFIG' => $configFile,
                             ];
 
-                            $this->log($backup, Log::LOG_INFO, \sprintf('Attempting to delete old archive directory: %s (older than %d days)', $dir, $keepDays));
+                            $this->log($backup, Log::LOG_INFO, \sprintf('Attempting to delete old archive directory: %s (older than %d days based on max(keepDaily=%d, keepWeekly=%d*7))', $dir, $keepDays, $keepDaily, $keepWeekly));
                             $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
 
                             $deleteProcess = Process::fromShellCommandline($command, null, $parameters);
