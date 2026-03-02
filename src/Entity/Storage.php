@@ -53,6 +53,12 @@ class Storage implements Stringable
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $rcloneConfiguration = null;
 
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $kopiaPassword = null;
+
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $kopiaRepo = null;
+
     /**
      * @var Collection<int, BackupConfiguration>
      */
@@ -61,6 +67,7 @@ class Storage implements Stringable
 
     final public const string TYPE_RESTIC = 'restic';
     final public const string TYPE_RCLONE = 'rclone';
+    final public const string TYPE_KOPIA = 'kopia';
 
     public function __construct()
     {
@@ -126,6 +133,7 @@ class Storage implements Stringable
         return [
             self::TYPE_RESTIC,
             self::TYPE_RCLONE,
+            self::TYPE_KOPIA,
         ];
     }
 
@@ -137,6 +145,11 @@ class Storage implements Stringable
     public function isRclone(): bool
     {
         return self::TYPE_RCLONE === $this->getType();
+    }
+
+    public function isKopia(): bool
+    {
+        return self::TYPE_KOPIA === $this->getType();
     }
 
     public function getId(): ?int
@@ -300,6 +313,30 @@ class Storage implements Stringable
     public function setRcloneConfiguration(?string $rcloneConfiguration): self
     {
         $this->rcloneConfiguration = $rcloneConfiguration;
+
+        return $this;
+    }
+
+    public function getKopiaPassword(): ?string
+    {
+        return $this->kopiaPassword;
+    }
+
+    public function setKopiaPassword(?string $kopiaPassword): self
+    {
+        $this->kopiaPassword = $kopiaPassword;
+
+        return $this;
+    }
+
+    public function getKopiaRepo(): ?string
+    {
+        return $this->kopiaRepo;
+    }
+
+    public function setKopiaRepo(?string $kopiaRepo): self
+    {
+        $this->kopiaRepo = $kopiaRepo;
 
         return $this;
     }

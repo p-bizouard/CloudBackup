@@ -237,6 +237,20 @@ class BackupConfiguration implements Stringable
         ];
     }
 
+    /**
+     * @return string[]
+     */
+    public function getKopiaEnv(): array
+    {
+        if (null === $this->getStorage() || null === $this->getStorage()->getKopiaRepo()) {
+            return [];
+        }
+
+        return [
+            'KOPIA_PASSWORD' => $this->getStorage()->getKopiaPassword(),
+        ];
+    }
+
     public function getCompleteRcloneConfiguration(): ?string
     {
         return \sprintf("%s\n%s", $this->getStorage()->getRcloneConfiguration(), $this->rcloneConfiguration);

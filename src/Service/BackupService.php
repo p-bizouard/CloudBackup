@@ -26,6 +26,7 @@ class BackupService
     final public const int RESTIC_CHECK_TIMEOUT = 3600;
     final public const int RESTIC_REPAIR_TIMEOUT = 3600;
     final public const int RESTIC_LOCK_MAX_AGE_SECONDS = 3600 * 20;
+    final public const int KOPIA_CHECK_TIMEOUT = 3600;
 
     final public const int OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
     final public const int OS_IMAGE_LIST_TIMEOUT = 60;
@@ -1205,6 +1206,98 @@ class BackupService
                     $this->log($backup, Log::LOG_NOTICE, $message);
                     throw new Exception($message);
                 }
+                break;
+            case Storage::TYPE_KOPIA:
+                $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getKopiaEnv();
+
+                // Kopia repository connect is required before running checks
+                // We use the kopiaRepo field to determine the repository path/URL
+                $kopiaRepo = $backup->getBackupConfiguration()->getStorage()->getKopiaRepo();
+                if (null === $kopiaRepo) {
+                    $message = 'Kopia repository not configured';
+                    $this->log($backup, Log::LOG_ERROR, $message);
+                    throw new Exception($message);
+                }
+
+                // Check repository connection status
+                $command = 'kopia repository status --json';
+
+                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
+                $process = Process::fromShellCommandline($command, null, $env);
+                $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
+
+                // Verify snapshot consistency
+                $command = 'kopia snapshot verify';
+
+                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
+                $process = Process::fromShellCommandline($command, null, $env);
+                $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                }
+
+                // List snapshots to check for recent backups
+                $command = \sprintf('kopia snapshot list --json %s',
+                    $backup->getBackupConfiguration()->getResticCheckTags() ? '--tags "${KOPIA_CHECK_TAG}"' : ''
+                );
+
+                $parameters = [
+                    'KOPIA_CHECK_TAG' => $backup->getBackupConfiguration()->getResticCheckTags(),
+                ];
+
+                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
+
+                $process = Process::fromShellCommandline($command, null, $env + $parameters);
+                $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                $process->run();
+
+                if (!$process->isSuccessful()) {
+                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                    throw new ProcessFailedException($process);
+                } else {
+                    if (($json = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR)) === null || !(is_countable($json) ? \count($json) : 0)) {
+                        $message = \sprintf('Cannot decode json or no snapshots found: %s', $process->getOutput());
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    usort($json, function ($a, $b) {
+                        // Sort latest in first
+                        return new DateTime($b['startTime']) <=> new DateTime($a['startTime']);
+                    });
+
+                    $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
+                    $this->log($backup, Log::LOG_INFO, $prettyJson);
+
+                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) $json[0]['startTime']));
+                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
+
+                    $yesterday = new DateTime('yesterday');
+                    if ($lastBackup < $yesterday) {
+                        $message = 'Last backup older than 24h';
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    // Store snapshot stats
+                    if (isset($json[0]['stats'])) {
+                        $backup->setSize($json[0]['stats']['totalFileSize'] ?? null);
+                    }
+                }
+
                 break;
         }
     }
