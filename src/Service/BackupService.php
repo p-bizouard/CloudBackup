@@ -881,9 +881,11 @@ class BackupService
 
         if ($process->isSuccessful()) {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            $directories = array_filter(explode("\n", trim($process->getOutput())));
+            $directories = array_filter(explode("\n", trim($process->getOutput())), fn ($dir) => '' !== $dir);
             
             $cutoffDate = (new DateTime())->modify(\sprintf('-%d days', $keepDays));
+            // Set time to midnight for accurate day-level comparison
+            $cutoffDate->setTime(0, 0, 0);
 
             foreach ($directories as $dir) {
                 $dir = rtrim($dir, '/');
@@ -891,9 +893,12 @@ class BackupService
                 if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $dir, $matches)) {
                     try {
                         // Use createFromFormat with strict validation to ensure valid dates
-                        $dirDate = DateTime::createFromFormat('Y-m-d', $matches[1]);
-                        if (false === $dirDate || $dirDate->format('Y-m-d') !== $matches[1]) {
-                            $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date format in directory name: %s', $dir));
+                        // The '!' prefix resets time components to prevent date overflow
+                        $dirDate = DateTime::createFromFormat('!Y-m-d', $matches[1]);
+                        $errors = DateTime::getLastErrors();
+                        
+                        if (false === $dirDate || $dirDate->format('Y-m-d') !== $matches[1] || ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+                            $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date in directory name: %s', $dir));
                             continue;
                         }
                         
