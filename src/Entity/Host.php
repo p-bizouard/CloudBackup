@@ -44,6 +44,9 @@ class Host implements Stringable
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $privateKey = null;
 
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $sshOptions = null;
+
     /**
      * @var Collection<int, BackupConfiguration>
      */
@@ -145,6 +148,18 @@ class Host implements Stringable
     public function setPrivateKey(?string $pubkey): self
     {
         $this->privateKey = $pubkey;
+
+        return $this;
+    }
+
+    public function getSshOptions(): ?string
+    {
+        return $this->sshOptions;
+    }
+
+    public function setSshOptions(?string $sshOptions): self
+    {
+        $this->sshOptions = $sshOptions;
 
         return $this;
     }

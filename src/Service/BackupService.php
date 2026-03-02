@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
+use App\Entity\Host;
 use App\Entity\Log;
 use App\Entity\Storage;
 use App\Repository\BackupRepository;
@@ -273,9 +274,12 @@ class BackupService
                 $sshpass = 'sshpass -p ${SSHPASS}';
             }
 
+            $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
+
             $command = \sprintf(
-                '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "${DUMP_COMMAND} | gzip -9" | gunzip > "${DESTINATION}"',
+                '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s %s "${DUMP_COMMAND} | gzip -9" | gunzip > "${DESTINATION}"',
                 $sshpass ?? null,
+                $sshOptions,
                 $privateKeyString ?? null
             );
             $parameters = [
@@ -370,9 +374,12 @@ class BackupService
                 $sshpass = 'echo "${SSHPASS}" | ';
             }
 
+            $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
+
             $command = \sprintf(
-                '%s sshfs "${LOGIN}@${IP}:${REMOTE_PATH}" "${DESTINATION}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s -o "uid=%d,gid=%d" -o ro %s',
+                '%s sshfs "${LOGIN}@${IP}:${REMOTE_PATH}" "${DESTINATION}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s %s -o "uid=%d,gid=%d" -o ro %s',
                 $sshpass ?? null,
+                $sshOptions,
                 $privateKeyString ?? null,
                 posix_getuid(),
                 posix_getgid(),
@@ -526,11 +533,14 @@ class BackupService
     {
         $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
 
+        $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
+
         $command = \sprintf(
-            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "sudo rm -f %s"',
+            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s -o IdentityFile=%s "sudo rm -f %s"',
             $backup->getBackupConfiguration()->getHost()->getLogin(),
             $backup->getBackupConfiguration()->getHost()->getIp(),
             $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+            $sshOptions,
             $privateKeypath,
             $scriptFilePath,
         );
@@ -590,11 +600,14 @@ class BackupService
             throw new ProcessFailedException($process);
         }
 
+        $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
+
         $command = \sprintf(
-            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s "%s"',
+            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s -o IdentityFile=%s "%s"',
             $backup->getBackupConfiguration()->getHost()->getLogin(),
             $backup->getBackupConfiguration()->getHost()->getIp(),
             $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
+            $sshOptions,
             $privateKeypath,
             \sprintf(
                 'sudo chmod 700 %s && sudo chown root:root %s && sudo %s',
@@ -932,9 +945,12 @@ class BackupService
             $sshpass = 'sshpass -p ${SSHPASS}';
         }
 
+        $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
+
         $command = \sprintf(
-            '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "${REMOTE_CLEAN_COMMAND}"',
+            '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s %s "${REMOTE_CLEAN_COMMAND}"',
             $sshpass ?? null,
+            $sshOptions,
             $privateKeyString ?? null
         );
         $parameters = [
@@ -1428,5 +1444,17 @@ class BackupService
 
         $this->entityManager->persist($backup);
         $this->entityManager->flush();
+    }
+
+    /**
+     * Build SSH options string from host configuration
+     */
+    private function buildSshOptionsString(?Host $host): string
+    {
+        if (null === $host || null === $host->getSshOptions() || '' === $host->getSshOptions()) {
+            return '';
+        }
+
+        return ' '.$host->getSshOptions();
     }
 }
