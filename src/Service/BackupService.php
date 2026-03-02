@@ -812,9 +812,12 @@ class BackupService
             }
         }
 
-        $command = 'rclone delete --min-age "${KEEP_DAILY}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
+        // Calculate retention period as max of keepDaily and keepWeekly
+        $keepDays = max($backup->getBackupConfiguration()->getKeepDaily(), $backup->getBackupConfiguration()->getKeepWeekly() * 7);
+
+        $command = 'rclone delete --min-age "${KEEP_DAYS}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
         $parameters = [
-            'KEEP_DAILY' => $backup->getBackupConfiguration()->getKeepDaily(),
+            'KEEP_DAYS' => $keepDays,
             'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
             'RCLONE_CONFIG' => $configFile,
         ];
@@ -830,6 +833,61 @@ class BackupService
             throw new ProcessFailedException($process);
         } else {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
+        }
+
+        // Clean up old archive directories (YYYY-MM-DD folders)
+        $command = 'rclone lsf "${REMOTE_STORAGE_BACKUP}" --dirs-only --config "${RCLONE_CONFIG}"';
+        $parameters = [
+            'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
+            'RCLONE_CONFIG' => $configFile,
+        ];
+
+        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+
+        $process = Process::fromShellCommandline($command, null, $parameters);
+        $process->setTimeout(self::RCLONE_CHECK_TIMEOUT);
+        $process->run();
+
+        if ($process->isSuccessful()) {
+            $this->log($backup, Log::LOG_INFO, $process->getOutput());
+            $directories = array_filter(explode("\n", trim($process->getOutput())));
+            $cutoffDate = (new DateTime())->modify("-{$keepDays} days");
+
+            foreach ($directories as $dir) {
+                $dir = rtrim($dir, '/');
+                // Check if directory matches YYYY-MM-DD format
+                if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $dir, $matches)) {
+                    try {
+                        $dirDate = new DateTime($matches[1]);
+                        if ($dirDate < $cutoffDate) {
+                            // Delete old archive directory
+                            $archiveDir = rtrim($backup->getBackupConfiguration()->getRcloneBackupDir(), '/').'/'.$dir;
+                            $command = 'rclone purge "${ARCHIVE_DIR}" --config "${RCLONE_CONFIG}"';
+                            $parameters = [
+                                'ARCHIVE_DIR' => $archiveDir,
+                                'RCLONE_CONFIG' => $configFile,
+                            ];
+
+                            $this->log($backup, Log::LOG_INFO, \sprintf('Deleting old archive directory: %s (older than %d days)', $dir, $keepDays));
+                            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+
+                            $deleteProcess = Process::fromShellCommandline($command, null, $parameters);
+                            $deleteProcess->setTimeout(self::RCLONE_CHECK_TIMEOUT);
+                            $deleteProcess->run();
+
+                            if (!$deleteProcess->isSuccessful()) {
+                                $this->log($backup, Log::LOG_WARNING, \sprintf('Warning deleting archive directory %s - %s', $dir, $deleteProcess->getErrorOutput()));
+                            } else {
+                                $this->log($backup, Log::LOG_INFO, \sprintf('Successfully deleted archive directory: %s', $dir));
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        $this->log($backup, Log::LOG_WARNING, \sprintf('Error parsing date for directory %s: %s', $dir, $e->getMessage()));
+                    }
+                }
+            }
+        } else {
+            $this->log($backup, Log::LOG_WARNING, \sprintf('Warning listing archive directories - %s', $process->getErrorOutput()));
         }
 
         $command = 'rclone rmdirs "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
