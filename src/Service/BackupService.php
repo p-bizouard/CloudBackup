@@ -897,7 +897,11 @@ class BackupService
                         $dirDate = DateTime::createFromFormat('!Y-m-d', $matches[1]);
                         $errors = DateTime::getLastErrors();
                         
-                        if (false === $dirDate || $dirDate->format('Y-m-d') !== $matches[1] || ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+                        // Validate date is valid and matches expected format
+                        $hasErrors = $errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0);
+                        $isValidFormat = false !== $dirDate && $dirDate->format('Y-m-d') === $matches[1];
+                        
+                        if (!$isValidFormat || $hasErrors) {
                             $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date in directory name: %s', $dir));
                             continue;
                         }
