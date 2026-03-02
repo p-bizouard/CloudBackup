@@ -96,10 +96,11 @@ class StorageCrudController extends AbstractCrudController
                 ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here.<br />Must not contain password and password2, we will add them automatically from password and salt fields.'),
             FormField::addFieldset('Kopia configuration')->addCssClass('storage-type-panel type-kopia'),
             TextField::new('kopiaRepo')
-                ->setHelp(\sprintf('%s<br />%s<br />%s',
-                    'Filesystem : filesystem --path=/path/to/repo',
-                    'S3 : s3 --bucket=my-bucket --endpoint=s3.amazonaws.com',
-                    'Note: Repository connection details will be used with "kopia repository connect"'
+                ->setHelp(\sprintf('%s<br />%s<br />%s<br />%s',
+                    'Repository connection string used with "kopia repository connect"',
+                    'Filesystem: filesystem --path=/path/to/repo',
+                    'S3: s3 --bucket=my-bucket --endpoint=s3.amazonaws.com',
+                    'Note: Ensure Kopia repository is already connected before running checks'
                 )),
             TextField::new('kopiaPassword')->hideOnIndex(),
             FormField::addFieldset('Kopia with S3 storage')->addCssClass('storage-type-panel type-kopia'),

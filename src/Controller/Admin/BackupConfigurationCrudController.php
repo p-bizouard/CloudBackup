@@ -129,7 +129,7 @@ class BackupConfigurationCrudController extends AbstractCrudController
             TextField::new('resticCheckTags')
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_READ_RESTIC))
-                ->setHelp('Filter restic snapshot with provided tags. Usefull to check specific Velero volume'),
+                ->setHelp('Filter restic/kopia snapshot with provided tags. Useful to check specific Velero volume. For Kopia use format "key:value" (e.g., "velero.io/volume-name:pvc-123")'),
 
             AssociationField::new('kubeconfig')
                 ->setRequired(false)
