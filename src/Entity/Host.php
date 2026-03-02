@@ -44,7 +44,7 @@ class Host implements Stringable
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $privateKey = null;
 
-    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $sshOptions = null;
 
     /**
