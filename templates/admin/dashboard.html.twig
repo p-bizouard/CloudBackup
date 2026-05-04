@@ -10,6 +10,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="restore-tab" data-bs-toggle="tab" data-bs-target="#restore" type="button" role="tab" aria-controls="restore" aria-selected="false">Restore script</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory" type="button" role="tab" aria-controls="inventory" aria-selected="false">Inventory dump</button>
+        </li>
     </ul>
     <div class="tab-content">
         <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="home-tab">
@@ -120,6 +123,9 @@
 
                 </pre>
             {%- endfor -%}
+        </div>
+        <div class="tab-pane fade" id="inventory" role="tabpanel" aria-labelledby="inventory-tab">
+            <pre class="mt-2">{{ inventoryDump }}</pre>
         </div>
     </div>
 {% endblock %}

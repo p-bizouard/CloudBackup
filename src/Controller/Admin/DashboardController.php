@@ -12,6 +12,7 @@ use App\Entity\OSProject;
 use App\Entity\Storage;
 use App\Entity\User;
 use App\Repository\BackupConfigurationRepository;
+use App\Service\Inventory\InventoryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -22,21 +23,26 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
 use Override;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Yaml\Yaml;
 
 #[AdminDashboard(routePath: '/', routeName: 'admin_dashboard')]
 class DashboardController extends AbstractDashboardController
 {
     public function __construct(
         private readonly BackupConfigurationRepository $backupConfigurationRepository,
+        private readonly InventoryBuilder $inventoryBuilder,
     ) {
     }
 
     #[Override]
     public function index(): Response
     {
+        $backupConfigurations = $this->backupConfigurationRepository->findEnabledWithLatestBackupOnly();
+
         return $this->render('admin/dashboard.html.twig', [
             'backupConfigurationTypes' => BackupConfiguration::getAvailableTypes(),
-            'backupConfigurations' => $this->backupConfigurationRepository->findEnabledWithLatestBackupOnly(),
+            'backupConfigurations' => $backupConfigurations,
+            'inventoryDump' => Yaml::dump($this->inventoryBuilder->build($backupConfigurations), 6, 2),
         ]);
     }
 
