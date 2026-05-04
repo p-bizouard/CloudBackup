@@ -81,7 +81,7 @@ RUN echo "user:user:${USER:-1000}:${USER:-1000}:Dev user:/:/sbin/nologin" >> /et
 # Caddyfile.d is not used, so we remove the import line to avoid warning messages
 RUN sed -e '/import Caddyfile\.d/d' -i /etc/frankenphp/Caddyfile
 
-COPY --link --chmod=755 docker/frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
+COPY --chmod=755 docker/frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 ENTRYPOINT ["docker-entrypoint"]
 
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
