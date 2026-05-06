@@ -12,6 +12,7 @@ use App\Utils\StringUtils;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Exception\ProcessFailedException;
@@ -1448,7 +1449,7 @@ class BackupService
 
     /**
      * Build SSH options string from host configuration
-     * Validates SSH options to prevent command injection
+     * Validates SSH options to prevent command injection.
      */
     private function buildSshOptionsString(?Host $host): string
     {
@@ -1459,7 +1460,7 @@ class BackupService
         $sshOptions = trim($host->getSshOptions());
 
         if (!preg_match(Host::SSH_OPTIONS_PATTERN, $sshOptions)) {
-            throw new \InvalidArgumentException('SSH options contain invalid characters. Only alphanumeric characters, spaces, and the following special characters are allowed: - = , + . / : _');
+            throw new InvalidArgumentException('SSH options contain invalid characters. Only alphanumeric characters, spaces, and the following special characters are allowed: - = , + . / : _');
         }
 
         return ' '.$sshOptions;
