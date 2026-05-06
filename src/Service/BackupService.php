@@ -1458,9 +1458,7 @@ class BackupService
 
         $sshOptions = trim($host->getSshOptions());
 
-        // Validate that SSH options only contain safe characters
-        // Allow: letters, numbers, spaces, hyphens, equals, commas, plus, periods, colons, forward slashes, underscores
-        if (!preg_match('/^[a-zA-Z0-9\s=,+.\/:_-]+$/', $sshOptions)) {
+        if (!preg_match(Host::SSH_OPTIONS_PATTERN, $sshOptions)) {
             throw new \InvalidArgumentException('SSH options contain invalid characters. Only alphanumeric characters, spaces, and the following special characters are allowed: - = , + . / : _');
         }
 

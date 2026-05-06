@@ -70,7 +70,7 @@ class HostCrudController extends AbstractCrudController
             TextareaField::new('privateKey')
                 ->hideOnIndex()
                 ->addCssClass('blur-input'),
-            TextareaField::new('sshOptions', 'SSH Options')
+            TextField::new('sshOptions', 'SSH Options')
                 ->setHelp('Optional SSH options for connecting to this host (e.g., "-o PubkeyAcceptedKeyTypes=+ssh-rsa,rsa-sha2-256")')
                 ->hideOnIndex(),
             DateTimeField::new('createdAt')->hideOnForm(),

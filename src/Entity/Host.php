@@ -10,11 +10,14 @@ use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
 use Stringable;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: HostRepository::class)]
 #[ORM\Table(name: '`host`')]
 class Host implements Stringable
 {
+    public const SSH_OPTIONS_PATTERN = '/^[a-zA-Z0-9 =,+.\/:_-]*$/';
+
     use TimestampableEntity;
 
     #[ORM\Id]
@@ -45,6 +48,11 @@ class Host implements Stringable
     private ?string $privateKey = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 1024)]
+    #[Assert\Regex(
+        pattern: self::SSH_OPTIONS_PATTERN,
+        message: 'SSH options may only contain alphanumeric characters, spaces, and these symbols: - = , + . / : _'
+    )]
     private ?string $sshOptions = null;
 
     /**
