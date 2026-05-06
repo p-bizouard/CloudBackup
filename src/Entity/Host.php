@@ -16,9 +16,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: '`host`')]
 class Host implements Stringable
 {
-    public const SSH_OPTIONS_PATTERN = '/^[a-zA-Z0-9 =,+.\/:_-]*$/';
-
     use TimestampableEntity;
+    public const SSH_OPTIONS_PATTERN = '/^[a-zA-Z0-9 =,+.\/:_-]*$/';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
