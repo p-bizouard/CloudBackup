@@ -41,6 +41,8 @@ class BackupService
     final public const RCLONE_UPLOAD_TIMEOUT = 3600 * 4;
     final public const int RCLONE_CHECK_TIMEOUT = 3600;
 
+    final public const int BACKUP_SIZE_MAX_RATIO = 2;
+
     public function __construct(
         private readonly string $temporaryDownloadDirectory,
         private readonly LoggerInterface $logger,
@@ -829,7 +831,7 @@ class BackupService
         // Calculate retention period as max of keepDaily and keepWeekly
         $keepDaily = $backup->getBackupConfiguration()->getKeepDaily();
         $keepWeekly = $backup->getBackupConfiguration()->getKeepWeekly();
-        
+
         // Ensure both values are non-negative
         if ($keepDaily < 0) {
             $keepDaily = 0;
@@ -837,11 +839,11 @@ class BackupService
         if ($keepWeekly < 0) {
             $keepWeekly = 0;
         }
-        
+
         $keepDays = max($keepDaily, $keepWeekly * 7);
-        
+
         // If both are 0, use a default of 7 days to prevent immediate deletion
-        if ($keepDays === 0) {
+        if (0 === $keepDays) {
             $keepDays = 7;
             $this->log($backup, Log::LOG_WARNING, 'Both keepDaily and keepWeekly are 0. Using default retention of 7 days.');
         }
@@ -882,40 +884,40 @@ class BackupService
         if ($process->isSuccessful()) {
             $this->log($backup, Log::LOG_INFO, $process->getOutput());
             $directories = array_filter(explode("\n", trim($process->getOutput())), fn ($dir) => '' !== $dir);
-            
-            $cutoffDate = (new DateTime())->modify(\sprintf('-%d days', $keepDays));
+
+            $cutoffDate = new DateTime()->modify(\sprintf('-%d days', $keepDays));
             // Set time to midnight for accurate day-level comparison
             $cutoffDate->setTime(0, 0, 0);
 
-            foreach ($directories as $dir) {
-                $dir = rtrim($dir, '/');
+            foreach ($directories as $directory) {
+                $directory = rtrim($directory, '/');
                 // Check if directory matches YYYY-MM-DD format
-                if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $dir, $matches)) {
+                if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $directory, $matches)) {
                     try {
                         // Use createFromFormat with strict validation to ensure valid dates
                         // The '!' prefix resets time components to prevent date overflow
                         $dirDate = DateTime::createFromFormat('!Y-m-d', $matches[1]);
                         $errors = DateTime::getLastErrors();
-                        
+
                         // Validate date is valid and matches expected format
                         $hasErrors = $errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0);
                         $isValidFormat = false !== $dirDate && $dirDate->format('Y-m-d') === $matches[1];
-                        
+
                         if (!$isValidFormat || $hasErrors) {
-                            $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date in directory name: %s', $dir));
+                            $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date in directory name: %s', $directory));
                             continue;
                         }
-                        
+
                         if ($dirDate < $cutoffDate) {
                             // Delete old archive directory
-                            $archiveDir = rtrim($backup->getBackupConfiguration()->getRcloneBackupDir(), '/').'/'.$dir;
+                            $archiveDir = rtrim($backup->getBackupConfiguration()->getRcloneBackupDir(), '/').'/'.$directory;
                             $command = 'rclone purge "${ARCHIVE_DIR}" --config "${RCLONE_CONFIG}"';
                             $parameters = [
                                 'ARCHIVE_DIR' => $archiveDir,
                                 'RCLONE_CONFIG' => $configFile,
                             ];
 
-                            $this->log($backup, Log::LOG_INFO, \sprintf('Attempting to delete old archive directory: %s (older than %d days retention period)', $dir, $keepDays));
+                            $this->log($backup, Log::LOG_INFO, \sprintf('Attempting to delete old archive directory: %s (older than %d days retention period)', $directory, $keepDays));
                             $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
 
                             $deleteProcess = Process::fromShellCommandline($command, null, $parameters);
@@ -923,13 +925,13 @@ class BackupService
                             $deleteProcess->run();
 
                             if (!$deleteProcess->isSuccessful()) {
-                                $this->log($backup, Log::LOG_WARNING, \sprintf('Failed to delete archive directory %s: %s', $dir, $deleteProcess->getErrorOutput()));
+                                $this->log($backup, Log::LOG_WARNING, \sprintf('Failed to delete archive directory %s: %s', $directory, $deleteProcess->getErrorOutput()));
                             } else {
-                                $this->log($backup, Log::LOG_INFO, \sprintf('Successfully deleted archive directory: %s', $dir));
+                                $this->log($backup, Log::LOG_INFO, \sprintf('Successfully deleted archive directory: %s', $directory));
                             }
                         }
-                    } catch (\Exception $e) {
-                        $this->log($backup, Log::LOG_WARNING, \sprintf('Error parsing date for directory %s: %s', $dir, $e->getMessage()));
+                    } catch (Exception $e) {
+                        $this->log($backup, Log::LOG_WARNING, \sprintf('Error parsing date for directory %s: %s', $directory, $e->getMessage()));
                     }
                 }
             }
@@ -1252,6 +1254,21 @@ class BackupService
                     $backup->setSize($backup->getResticSize());
                 }
 
+                $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
+                $resticSize = (int) $backup->getResticSize();
+
+                if ($resticSize <= $minimumBackupSize) {
+                    $message = \sprintf('Restic failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($resticSize), StringUtils::humanizeFileSize($minimumBackupSize));
+                    $this->log($backup, Log::LOG_NOTICE, $message);
+                    throw new Exception($message);
+                }
+
+                if ($minimumBackupSize > 0 && $resticSize > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
+                    $message = \sprintf('Restic failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($resticSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
+                    $this->log($backup, Log::LOG_NOTICE, $message);
+                    throw new Exception($message);
+                }
+
                 break;
             case Storage::TYPE_RCLONE:
                 $filesystem = new Filesystem();
@@ -1312,8 +1329,16 @@ class BackupService
 
                 $backup->setSize($output['bytes']);
 
-                if ($output['bytes'] <= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
-                    $message = \sprintf('Rclone failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($output['bytes']), StringUtils::humanizeFileSize($backup->getBackupConfiguration()->getMinimumBackupSize()));
+                $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
+
+                if ($output['bytes'] <= $minimumBackupSize) {
+                    $message = \sprintf('Rclone failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($output['bytes']), StringUtils::humanizeFileSize($minimumBackupSize));
+                    $this->log($backup, Log::LOG_NOTICE, $message);
+                    throw new Exception($message);
+                }
+
+                if ($minimumBackupSize > 0 && $output['bytes'] > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
+                    $message = \sprintf('Rclone failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($output['bytes']), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
                     $this->log($backup, Log::LOG_NOTICE, $message);
                     throw new Exception($message);
                 }
