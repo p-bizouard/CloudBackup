@@ -110,6 +110,9 @@ class BackupConfiguration implements Stringable
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $rcloneConfiguration = null;
 
+    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $skipRcloneCheck = false;
+
     #[ORM\Column(type: Types::SMALLINT, options: ['default' => 1])]
     private int $notifyEvery = 1;
 
@@ -516,6 +519,18 @@ class BackupConfiguration implements Stringable
     public function setRcloneFlags(?string $rcloneFlags): self
     {
         $this->rcloneFlags = $rcloneFlags;
+
+        return $this;
+    }
+
+    public function isSkipRcloneCheck(): bool
+    {
+        return $this->skipRcloneCheck;
+    }
+
+    public function setSkipRcloneCheck(bool $skipRcloneCheck): self
+    {
+        $this->skipRcloneCheck = $skipRcloneCheck;
 
         return $this;
     }
