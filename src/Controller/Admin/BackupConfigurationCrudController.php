@@ -126,6 +126,11 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->hideOnIndex()
                 ->addCssClass('backupConfigurationType-field rclone')
                 ->setHelp('Additional flags to pass to rclone sync command (--verbose, --ignore-errors, ...)'),
+            BooleanField::new('skipRcloneCheck')
+                ->hideOnIndex()
+                ->renderAsSwitch(false)
+                ->addCssClass('backupConfigurationType-field rclone')
+                ->setHelp('Skip rclone check/cryptcheck during health check. Size verification (rclone size + minimum size) still runs.'),
             TextField::new('resticCheckTags')
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_READ_RESTIC))
