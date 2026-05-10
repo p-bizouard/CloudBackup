@@ -41,6 +41,8 @@ class BackupService
     final public const RCLONE_UPLOAD_TIMEOUT = 3600 * 4;
     final public const int RCLONE_CHECK_TIMEOUT = 3600;
 
+    final public const int KOPIA_CHECK_TIMEOUT = 3600;
+
     final public const int BACKUP_SIZE_MAX_RATIO = 2;
 
     public function __construct(
@@ -1341,6 +1343,159 @@ class BackupService
                     $message = \sprintf('Rclone failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($output['bytes']), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
                     $this->log($backup, Log::LOG_NOTICE, $message);
                     throw new Exception($message);
+                }
+                break;
+            case Storage::TYPE_KOPIA:
+                $storage = $backup->getBackupConfiguration()->getStorage();
+                $env = $storage->getEnv() + $backup->getBackupConfiguration()->getKopiaEnv();
+
+                $filesystem = new Filesystem();
+                $configFile = $filesystem->tempnam('/tmp', 'kopia_');
+
+                try {
+                    // 1. Connect to the repository (per-call, ephemeral config file).
+                    $command = \sprintf(
+                        'kopia repository connect %s %s --config-file="${KOPIA_CONFIG}"',
+                        escapeshellarg((string) $storage->getKopiaBackend()),
+                        (string) $storage->getKopiaConnectArgs(),
+                    );
+                    $parameters = ['KOPIA_CONFIG' => $configFile];
+
+                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
+                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                    $process->run();
+
+                    if (!$process->isSuccessful()) {
+                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                        throw new ProcessFailedException($process);
+                    }
+
+                    // 2. Integrity verification (manifests + content metadata, no blob fetch).
+                    $command = 'kopia --config-file="${KOPIA_CONFIG}" snapshot verify --verify-files-percent=0';
+                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
+                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                    $process->run();
+
+                    if (!$process->isSuccessful()) {
+                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                        throw new ProcessFailedException($process);
+                    } else {
+                        $this->log($backup, Log::LOG_INFO, $process->getOutput());
+                    }
+
+                    // 3. Snapshot listing and freshness check.
+                    // Kopia's --tags flag is repeatable (one tag per flag, not CSV), so split the
+                    // whitespace-separated config value into one --tags invocation per token.
+                    $tagsClause = '';
+                    $listParameters = $parameters;
+                    $rawTags = trim((string) $backup->getBackupConfiguration()->getKopiaCheckTags());
+                    if ('' !== $rawTags) {
+                        foreach (preg_split('/\s+/', $rawTags) as $idx => $token) {
+                            $key = \sprintf('KOPIA_CHECK_TAG_%d', $idx);
+                            $tagsClause .= \sprintf(' --tags "${%s}"', $key);
+                            $listParameters[$key] = $token;
+                        }
+                    }
+                    $command = 'kopia --config-file="${KOPIA_CONFIG}" snapshot list --json'.$tagsClause;
+
+                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($listParameters)));
+                    $process = Process::fromShellCommandline($command, null, $env + $listParameters);
+                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                    $process->run();
+
+                    if (!$process->isSuccessful()) {
+                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                        throw new ProcessFailedException($process);
+                    }
+
+                    $snapshots = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
+                    if (!\is_array($snapshots) || [] === $snapshots) {
+                        $message = \sprintf('Cannot decode json or empty snapshot list : %s', $process->getOutput());
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    usort($snapshots, static function ($a, $b) {
+                        return new DateTime($b['endTime']) <=> new DateTime($a['endTime']);
+                    });
+
+                    $this->log($backup, Log::LOG_INFO, json_encode($snapshots, \JSON_PRETTY_PRINT));
+
+                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) $snapshots[0]['endTime']));
+                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
+
+                    if ($lastBackup < new DateTime('yesterday')) {
+                        $message = 'Last backup older than 24h';
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    $backup->setKopiaSize((int) ($snapshots[0]['stats']['totalSize'] ?? 0));
+                    $backup->setKopiaTotalSize(array_sum(array_map(
+                        static fn (array $snapshot): int => (int) ($snapshot['stats']['totalSize'] ?? 0),
+                        $snapshots,
+                    )));
+                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaSize : %s', StringUtils::humanizeFileSize($backup->getKopiaSize())));
+                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaTotalSize : %s', StringUtils::humanizeFileSize($backup->getKopiaTotalSize())));
+
+                    // 4. Repository on-disk bytes — aggregated by Kopia, no per-blob payload.
+                    $command = 'kopia --config-file="${KOPIA_CONFIG}" repository status --blob-stats --json';
+                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
+                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
+                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
+                    $process->run();
+
+                    if (!$process->isSuccessful()) {
+                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
+                        throw new ProcessFailedException($process);
+                    }
+
+                    $status = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
+                    if (!\is_array($status)) {
+                        $message = \sprintf('Cannot decode repository status json : %s', $process->getOutput());
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    // Kopia 0.22 exposes the aggregate under blobStats.totalSize when --blob-stats is on.
+                    // Walk a couple of historical paths so a minor Kopia upgrade doesn't silently zero the metric.
+                    $totalDedup = $status['blobStats']['totalSize']
+                        ?? $status['blobStats']['TotalSize']
+                        ?? $status['BlobStats']['totalSize']
+                        ?? null;
+                    if (null === $totalDedup) {
+                        $message = \sprintf('Cannot read total dedup size from repository status json : %s', $process->getOutput());
+                        $this->log($backup, Log::LOG_ERROR, $message);
+                        throw new Exception($message);
+                    }
+
+                    $backup->setKopiaTotalDedupSize((int) $totalDedup);
+                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaTotalDedupSize : %s', StringUtils::humanizeFileSize($backup->getKopiaTotalDedupSize())));
+
+                    // 5. Default Backup::size to kopiaSize when not already set.
+                    if (null === $backup->getSize()) {
+                        $backup->setSize($backup->getKopiaSize());
+                    }
+
+                    // 6. Min / 2x-max size guards (mirror Restic and Rclone).
+                    $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
+                    $kopiaSize = (int) $backup->getKopiaSize();
+
+                    if ($kopiaSize <= $minimumBackupSize) {
+                        $message = \sprintf('Kopia failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($kopiaSize), StringUtils::humanizeFileSize($minimumBackupSize));
+                        $this->log($backup, Log::LOG_NOTICE, $message);
+                        throw new Exception($message);
+                    }
+
+                    if ($minimumBackupSize > 0 && $kopiaSize > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
+                        $message = \sprintf('Kopia failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($kopiaSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
+                        $this->log($backup, Log::LOG_NOTICE, $message);
+                        throw new Exception($message);
+                    }
+                } finally {
+                    @unlink($configFile);
                 }
                 break;
         }

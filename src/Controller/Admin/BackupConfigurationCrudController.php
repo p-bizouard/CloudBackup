@@ -135,6 +135,17 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_READ_RESTIC))
                 ->setHelp('Filter restic snapshot with provided tags. Usefull to check specific Velero volume'),
+            TextField::new('kopiaCheckTags')
+                ->hideOnIndex()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s', BackupConfiguration::TYPE_READ_KOPIA))
+                ->setHelp(
+                    'Filter kopia snapshots by tag.<br />'
+                    .'Format: one or more <code>key:value</code> pairs separated by spaces.<br />'
+                    .'Examples:<br />'
+                    .'<code>workload:db</code> &mdash; single tag<br />'
+                    .'<code>workload:db env:prod</code> &mdash; multiple tags (AND filter; snapshot must carry every listed pair)<br />'
+                    .'Leave empty to monitor all snapshots in the repository.'
+                ),
 
             AssociationField::new('kubeconfig')
                 ->setRequired(false)

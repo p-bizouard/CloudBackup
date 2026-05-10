@@ -94,6 +94,13 @@ class StorageCrudController extends AbstractCrudController
             TextareaField::new('rcloneConfiguration')
                 ->hideOnIndex()
                 ->setHelp('See <a href="https://rclone.org/docs/">https://rclone.org/docs/</a> and paste your configuration here.<br />Must not contain password and password2, we will add them automatically from password and salt fields.'),
+            FormField::addFieldset('Kopia configuration')->addCssClass('storage-type-panel type-kopia'),
+            TextField::new('kopiaBackend')
+                ->setHelp('Kopia backend kind, e.g. <code>s3</code>, <code>gcs</code>, <code>b2</code>, <code>sftp</code>, <code>filesystem</code>.'),
+            TextareaField::new('kopiaConnectArgs')
+                ->hideOnIndex()
+                ->setHelp('Verbatim arguments appended after <code>kopia repository connect &lt;backend&gt;</code>.<br />Example: <code>--access-key=AK --secret-access-key=SAK --bucket=mybucket --endpoint=minio:9000 --prefix=repo/</code>'),
+            TextField::new('kopiaPassword')->hideOnIndex(),
         ];
     }
 

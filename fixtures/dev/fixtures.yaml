@@ -65,6 +65,12 @@ App\Entity\Storage:
             remote = repo:rclone-bucket/subdirectory
             password = egtBWMUKof2xAPP_jYBrMu1VA4c
             password2 = 7B_ZxzkfP6Q0ObYu5eWPDUnztoA
+    kopia:
+        name: kopia
+        type: kopia
+        kopiaBackend: s3
+        kopiaConnectArgs: '--access-key=minioadmin --secret-access-key=minioadmin --bucket=kopia --endpoint=minio:9000 --disable-tls --prefix=repo/'
+        kopiaPassword: kopiaPassword
 
 App\Entity\Host:
     host-by-key:
@@ -203,6 +209,17 @@ App\Entity\BackupConfiguration:
         keepWeekly: 4
         storage: "@swift"
         storageSubPath: "daily-mysql-host-pass"
+        enabled: false
+    read-kopia:
+        name: read-kopia
+        type: read-kopia
+        periodicity: "daily"
+        keepDaily: 7
+        keepWeekly: 4
+        storage: "@kopia"
+        storageSubPath: "daily-read-kopia"
+        kopiaCheckTags: ~
+        minimumBackupSize: 1024
         enabled: false
     ssh-cmd:
         name: daily-ssh-cmd

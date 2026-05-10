@@ -3,68 +3,160 @@
 {% block main %}
     {{ parent() }}
 
-    <h3>
-        Restic
-    </h3>
-    <div class="content-panel">
-        <div class="content-panel-body without-header without-footer without-padding">
-            <dl class="datalist">
-                <div class="data-row">
-                    <dd>Help</dd>
-                    <dl>
-                        <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet"
-                            target="_blank">
-                            Restic cheatsheet <i class="fas fa-external-link-alt"></i>
-                        </a>
-                    </dl>
-                </div>
-                <div class="data-row">
-                    <dd>Copy env</dd>
-                    <dl>
-                        <pre class="blur mb-0">
-                            {%- for envName, envValue in entity.instance.storage.env|merge(
-                                entity.instance.resticEnv
-                            ) -%}
-                                export {{ envName }}={{ envValue }}{{ '\n' }}
-                            {%- endfor -%}
-                        </pre>
-                    </dl>
-                </div>
-                <div class="data-row">
-                    <dd>List snapshots</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic snapshots
-                        </pre>
-                    </dl>
+    {% if entity.instance.storage.type == 'restic' %}
+        <h3>
+            Restic
+        </h3>
+        <div class="content-panel">
+            <div class="content-panel-body without-header without-footer without-padding">
+                <dl class="datalist">
+                    <div class="data-row">
+                        <dd>Help</dd>
+                        <dl>
+                            <a href="https://sites.google.com/site/mrxpalmeiras/notes/restic-cheatsheet"
+                                target="_blank">
+                                Restic cheatsheet <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>Copy env</dd>
+                        <dl>
+                            <pre class="blur mb-0">
+                                {%- for envName, envValue in entity.instance.storage.env|merge(
+                                    entity.instance.resticEnv
+                                ) -%}
+                                    export {{ envName }}={{ envValue }}{{ '\n' }}
+                                {%- endfor -%}
+                            </pre>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>List snapshots</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic snapshots
+                            </pre>
+                        </dl>
 
-                    <dd>Mount backups on read-only</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic mount /mnt/restic
-                        </pre>
-                    </dl>
+                        <dd>Mount backups on read-only</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic mount /mnt/restic
+                            </pre>
+                        </dl>
 
-                    <dd>Restore backups in /tmp</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic restore latest --target /tmp/
-                        </pre>
-                    </dl>
+                        <dd>Restore backups in /tmp</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic restore latest --target /tmp/
+                            </pre>
+                        </dl>
 
-                    <dd>Print last backup on stdin</dd>
-                    <dl>
-                        <pre class="mb-0">
-                            restic snapshots # List snapshots and copy path
-                        </pre>
-                        <pre class="mb-0">
-                            restic dump latest _PATH_
-                        </pre>
-                    </dl>
-                </div>
-            </dl>
+                        <dd>Print last backup on stdin</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                restic snapshots # List snapshots and copy path
+                            </pre>
+                            <pre class="mb-0">
+                                restic dump latest _PATH_
+                            </pre>
+                        </dl>
+                    </div>
+                </dl>
+            </div>
         </div>
-    </div>
+    {% elseif entity.instance.storage.type == 'kopia' %}
+        <h3>
+            Kopia
+        </h3>
+        <div class="content-panel">
+            <div class="content-panel-body without-header without-footer without-padding">
+                <dl class="datalist">
+                    <div class="data-row">
+                        <dd>Help</dd>
+                        <dl>
+                            <a href="https://kopia.io/docs/" target="_blank" rel="noopener noreferrer">
+                                Kopia doc <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>Copy env</dd>
+                        <dl>
+                            <pre class="blur mb-0">
+                                {%- for envName, envValue in entity.instance.storage.env|merge(
+                                    entity.instance.kopiaEnv
+                                ) -%}
+                                    export {{ envName }}={{ envValue }}{{ '\n' }}
+                                {%- endfor -%}
+                            </pre>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>Connect</dd>
+                        <dl>
+                            <pre class="blur mb-0">
+                                {{- 'kopia repository connect '
+                                    ~ entity.instance.storage.kopiaBackend
+                                    ~ ' '
+                                    ~ entity.instance.storage.kopiaConnectArgs -}}
+                            </pre>
+                            <small class="text-muted">
+                                Run <code>connect</code> once per workstation. All commands below reuse that local connection state.
+                            </small>
+                        </dl>
+                    </div>
+                    <div class="data-row">
+                        <dd>List snapshots</dd>
+                        <dl>
+                            <pre class="mb-0">
+                                {{- 'kopia snapshot list --json' -}}
+                                {% for tag in (entity.instance.kopiaCheckTags|default(''))|split(' ')|filter(t => t != '') %}
+                                    {{- ' --tags ' ~ tag -}}
+                                {% endfor %}
+                            </pre>
+                        </dl>
+
+                        <dd>Mount snapshots read-only</dd>
+                        <dl>
+                            <pre class="mb-0">kopia mount all /mnt/kopia</pre>
+                            <small class="text-muted">
+                                Requires FUSE. Browse host/source/timestamp trees under the mount point.
+                            </small>
+                        </dl>
+
+                        <dd>Restore snapshot in /tmp</dd>
+                        <dl>
+                            <pre class="mb-0">kopia snapshot restore &lt;SNAPSHOT_ID&gt; /tmp/</pre>
+                            <small class="text-muted">
+                                Copy <code>&lt;SNAPSHOT_ID&gt;</code> from the <em>List snapshots</em> output above. Kopia has no <code>latest</code> alias.
+                            </small>
+                        </dl>
+
+                        <dd>Show file from snapshot</dd>
+                        <dl>
+                            <pre class="mb-0">kopia ls &lt;SNAPSHOT_ID&gt;</pre>
+                            <pre class="mb-0">kopia show &lt;OBJECT_ID&gt;</pre>
+                            <small class="text-muted">
+                                <code>ls</code> walks the snapshot tree to find <code>&lt;OBJECT_ID&gt;</code>; <code>show</code> dumps that object's contents on stdout.
+                            </small>
+                        </dl>
+
+                        <dd>Verify integrity</dd>
+                        <dl>
+                            <pre class="mb-0">kopia snapshot verify --verify-files-percent=0</pre>
+                        </dl>
+
+                        <dd>Repository on-disk stats</dd>
+                        <dl>
+                            <pre class="mb-0">kopia repository status --blob-stats --json</pre>
+                        </dl>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    {% endif %}
 
     <h3>
         Backups

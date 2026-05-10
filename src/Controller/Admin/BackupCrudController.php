@@ -111,6 +111,20 @@ class BackupCrudController extends AbstractCrudController
                 ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
                 ->hideOnIndex()
                 ->hideOnForm(),
+            IntegerField::new('kopiaSize')
+                ->setLabel('Kopia snapshot size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnForm(),
+            IntegerField::new('kopiaTotalSize')
+                ->setLabel('Kopia total size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnIndex()
+                ->hideOnForm(),
+            IntegerField::new('kopiaTotalDedupSize')
+                ->setLabel('Kopia total deduplicated size')
+                ->setTemplatePath('admin/fields/humanizedFilesize.html.twig')
+                ->hideOnIndex()
+                ->hideOnForm(),
             AssociationField::new('logs')->hideOnForm(),
             DateTimeField::new('createdAt')->hideOnForm(),
             DateTimeField::new('updatedAt')->hideOnForm(),

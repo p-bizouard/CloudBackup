@@ -58,6 +58,8 @@
                                                                 {% if backupConfiguration.getLastBackup().resticSize|humanizeFileSize != backupConfiguration.getLastBackup().resticDedupSize|humanizeFileSize %}
                                                                     ({{ backupConfiguration.getLastBackup().resticDedupSize|humanizeFileSize }})
                                                                 {% endif %}
+                                                            {% elseif backupConfiguration.getLastBackup().kopiaSize %}
+                                                                : {{ backupConfiguration.getLastBackup().kopiaSize|humanizeFileSize }}
                                                             {% endif %}
                                                         </span>
                                                     </a>
@@ -67,6 +69,11 @@
                                                         {{ backupConfiguration.getLastBackup().resticTotalSize|humanizeFileSize }}
                                                         {% if backupConfiguration.getLastBackup().resticTotalSize|humanizeFileSize != backupConfiguration.getLastBackup().resticTotalDedupSize|humanizeFileSize %}
                                                             (real : {{ backupConfiguration.getLastBackup().resticTotalDedupSize|humanizeFileSize }})
+                                                        {% endif %}
+                                                    {% elseif backupConfiguration.getLastBackup().kopiaTotalSize %}
+                                                        {{ backupConfiguration.getLastBackup().kopiaTotalSize|humanizeFileSize }}
+                                                        {% if backupConfiguration.getLastBackup().kopiaTotalDedupSize and backupConfiguration.getLastBackup().kopiaTotalSize|humanizeFileSize != backupConfiguration.getLastBackup().kopiaTotalDedupSize|humanizeFileSize %}
+                                                            (real : {{ backupConfiguration.getLastBackup().kopiaTotalDedupSize|humanizeFileSize }})
                                                         {% endif %}
                                                     {% elseif backupConfiguration.getLastBackup().size %}
                                                         {{ backupConfiguration.getLastBackup().size|humanizeFileSize }}
@@ -93,12 +100,16 @@
         <div class="tab-pane fade" id="restore" role="tabpanel" aria-labelledby="restore-tab">
             {% set totalSize = 0 %}
             {% for backupConfiguration in backupConfigurations | filter(bc => bc.getLastBackup()) %}
-                {% set totalSize = totalSize + backupConfiguration.getLastBackup().resticSize %}
+                {% set totalSize = totalSize
+                    + (backupConfiguration.getLastBackup().resticSize ?? 0)
+                    + (backupConfiguration.getLastBackup().kopiaSize ?? 0) %}
             {% endfor %}
 
             {% set totalRepositoryUsage = 0 %}
             {% for backupConfiguration in backupConfigurations | filter(bc => bc.getLastBackup()) %}
-                {% set totalRepositoryUsage = totalRepositoryUsage + backupConfiguration.getLastBackup().resticTotalDedupSize %}
+                {% set totalRepositoryUsage = totalRepositoryUsage
+                    + (backupConfiguration.getLastBackup().resticTotalDedupSize ?? 0)
+                    + (backupConfiguration.getLastBackup().kopiaTotalDedupSize ?? 0) %}
             {% endfor %}
 
             <ul class="alert alert-warning mt-2 mb-2 list list-unstyled">
@@ -106,22 +117,48 @@
                 <li>Total repository usage : {{ totalRepositoryUsage|humanizeFileSize }}</li>
                 <li>Backups are restored to /tmp/restore/xxx. Edit it if needed.</li>
             </ul>
-            
+
             {%- for backupConfiguration in backupConfigurations | filter(bc => bc.getLastBackup()) -%}
                 <h3># {{ backupConfiguration.name }} from {{ backupConfiguration.storage.name }}</h3>
-                <p>
-                    # Backup size : {{ backupConfiguration.getLastBackup().resticSize|humanizeFileSize }}.<br />
-                    # Total repository usage: {{ totalRepositoryUsage|humanizeFileSize }}
-                </p>
+                {% if backupConfiguration.storage.type == 'kopia' %}
+                    <p>
+                        # Backup size : {{ backupConfiguration.getLastBackup().kopiaSize|humanizeFileSize }}.<br />
+                        # Total repository usage: {{ backupConfiguration.getLastBackup().kopiaTotalDedupSize|humanizeFileSize }}
+                    </p>
 
-                <pre class="blur mb-0">
-                    {%- for envName, envValue in (backupConfiguration.storage.env | merge(backupConfiguration.resticEnv)) -%}
-                        export {{ envName }}={{ envValue }}{{ "\n" }}
-                    {%- endfor -%}
+                    <pre class="blur mb-0">
+                        {%- for envName, envValue in (backupConfiguration.storage.env | merge(backupConfiguration.kopiaEnv)) -%}
+                            export {{ envName }}={{ envValue }}{{ "\n" }}
+                        {%- endfor -%}
 
-                    {{- 'restic restore latest --target /tmp/restore/' ~ backupConfiguration.slug -}}
+                        {{- 'kopia repository connect '
+                            ~ backupConfiguration.storage.kopiaBackend
+                            ~ ' '
+                            ~ backupConfiguration.storage.kopiaConnectArgs -}}{{ "\n" }}
 
-                </pre>
+                        {{- '# pick <SNAPSHOT_ID> from this list:' }}{{ "\n" }}
+                        {{- 'kopia snapshot list --json' -}}
+                        {% for tag in (backupConfiguration.kopiaCheckTags|default(''))|split(' ')|filter(t => t != '') %}
+                            {{- ' --tags ' ~ tag -}}
+                        {% endfor %}{{ "\n" }}
+
+                        {{- 'kopia snapshot restore <SNAPSHOT_ID> /tmp/restore/' ~ backupConfiguration.slug -}}
+                    </pre>
+                {% else %}
+                    <p>
+                        # Backup size : {{ backupConfiguration.getLastBackup().resticSize|humanizeFileSize }}.<br />
+                        # Total repository usage: {{ totalRepositoryUsage|humanizeFileSize }}
+                    </p>
+
+                    <pre class="blur mb-0">
+                        {%- for envName, envValue in (backupConfiguration.storage.env | merge(backupConfiguration.resticEnv)) -%}
+                            export {{ envName }}={{ envValue }}{{ "\n" }}
+                        {%- endfor -%}
+
+                        {{- 'restic restore latest --target /tmp/restore/' ~ backupConfiguration.slug -}}
+
+                    </pre>
+                {% endif %}
             {%- endfor -%}
         </div>
         <div class="tab-pane fade" id="inventory" role="tabpanel" aria-labelledby="inventory-tab">

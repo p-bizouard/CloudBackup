@@ -83,6 +83,9 @@ class BackupConfiguration implements Stringable
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $resticCheckTags = null;
 
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $kopiaCheckTags = null;
+
     #[ORM\ManyToOne(targetEntity: Kubeconfig::class, inversedBy: 'backupConfigurations')]
     private ?Kubeconfig $kubeconfig = null;
 
@@ -125,6 +128,7 @@ class BackupConfiguration implements Stringable
     final public const string TYPE_SSHFS = 'sshfs';
     final public const string TYPE_SSH_RESTIC = 'ssh-restic';
     final public const string TYPE_READ_RESTIC = 'read-restic';
+    final public const string TYPE_READ_KOPIA = 'read-kopia';
     final public const string TYPE_SSH_CMD = 'ssh-cmd';
     final public const string TYPE_SFTP = 'sftp';
     final public const string TYPE_RCLONE = 'rclone';
@@ -182,6 +186,7 @@ class BackupConfiguration implements Stringable
             self::TYPE_SSHFS,
             self::TYPE_SSH_RESTIC,
             self::TYPE_READ_RESTIC,
+            self::TYPE_READ_KOPIA,
             self::TYPE_SSH_CMD,
             self::TYPE_SFTP,
             self::TYPE_RCLONE,
@@ -237,6 +242,20 @@ class BackupConfiguration implements Stringable
         return [
             'RESTIC_PASSWORD' => $this->getStorage()->getResticPassword(),
             'RESTIC_REPOSITORY' => \sprintf('%s/%s', rtrim($this->getStorage()->getResticRepo(), '/'), trim((string) $this->getStorageSubPath(), '/')),
+        ];
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getKopiaEnv(): array
+    {
+        if (null === $this->getStorage() || null === $this->getStorage()->getKopiaPassword()) {
+            return [];
+        }
+
+        return [
+            'KOPIA_PASSWORD' => $this->getStorage()->getKopiaPassword(),
         ];
     }
 
@@ -543,6 +562,18 @@ class BackupConfiguration implements Stringable
     public function setResticCheckTags(?string $resticCheckTags): self
     {
         $this->resticCheckTags = $resticCheckTags;
+
+        return $this;
+    }
+
+    public function getKopiaCheckTags(): ?string
+    {
+        return $this->kopiaCheckTags;
+    }
+
+    public function setKopiaCheckTags(?string $kopiaCheckTags): self
+    {
+        $this->kopiaCheckTags = $kopiaCheckTags;
 
         return $this;
     }
