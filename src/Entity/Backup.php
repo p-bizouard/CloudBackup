@@ -54,6 +54,15 @@ class Backup implements Stringable
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $resticTotalDedupSize = null;
 
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
+    private ?int $kopiaSize = null;
+
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
+    private ?int $kopiaTotalSize = null;
+
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
+    private ?int $kopiaTotalDedupSize = null;
+
     final public const array BOOTSTRAP_COLOR = [
         'dump' => 'info',
         'backuped' => 'success',
@@ -246,6 +255,42 @@ class Backup implements Stringable
     public function setResticTotalDedupSize(?int $resticTotalDedupSize): self
     {
         $this->resticTotalDedupSize = $resticTotalDedupSize;
+
+        return $this;
+    }
+
+    public function getKopiaSize(): ?int
+    {
+        return $this->kopiaSize;
+    }
+
+    public function setKopiaSize(?int $kopiaSize): self
+    {
+        $this->kopiaSize = $kopiaSize;
+
+        return $this;
+    }
+
+    public function getKopiaTotalSize(): ?int
+    {
+        return $this->kopiaTotalSize;
+    }
+
+    public function setKopiaTotalSize(?int $kopiaTotalSize): self
+    {
+        $this->kopiaTotalSize = $kopiaTotalSize;
+
+        return $this;
+    }
+
+    public function getKopiaTotalDedupSize(): ?int
+    {
+        return $this->kopiaTotalDedupSize;
+    }
+
+    public function setKopiaTotalDedupSize(?int $kopiaTotalDedupSize): self
+    {
+        $this->kopiaTotalDedupSize = $kopiaTotalDedupSize;
 
         return $this;
     }

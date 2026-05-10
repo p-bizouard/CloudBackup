@@ -62,6 +62,14 @@ RUN wget --quiet "https://github.com/restic/restic/releases/download/v${RESTIC_V
     && mv "restic_${RESTIC_VERSION}_linux_amd64" /usr/local/bin/restic \
     && chmod +x /usr/local/bin/restic
 
+ARG KOPIA_VERSION=0.22.3
+RUN curl -fsSL "https://github.com/kopia/kopia/releases/download/v${KOPIA_VERSION}/kopia-${KOPIA_VERSION}-linux-x64.tar.gz" \
+        -o /tmp/kopia.tar.gz \
+    && tar -xzf /tmp/kopia.tar.gz -C /tmp \
+    && mv "/tmp/kopia-${KOPIA_VERSION}-linux-x64/kopia" /usr/local/bin/kopia \
+    && chmod +x /usr/local/bin/kopia \
+    && rm -rf /tmp/kopia.tar.gz "/tmp/kopia-${KOPIA_VERSION}-linux-x64"
+
 RUN install-php-extensions \
 	pdo_pgsql \
 	gd \
