@@ -103,11 +103,14 @@
             "cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd"
         },
+        "set-hooks-path": "[ -d .git ] && git config core.hooksPath .githooks || true",
         "post-install-cmd": [
-            "@auto-scripts"
+            "@auto-scripts",
+            "@set-hooks-path"
         ],
         "post-update-cmd": [
-            "@auto-scripts"
+            "@auto-scripts",
+            "@set-hooks-path"
         ],
         "workflow-dump": "php bin/console workflow:dump backup | dot -Tsvg -o doc/graph.svg"
     },
