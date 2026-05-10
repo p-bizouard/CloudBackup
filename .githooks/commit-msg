@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Commit-msg hook: enforce Conventional Commits on the subject line.
+#   <type>[optional scope][!]: <description>
+# Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert.
+# Optional scope: (lowercase letters, digits, '_' or '-').
+# Optional '!' marks a breaking change.
+# Subject length: 1-100 chars (Git's display soft-limit is 72; we allow a little slack).
+
+set -euo pipefail
+
+msg_file="$1"
+subject=$(grep -m1 -v '^\s*#' "${msg_file}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' || true)
+
+# Bypass cases — let Git's own machinery through.
+case "${subject}" in
+    "")                          exit 0 ;;  # empty (commit will abort anyway)
+    "Merge "*|"Revert "*)        exit 0 ;;  # merge / revert auto-messages
+    "fixup! "*|"squash! "*|"amend! "*) exit 0 ;;  # rebase --autosquash markers
+esac
+
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9_/-]+\))?!?: .{1,100}$'
+
+if ! [[ "${subject}" =~ ${pattern} ]]; then
+    cat >&2 <<EOF
+[commit-msg] Commit subject does not follow Conventional Commits.
+
+Got:
+    ${subject}
+
+Expected:
+    <type>[(scope)][!]: <subject>
+
+Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+Examples:
+    feat(backup): add upper-bound size guard
+    fix(auth): null-check user before email read
+    refactor!: drop deprecated v1 endpoints
+
+See https://www.conventionalcommits.org/ for details.
+EOF
+    exit 1
+fi
+
+exit 0
