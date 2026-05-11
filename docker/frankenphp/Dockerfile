@@ -10,81 +10,104 @@ ENTRYPOINT  ["/bin/sh", "-c"]
 # Install on launch, build to produce entrypoints and manifest.json, then watch for changes
 CMD ["npm install && npm run build && npm run watch"]
 
-FROM dunglas/frankenphp:1.10 AS dev
+# Node build stage pinned to native build platform — avoids QEMU on cross-arch builds
+FROM --platform=$BUILDPLATFORM node:24-alpine AS assets-build
 
-ENV DOCKER_USER=1000
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY assets assets
+COPY public public
+COPY webpack.config.js ./
+
+RUN npm run build
+
+#
+# base — runtime essentials shared by dev + prod (no dev-only tooling)
+#
+FROM dunglas/frankenphp:1.12.2 AS base
+
+ARG TARGETARCH
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-RUN cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini
-
-# Override php memory limit in php.ini to 512M
+# Override php memory limit
 RUN echo "memory_limit = 512M" >> $PHP_INI_DIR/conf.d/memory-limit.ini
 
-RUN apt update \
-    && apt install -y wget gnupg lsb-release \
-    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
-    && apt update \
-    && apt install -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        wget gnupg lsb-release ca-certificates curl unzip bzip2 \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
-        git unzip procps \
+        git \
         locales \
         sshfs sshpass \
         postgresql-client \
         mariadb-client \
-        graphviz \
-        bzip2 \
         python3-keystoneclient \
         python3-swiftclient \
         python3-openstackclient
 
-ARG KUBE_VERSION=1.33
-RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/kubernetes-apt-keyring.gpg \
+# kubectl
+ARG KUBE_VERSION=1.36
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/kubernetes-apt-keyring.gpg \
     && chmod 644 /etc/apt/kubernetes-apt-keyring.gpg \
     && echo 'deb [signed-by=/etc/apt/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v'${KUBE_VERSION}'/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list \
     && chmod 644 /etc/apt/sources.list.d/kubernetes.list \
-    && apt update \
-    && apt install -y kubectl
+    && apt-get update \
+    && apt-get install -y --no-install-recommends kubectl
 
-ARG RCLONE_VERSION=1.72.0
-RUN curl -fsSL "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.zip" -o rclone.zip \
-    && unzip rclone.zip \
-    && mv "rclone-v${RCLONE_VERSION}-linux-amd64/rclone" /usr/local/bin/ \
+# rclone — arch-aware
+ARG RCLONE_VERSION=1.74.1
+RUN curl -fsSL "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-${TARGETARCH}.zip" -o /tmp/rclone.zip \
+    && unzip -q /tmp/rclone.zip -d /tmp \
+    && mv "/tmp/rclone-v${RCLONE_VERSION}-linux-${TARGETARCH}/rclone" /usr/local/bin/ \
     && chmod +x /usr/local/bin/rclone \
-    && rm -rf rclone* \
-    && apt-get autoremove && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /tmp/rclone*
 
+# restic — arch-aware (uses amd64/arm64 naming)
 ARG RESTIC_VERSION=0.18.1
-RUN wget --quiet "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" \
-    && bzip2 -d "restic_${RESTIC_VERSION}_linux_amd64.bz2" \
-    && mv "restic_${RESTIC_VERSION}_linux_amd64" /usr/local/bin/restic \
+RUN wget --quiet "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_${TARGETARCH}.bz2" -O /tmp/restic.bz2 \
+    && bzip2 -d /tmp/restic.bz2 \
+    && mv /tmp/restic /usr/local/bin/restic \
     && chmod +x /usr/local/bin/restic
 
+# kopia — maps amd64→x64, arm64→arm64
 ARG KOPIA_VERSION=0.22.3
-RUN curl -fsSL "https://github.com/kopia/kopia/releases/download/v${KOPIA_VERSION}/kopia-${KOPIA_VERSION}-linux-x64.tar.gz" \
-        -o /tmp/kopia.tar.gz \
+RUN case "${TARGETARCH}" in \
+        amd64) KOPIA_ARCH=x64 ;; \
+        arm64) KOPIA_ARCH=arm64 ;; \
+        *) echo "unsupported arch: ${TARGETARCH}" && exit 1 ;; \
+    esac \
+    && curl -fsSL "https://github.com/kopia/kopia/releases/download/v${KOPIA_VERSION}/kopia-${KOPIA_VERSION}-linux-${KOPIA_ARCH}.tar.gz" -o /tmp/kopia.tar.gz \
     && tar -xzf /tmp/kopia.tar.gz -C /tmp \
-    && mv "/tmp/kopia-${KOPIA_VERSION}-linux-x64/kopia" /usr/local/bin/kopia \
+    && mv "/tmp/kopia-${KOPIA_VERSION}-linux-${KOPIA_ARCH}/kopia" /usr/local/bin/kopia \
     && chmod +x /usr/local/bin/kopia \
-    && rm -rf /tmp/kopia.tar.gz "/tmp/kopia-${KOPIA_VERSION}-linux-x64"
+    && rm -rf /tmp/kopia*
 
 RUN install-php-extensions \
-	pdo_pgsql \
-	gd \
-	intl \
-	zip \
-	opcache \
+    pdo_pgsql \
+    gd \
+    intl \
+    zip \
+    opcache \
     mbstring \
     bcmath \
     sockets \
     redis
 
 RUN echo "user:user:${USER:-1000}:${USER:-1000}:Dev user:/:/sbin/nologin" >> /etc/passwd \
-      && mkdir /.ssh /.cache \
-      && chown ${USER:-1000}:${USER:-1000} /.ssh /.cache \
-      && chown -R ${USER}:${USER} /data/caddy /config/caddy
+    && mkdir /.ssh /.cache \
+    && chown ${USER:-1000}:${USER:-1000} /.ssh /.cache \
+    && chown -R ${USER}:${USER} /data/caddy /config/caddy
 
 # Caddyfile.d is not used, so we remove the import line to avoid warning messages
 RUN sed -e '/import Caddyfile\.d/d' -i /etc/frankenphp/Caddyfile
@@ -92,41 +115,42 @@ RUN sed -e '/import Caddyfile\.d/d' -i /etc/frankenphp/Caddyfile
 COPY --chmod=755 docker/frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 ENTRYPOINT ["docker-entrypoint"]
 
+#
+# dev — adds debug/dev tools on top of base
+#
+FROM base AS dev
+
+ENV DOCKER_USER=1000
+
+RUN cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+        procps \
+        graphviz
+
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 
-FROM node:24-alpine AS assets-build
-
-WORKDIR /app
-
-COPY package*.json \
-    ./
-
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
-
-COPY assets assets
-COPY public public
-COPY webpack.config.js \
-    ./
-
-RUN npm run build
-
-FROM dev AS prod
+#
+# prod — slim runtime, vendor + assets baked in
+#
+FROM base AS prod
 
 RUN cp $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini
 
-COPY composer.json \
-    composer.lock \
-    ./
-
 ENV APP_ENV=prod
+
+COPY composer.json composer.lock ./
 
 RUN --mount=type=cache,target=/tmp/composer-cache \
     COMPOSER_CACHE_DIR=/tmp/composer-cache composer install \
     --no-dev \
     --no-interaction \
     --optimize-autoloader \
-    --no-scripts
+    --no-scripts \
+    --no-autoloader
 
 # Copy project files to workdir
 COPY bin bin
@@ -138,6 +162,9 @@ COPY translations translations
 COPY migrations migrations
 
 COPY --from=assets-build /app/public/build /app/public/build
+
+# Generate authoritative classmap now that src is present
+RUN composer dump-autoload --no-dev --classmap-authoritative
 
 # Enable worker mode
 ENV FRANKENPHP_CONFIG="worker ./public/index.php"
