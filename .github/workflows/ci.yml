@@ -6,15 +6,18 @@ jobs:
   linting:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
           coverage: none
           extensions: gd
+          tools: composer:v2
 
-      - name: Composer install
-        run: composer install --prefer-dist --no-progress --ansi
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: "--prefer-dist --ansi --no-progress"
 
       - name: Run PHPStan
         run: vendor/bin/phpstan --error-format=github
