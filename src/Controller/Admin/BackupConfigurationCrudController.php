@@ -113,7 +113,12 @@ class BackupConfigurationCrudController extends AbstractCrudController
             AssociationField::new('storage'),
             TextField::new('storageSubPath')
                 ->hideOnIndex()
-                ->setHelp('Restic subdirectory or Rclone full path with remote'),
+                ->setHelp(
+                    'Per-configuration sub-namespace inside the storage. Semantics depend on the storage type:<br />'
+                    .'&bull; <b>Restic</b>: subdirectory appended to the repository URL (e.g. <code>daily-mysql</code>).<br />'
+                    .'&bull; <b>Rclone</b>: full path including remote (e.g. <code>crypt:/backup</code>).<br />'
+                    .'&bull; <b>Kopia</b>: value of <code>--prefix</code> on <code>kopia repository connect</code> (e.g. <code>kopia/namespace/</code>) &mdash; lets several configurations share a single Kopia repository on the same backend bucket; leave empty to use the prefix already encoded in the storage&apos;s connect arguments.'
+                ),
             TextField::new('rcloneBackupDir')
                 ->hideOnIndex()
                 ->addCssClass('backupConfigurationType-field rclone')
