@@ -1449,8 +1449,8 @@ class BackupService
                     $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaSize : %s', StringUtils::humanizeFileSize($backup->getKopiaSize())));
                     $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaTotalSize : %s', StringUtils::humanizeFileSize($backup->getKopiaTotalSize())));
 
-                    // 4. Repository on-disk bytes — aggregated by Kopia, no per-blob payload.
-                    $command = 'kopia --config-file="${KOPIA_CONFIG}" repository status --blob-stats --json';
+                    // 4. Repository on-disk bytes — `blob stats --raw` walks backend blob listing.
+                    $command = 'kopia --config-file="${KOPIA_CONFIG}" blob stats --raw';
                     $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                     $process = Process::fromShellCommandline($command, null, $env + $parameters);
                     $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
@@ -1461,26 +1461,14 @@ class BackupService
                         throw new ProcessFailedException($process);
                     }
 
-                    $status = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
-                    if (!\is_array($status)) {
-                        $message = \sprintf('Cannot decode repository status json : %s', $process->getOutput());
+                    // Output is plain text; parse the "Total: <bytes>" line emitted by Kopia.
+                    if (1 !== preg_match('/^Total:\s+(\d+)\s*$/m', $process->getOutput(), $matches)) {
+                        $message = \sprintf('Cannot read total dedup size from blob stats output : %s', $process->getOutput());
                         $this->log($backup, Log::LOG_ERROR, $message);
                         throw new Exception($message);
                     }
 
-                    // Kopia 0.22 exposes the aggregate under blobStats.totalSize when --blob-stats is on.
-                    // Walk a couple of historical paths so a minor Kopia upgrade doesn't silently zero the metric.
-                    $totalDedup = $status['blobStats']['totalSize']
-                        ?? $status['blobStats']['TotalSize']
-                        ?? $status['BlobStats']['totalSize']
-                        ?? null;
-                    if (null === $totalDedup) {
-                        $message = \sprintf('Cannot read total dedup size from repository status json : %s', $process->getOutput());
-                        $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
-                    }
-
-                    $backup->setKopiaTotalDedupSize((int) $totalDedup);
+                    $backup->setKopiaTotalDedupSize((int) $matches[1]);
                     $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaTotalDedupSize : %s', StringUtils::humanizeFileSize($backup->getKopiaTotalDedupSize())));
 
                     // 5. Default Backup::size to kopiaSize when not already set.
