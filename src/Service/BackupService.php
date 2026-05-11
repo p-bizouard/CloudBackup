@@ -1354,12 +1354,21 @@ class BackupService
 
                 try {
                     // 1. Connect to the repository (per-call, ephemeral config file).
+                    // storageSubPath, when set, is passed as `--prefix` so several configurations
+                    // can share one Kopia repository on the same backend bucket.
+                    $parameters = ['KOPIA_CONFIG' => $configFile];
+                    $prefixClause = '';
+                    $storageSubPath = trim((string) $backup->getBackupConfiguration()->getStorageSubPath());
+                    if ('' !== $storageSubPath) {
+                        $prefixClause = ' --prefix="${KOPIA_PREFIX}"';
+                        $parameters['KOPIA_PREFIX'] = $storageSubPath;
+                    }
                     $command = \sprintf(
-                        'kopia repository connect %s %s --config-file="${KOPIA_CONFIG}"',
+                        'kopia repository connect %s %s%s --config-file="${KOPIA_CONFIG}"',
                         escapeshellarg((string) $storage->getKopiaBackend()),
                         (string) $storage->getKopiaConnectArgs(),
+                        $prefixClause,
                     );
-                    $parameters = ['KOPIA_CONFIG' => $configFile];
 
                     $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
                     $process = Process::fromShellCommandline($command, null, $env + $parameters);

@@ -134,7 +134,10 @@
                         {{- 'kopia repository connect '
                             ~ backupConfiguration.storage.kopiaBackend
                             ~ ' '
-                            ~ backupConfiguration.storage.kopiaConnectArgs -}}{{ "\n" }}
+                            ~ backupConfiguration.storage.kopiaConnectArgs -}}
+                        {% if backupConfiguration.storageSubPath %}
+                            {{- ' --prefix=' ~ backupConfiguration.storageSubPath -}}
+                        {% endif %}{{ "\n" }}
 
                         {{- '# pick <SNAPSHOT_ID> from this list:' }}{{ "\n" }}
                         {{- 'kopia snapshot list --json' -}}

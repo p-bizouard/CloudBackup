@@ -153,6 +153,9 @@
                                     ~ entity.instance.backupConfiguration.storage.kopiaBackend
                                     ~ ' '
                                     ~ entity.instance.backupConfiguration.storage.kopiaConnectArgs -}}
+                                {% if entity.instance.backupConfiguration.storageSubPath %}
+                                    {{- ' --prefix=' ~ entity.instance.backupConfiguration.storageSubPath -}}
+                                {% endif %}
                             </pre>
                             <small class="text-muted">
                                 Run <code>connect</code> once per workstation. All commands below reuse that local connection state.
