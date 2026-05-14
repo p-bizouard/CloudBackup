@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Backup;
+use App\Entity\BackupConfiguration;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -45,6 +46,19 @@ class BackupRepository extends ServiceEntityRepository
         }
 
         return $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function findLatestSuccessful(BackupConfiguration $backupConfiguration): ?Backup
+    {
+        /* @var ?Backup */
+        return $this->createQueryBuilder('b')
+            ->where("b.currentPlace = 'backuped'")
+            ->andWhere('b.backupConfiguration = :backupConfiguration')
+            ->setParameter('backupConfiguration', $backupConfiguration)
+            ->orderBy('b.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     // /**

@@ -4,6 +4,7 @@
 
 namespace App\Security\Authentication;
 
+use App\Entity\ApiClient;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -23,6 +24,10 @@ class AuthenticationSuccessHandler
 
     public function onLoginSuccessEvent(LoginSuccessEvent $loginSuccessEvent): void
     {
+        if ($loginSuccessEvent->getUser() instanceof ApiClient) {
+            return;
+        }
+
         $token = $loginSuccessEvent->getAuthenticatedToken();
 
         if (($token instanceof UsernamePasswordToken || $token instanceof PostAuthenticationToken) && ($targetPath = $this->getTargetPath($loginSuccessEvent->getRequest()->getSession(), $token->getFirewallName()))) {

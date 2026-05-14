@@ -2,6 +2,7 @@
 
 namespace App\Service\Inventory\Builder;
 
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use App\Service\Inventory\BackupConfigurationInventoryBuilderInterface;
 
@@ -12,8 +13,8 @@ final class KubeconfigInventoryBuilder implements BackupConfigurationInventoryBu
         return BackupConfiguration::TYPE_KUBECONFIG === $backupConfiguration->getType();
     }
 
-    public function build(BackupConfiguration $backupConfiguration): array
+    public function apply(BackupConfiguration $backupConfiguration, InventoryEntry $inventoryEntry): void
     {
-        return ['kubeNamespace' => $backupConfiguration->getKubeNamespace()];
+        $inventoryEntry->kubeNamespace = $backupConfiguration->getKubeNamespace();
     }
 }

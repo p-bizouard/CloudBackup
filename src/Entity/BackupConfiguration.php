@@ -264,7 +264,7 @@ class BackupConfiguration implements Stringable
         return \sprintf("%s\n%s", $this->getStorage()->getRcloneConfiguration(), $this->rcloneConfiguration);
     }
 
-    public function getId(): int
+    public function getId(): ?int
     {
         return $this->id;
     }

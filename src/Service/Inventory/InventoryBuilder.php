@@ -2,7 +2,12 @@
 
 namespace App\Service\Inventory;
 
+use App\ApiModel\BackupEntry;
+use App\ApiModel\InventoryEntry;
+use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
+use App\Repository\BackupRepository;
+use DateTimeInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 final class InventoryBuilder
@@ -13,13 +18,14 @@ final class InventoryBuilder
     public function __construct(
         #[AutowireIterator('app.backup_configuration_inventory_builder')]
         private readonly iterable $builders,
+        private readonly BackupRepository $backupRepository,
     ) {
     }
 
     /**
      * @param BackupConfiguration[] $backupConfigurations
      *
-     * @return array<int, array<string, mixed>>
+     * @return InventoryEntry[]
      */
     public function build(array $backupConfigurations): array
     {
@@ -31,31 +37,50 @@ final class InventoryBuilder
         return $inventory;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function buildEntry(BackupConfiguration $backupConfiguration): array
+    private function buildEntry(BackupConfiguration $backupConfiguration): InventoryEntry
     {
-        $entry = [
-            'name' => $backupConfiguration->getName(),
-            'type' => $backupConfiguration->getType(),
-        ];
-        $hasDumpFragment = false;
+        $minimumBackupSize = $backupConfiguration->getMinimumBackupSize();
+        $inventoryEntry = new InventoryEntry(
+            id: (int) $backupConfiguration->getId(),
+            name: (string) $backupConfiguration->getName(),
+            type: (string) $backupConfiguration->getType(),
+            expectedSize: null !== $minimumBackupSize ? (int) $minimumBackupSize : null,
+            latestBackup: $this->buildBackupEntry($backupConfiguration->getLatestBackup()),
+            latestSuccessfulBackup: $this->buildBackupEntry(
+                $this->backupRepository->findLatestSuccessful($backupConfiguration)
+            ),
+        );
 
+        $hasDumpFragment = false;
         foreach ($this->builders as $builder) {
             if (!$builder->supports($backupConfiguration)) {
                 continue;
             }
-            $entry += $builder->build($backupConfiguration);
+            $builder->apply($backupConfiguration, $inventoryEntry);
             if ($builder instanceof DumpFragmentInventoryBuilderInterface) {
                 $hasDumpFragment = true;
             }
         }
 
         if (!$hasDumpFragment) {
-            $entry['dumpCommand'] = $backupConfiguration->getDumpCommand();
+            $inventoryEntry->dumpCommand = $backupConfiguration->getDumpCommand();
         }
 
-        return $entry;
+        return $inventoryEntry;
+    }
+
+    private function buildBackupEntry(?Backup $backup): ?BackupEntry
+    {
+        if (null === $backup) {
+            return null;
+        }
+
+        $backupEntry = new BackupEntry();
+        $backupEntry->id = (int) $backup->getId();
+        $backupEntry->status = (string) $backup->getCurrentPlace();
+        $backupEntry->date = $backup->getCreatedAt()?->format(DateTimeInterface::ATOM);
+        $backupEntry->size = $backup->getSize();
+
+        return $backupEntry;
     }
 }
