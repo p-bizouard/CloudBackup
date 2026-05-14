@@ -10,10 +10,24 @@ security:
             entity:
                 class: App\Entity\User
                 property: email
+        api_client_provider:
+            entity:
+                class: App\Entity\ApiClient
+                property: clientId
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+        api_doc:
+            pattern: ^/api/doc(\.json)?$
+            security: false
+        api:
+            pattern: ^/api/
+            stateless: true
+            provider: api_client_provider
+            user_checker: App\Security\ApiClientChecker
+            http_basic:
+                realm: 'Cloud Backup Inventory API'
         main:
             lazy: true
             provider: app_user_provider
@@ -42,6 +56,8 @@ security:
     # Note: Only the *first* access control that matches will be used
     access_control:
         - { path: ^/(login|logout|cas), roles: PUBLIC_ACCESS }
+        - { path: ^/api/doc(\.json)?$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/, roles: ROLE_API }
         - { path: ^/, roles: ROLE_ADMIN }
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }

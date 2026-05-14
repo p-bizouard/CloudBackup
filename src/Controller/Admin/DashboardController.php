@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\ApiClient;
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
 use App\Entity\Host;
@@ -23,6 +24,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
 use Override;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Yaml\Yaml;
 
 #[AdminDashboard(routePath: '/', routeName: 'admin_dashboard')]
@@ -31,6 +33,7 @@ class DashboardController extends AbstractDashboardController
     public function __construct(
         private readonly BackupConfigurationRepository $backupConfigurationRepository,
         private readonly InventoryBuilder $inventoryBuilder,
+        private readonly NormalizerInterface $normalizer,
     ) {
     }
 
@@ -42,7 +45,11 @@ class DashboardController extends AbstractDashboardController
         return $this->render('admin/dashboard.html.twig', [
             'backupConfigurationTypes' => BackupConfiguration::getAvailableTypes(),
             'backupConfigurations' => $backupConfigurations,
-            'inventoryDump' => Yaml::dump($this->inventoryBuilder->build($backupConfigurations), 6, 2),
+            'inventoryDump' => Yaml::dump(
+                $this->normalizer->normalize($this->inventoryBuilder->build($backupConfigurations)),
+                6,
+                2,
+            ),
         ]);
     }
 
@@ -93,6 +100,7 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Openstack projects', 'fas fa-folder-open', OSProject::class);
         yield MenuItem::linkToCrud('Storages', 'fas fa-hdd', Storage::class);
         yield MenuItem::linkToCrud('Logs', 'fas fa-volume-up', Log::class);
+        yield MenuItem::linkToCrud('API clients', 'fas fa-key', ApiClient::class);
 
         yield MenuItem::section('Sources');
         yield MenuItem::linkToCrud('Openstack instances', 'fas fa-cloud', OSInstance::class);

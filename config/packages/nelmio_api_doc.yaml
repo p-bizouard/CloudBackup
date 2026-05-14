@@ -1,0 +1,17 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: Cloud Backup Inventory API
+            description: Read-only inventory of backup configurations and their latest backup state.
+            version: 1.0.0
+        components:
+            securitySchemes:
+                basicAuth:
+                    type: http
+                    scheme: basic
+                    description: 'HTTP Basic with API client credentials (clientId / clientSecret).'
+        security:
+            - basicAuth: []
+    areas:
+        path_patterns:
+            - ^/api/(?!doc(\.json)?$)

@@ -2,6 +2,7 @@
 
 namespace App\Tests\Service\Inventory\Builder;
 
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use App\Entity\OSInstance;
 use App\Entity\OSProject;
@@ -35,7 +36,7 @@ final class OsInstanceInventoryBuilderTest extends TestCase
         self::assertTrue($this->builder->supports($bc));
     }
 
-    public function testBuildWithFullProject(): void
+    public function testApplyWithFullProject(): void
     {
         $osProject = (new OSProject())
             ->setName('infra')
@@ -54,39 +55,31 @@ final class OsInstanceInventoryBuilderTest extends TestCase
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_OS_INSTANCE)
             ->setOsInstance($osInstance);
+        $entry = $this->makeEntry();
 
-        self::assertSame(
-            [
-                'osInstance' => [
-                    'name' => 'web-01',
-                    'id' => 'inst-123',
-                    'osRegionName' => 'GRA11',
-                    'osProject' => [
-                        'name' => 'infra',
-                        'tenantId' => 'tenant-xyz',
-                    ],
-                ],
-            ],
-            $this->builder->build($bc),
-        );
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->osInstance);
+        self::assertSame('web-01', $entry->osInstance->name);
+        self::assertSame('inst-123', $entry->osInstance->id);
+        self::assertSame('GRA11', $entry->osInstance->osRegionName);
+        self::assertNotNull($entry->osInstance->osProject);
+        self::assertSame('infra', $entry->osInstance->osProject->name);
+        self::assertSame('tenant-xyz', $entry->osInstance->osProject->tenantId);
     }
 
-    public function testBuildWithoutProject(): void
+    public function testApplyWithoutProject(): void
     {
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_OS_INSTANCE)
             ->setOsInstance($this->makeOsInstance());
+        $entry = $this->makeEntry();
 
-        self::assertSame(
-            [
-                'osInstance' => [
-                    'name' => 'web-01',
-                    'id' => 'inst-123',
-                    'osRegionName' => 'GRA11',
-                ],
-            ],
-            $this->builder->build($bc),
-        );
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->osInstance);
+        self::assertSame('web-01', $entry->osInstance->name);
+        self::assertNull($entry->osInstance->osProject);
     }
 
     private function makeOsInstance(): OSInstance
@@ -96,5 +89,10 @@ final class OsInstanceInventoryBuilderTest extends TestCase
             ->setName('web-01')
             ->setOSRegionName('GRA11')
             ->setSlug('web-01');
+    }
+
+    private function makeEntry(): InventoryEntry
+    {
+        return new InventoryEntry(id: 1, name: 'foo', type: BackupConfiguration::TYPE_OS_INSTANCE);
     }
 }

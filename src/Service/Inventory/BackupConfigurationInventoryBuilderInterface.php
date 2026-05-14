@@ -2,6 +2,7 @@
 
 namespace App\Service\Inventory;
 
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
@@ -10,8 +11,5 @@ interface BackupConfigurationInventoryBuilderInterface
 {
     public function supports(BackupConfiguration $backupConfiguration): bool;
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function build(BackupConfiguration $backupConfiguration): array;
+    public function apply(BackupConfiguration $backupConfiguration, InventoryEntry $inventoryEntry): void;
 }

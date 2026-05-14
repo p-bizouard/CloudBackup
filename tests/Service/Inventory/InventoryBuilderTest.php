@@ -2,7 +2,10 @@
 
 namespace App\Tests\Service\Inventory;
 
+use App\ApiModel\HostEntry;
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
+use App\Repository\BackupRepository;
 use App\Service\Inventory\BackupConfigurationInventoryBuilderInterface;
 use App\Service\Inventory\DumpFragmentInventoryBuilderInterface;
 use App\Service\Inventory\InventoryBuilder;
@@ -17,12 +20,19 @@ final class InventoryBuilderTest extends TestCase
             ->setType(BackupConfiguration::TYPE_SSHFS)
             ->setDumpCommand('do-stuff');
 
-        $builder = new InventoryBuilder([]);
+        $builder = new InventoryBuilder([], $this->makeBackupRepository());
 
-        self::assertSame(
-            [['name' => 'foo', 'type' => 'sshfs', 'dumpCommand' => 'do-stuff']],
-            $builder->build([$bc]),
-        );
+        $entries = $builder->build([$bc]);
+
+        self::assertCount(1, $entries);
+        $entry = $entries[0];
+        self::assertSame('foo', $entry->name);
+        self::assertSame('sshfs', $entry->type);
+        self::assertSame('do-stuff', $entry->dumpCommand);
+        self::assertNull($entry->expectedSize);
+        self::assertNull($entry->latestBackup);
+        self::assertNull($entry->latestSuccessfulBackup);
+        self::assertNull($entry->host);
     }
 
     public function testFallsBackToDumpCommandWhenNoDumpFragmentMatches(): void
@@ -34,20 +44,19 @@ final class InventoryBuilderTest extends TestCase
 
         $hostBuilder = $this->makeBuilder(
             supports: true,
-            output: ['host' => ['name' => 'srv', 'ip' => '1.2.3.4']],
+            apply: static function (BackupConfiguration $cfg, InventoryEntry $entry): void {
+                $entry->host = new HostEntry(name: 'srv', ip: '1.2.3.4');
+            },
         );
 
-        $builder = new InventoryBuilder([$hostBuilder]);
+        $builder = new InventoryBuilder([$hostBuilder], $this->makeBackupRepository());
+        $entry = $builder->build([$bc])[0];
 
-        self::assertSame(
-            [[
-                'name' => 'foo',
-                'type' => 'ssh-restic',
-                'host' => ['name' => 'srv', 'ip' => '1.2.3.4'],
-                'dumpCommand' => 'restic backup',
-            ]],
-            $builder->build([$bc]),
-        );
+        self::assertSame('ssh-restic', $entry->type);
+        self::assertSame('restic backup', $entry->dumpCommand);
+        self::assertNotNull($entry->host);
+        self::assertSame('srv', $entry->host->name);
+        self::assertSame('1.2.3.4', $entry->host->ip);
     }
 
     public function testDumpFragmentBuilderSuppressesDumpCommandFallback(): void
@@ -59,15 +68,17 @@ final class InventoryBuilderTest extends TestCase
 
         $pgBuilder = $this->makeDumpFragmentBuilder(
             supports: true,
-            output: ['postgresql' => ['host' => 'localhost']],
+            apply: static function (BackupConfiguration $cfg, InventoryEntry $entry): void {
+                $entry->postgresql = new \App\ApiModel\DbConnectionEntry(host: 'localhost', port: null, user: null, database: null);
+            },
         );
 
-        $builder = new InventoryBuilder([$pgBuilder]);
-
+        $builder = new InventoryBuilder([$pgBuilder], $this->makeBackupRepository());
         $entry = $builder->build([$bc])[0];
 
-        self::assertArrayNotHasKey('dumpCommand', $entry);
-        self::assertSame(['host' => 'localhost'], $entry['postgresql']);
+        self::assertNull($entry->dumpCommand);
+        self::assertNotNull($entry->postgresql);
+        self::assertSame('localhost', $entry->postgresql->host);
     }
 
     public function testIteratesAllBuildersAndMergesFragments(): void
@@ -76,30 +87,44 @@ final class InventoryBuilderTest extends TestCase
             ->setName('foo')
             ->setType(BackupConfiguration::TYPE_MYSQL);
 
-        $dbBuilder = $this->makeDumpFragmentBuilder(true, ['mysql' => ['host' => 'localhost']]);
-        $hostBuilder = $this->makeBuilder(true, ['host' => ['name' => 'srv', 'ip' => '1.2.3.4']]);
-        $unrelatedBuilder = $this->makeBuilder(false, ['ignored' => true]);
+        $dbBuilder = $this->makeDumpFragmentBuilder(true, static function (BackupConfiguration $cfg, InventoryEntry $entry): void {
+            $entry->mysql = new \App\ApiModel\DbConnectionEntry(host: 'localhost', port: null, user: null, database: null);
+        });
+        $hostBuilder = $this->makeBuilder(true, static function (BackupConfiguration $cfg, InventoryEntry $entry): void {
+            $entry->host = new HostEntry(name: 'srv', ip: '1.2.3.4');
+        });
+        $unrelatedBuilder = $this->makeBuilder(false, static function (BackupConfiguration $cfg, InventoryEntry $entry): void {
+            $entry->kubeNamespace = 'should-not-set';
+        });
 
-        $builder = new InventoryBuilder([$dbBuilder, $hostBuilder, $unrelatedBuilder]);
+        $builder = new InventoryBuilder([$dbBuilder, $hostBuilder, $unrelatedBuilder], $this->makeBackupRepository());
         $entry = $builder->build([$bc])[0];
 
-        self::assertSame(['name' => 'foo', 'type' => 'mysql'], array_intersect_key($entry, ['name' => 0, 'type' => 0]));
-        self::assertSame(['host' => 'localhost'], $entry['mysql']);
-        self::assertSame(['name' => 'srv', 'ip' => '1.2.3.4'], $entry['host']);
-        self::assertArrayNotHasKey('ignored', $entry);
-        self::assertArrayNotHasKey('dumpCommand', $entry);
+        self::assertSame('foo', $entry->name);
+        self::assertSame('mysql', $entry->type);
+        self::assertNotNull($entry->mysql);
+        self::assertSame('localhost', $entry->mysql->host);
+        self::assertNotNull($entry->host);
+        self::assertSame('srv', $entry->host->name);
+        self::assertNull($entry->kubeNamespace);
+        self::assertNull($entry->dumpCommand);
+    }
+
+    private function makeBackupRepository(): BackupRepository
+    {
+        $repository = $this->createMock(BackupRepository::class);
+        $repository->method('findLatestSuccessful')->willReturn(null);
+
+        return $repository;
     }
 
     /**
-     * @param array<string, mixed> $output
+     * @param \Closure(BackupConfiguration, InventoryEntry): void $apply
      */
-    private function makeBuilder(bool $supports, array $output): BackupConfigurationInventoryBuilderInterface
+    private function makeBuilder(bool $supports, \Closure $apply): BackupConfigurationInventoryBuilderInterface
     {
-        return new class($supports, $output) implements BackupConfigurationInventoryBuilderInterface {
-            /**
-             * @param array<string, mixed> $output
-             */
-            public function __construct(private readonly bool $supports, private readonly array $output)
+        return new class($supports, $apply) implements BackupConfigurationInventoryBuilderInterface {
+            public function __construct(private readonly bool $supports, private readonly \Closure $apply)
             {
             }
 
@@ -108,23 +133,20 @@ final class InventoryBuilderTest extends TestCase
                 return $this->supports;
             }
 
-            public function build(BackupConfiguration $backupConfiguration): array
+            public function apply(BackupConfiguration $backupConfiguration, InventoryEntry $entry): void
             {
-                return $this->output;
+                ($this->apply)($backupConfiguration, $entry);
             }
         };
     }
 
     /**
-     * @param array<string, mixed> $output
+     * @param \Closure(BackupConfiguration, InventoryEntry): void $apply
      */
-    private function makeDumpFragmentBuilder(bool $supports, array $output): DumpFragmentInventoryBuilderInterface
+    private function makeDumpFragmentBuilder(bool $supports, \Closure $apply): DumpFragmentInventoryBuilderInterface
     {
-        return new class($supports, $output) implements DumpFragmentInventoryBuilderInterface {
-            /**
-             * @param array<string, mixed> $output
-             */
-            public function __construct(private readonly bool $supports, private readonly array $output)
+        return new class($supports, $apply) implements DumpFragmentInventoryBuilderInterface {
+            public function __construct(private readonly bool $supports, private readonly \Closure $apply)
             {
             }
 
@@ -133,9 +155,9 @@ final class InventoryBuilderTest extends TestCase
                 return $this->supports;
             }
 
-            public function build(BackupConfiguration $backupConfiguration): array
+            public function apply(BackupConfiguration $backupConfiguration, InventoryEntry $entry): void
             {
-                return $this->output;
+                ($this->apply)($backupConfiguration, $entry);
             }
         };
     }

@@ -2,6 +2,7 @@
 
 namespace App\Tests\Service\Inventory\Builder;
 
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use App\Service\Inventory\Builder\PostgresqlInventoryBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -30,11 +31,15 @@ final class PostgresqlInventoryBuilderTest extends TestCase
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_POSTGRESQL)
             ->setDumpCommand(null);
+        $entry = $this->makeEntry();
 
-        self::assertSame(
-            ['postgresql' => ['host' => 'localhost', 'port' => null, 'user' => null, 'database' => null]],
-            $this->builder->build($bc),
-        );
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->postgresql);
+        self::assertSame('localhost', $entry->postgresql->host);
+        self::assertNull($entry->postgresql->port);
+        self::assertNull($entry->postgresql->user);
+        self::assertNull($entry->postgresql->database);
     }
 
     /**
@@ -87,12 +92,24 @@ final class PostgresqlInventoryBuilderTest extends TestCase
      * @param array{host: string, port: int|null, user: string|null, database: string|null} $expected
      */
     #[DataProvider('commandProvider')]
-    public function testBuildExtractsConnectionInfo(string $command, array $expected): void
+    public function testApplyExtractsConnectionInfo(string $command, array $expected): void
     {
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_POSTGRESQL)
             ->setDumpCommand($command);
+        $entry = $this->makeEntry();
 
-        self::assertSame(['postgresql' => $expected], $this->builder->build($bc));
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->postgresql);
+        self::assertSame($expected['host'], $entry->postgresql->host);
+        self::assertSame($expected['port'], $entry->postgresql->port);
+        self::assertSame($expected['user'], $entry->postgresql->user);
+        self::assertSame($expected['database'], $entry->postgresql->database);
+    }
+
+    private function makeEntry(): InventoryEntry
+    {
+        return new InventoryEntry(id: 1, name: 'foo', type: BackupConfiguration::TYPE_POSTGRESQL);
     }
 }

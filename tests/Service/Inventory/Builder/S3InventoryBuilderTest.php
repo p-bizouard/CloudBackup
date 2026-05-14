@@ -2,6 +2,7 @@
 
 namespace App\Tests\Service\Inventory\Builder;
 
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use App\Service\Inventory\Builder\RcloneIniParser;
 use App\Service\Inventory\Builder\S3InventoryBuilder;
@@ -71,24 +72,21 @@ final class S3InventoryBuilderTest extends TestCase
         self::assertTrue($this->builder->supports($bc));
     }
 
-    public function testBuildExtractsBucketAndCredentials(): void
+    public function testApplyExtractsBucketAndCredentials(): void
     {
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_RCLONE)
             ->setRcloneConfiguration(self::S3_CONFIG)
             ->setRemotePath('source:/bucket');
+        $entry = $this->makeEntry();
 
-        self::assertSame(
-            [
-                's3' => [
-                    'bucket' => 'bucket',
-                    'access_key_id' => 'abcd54fef3c14eeaa479d5189df9a69c',
-                    'region' => 'gra',
-                    'endpoint' => 'https://example.com',
-                ],
-            ],
-            $this->builder->build($bc),
-        );
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->s3);
+        self::assertSame('bucket', $entry->s3->bucket);
+        self::assertSame('fa0c54fef3c14eeaa479d5189df9a69c', $entry->s3->accessKeyId);
+        self::assertSame('gra', $entry->s3->region);
+        self::assertSame('https://example.com', $entry->s3->endpoint);
     }
 
     public function testBucketWithSubpathStripsToFirstSegment(): void
@@ -97,8 +95,12 @@ final class S3InventoryBuilderTest extends TestCase
             ->setType(BackupConfiguration::TYPE_RCLONE)
             ->setRcloneConfiguration(self::S3_CONFIG)
             ->setRemotePath('source:/my-bucket/subpath/deeper');
+        $entry = $this->makeEntry();
 
-        self::assertSame('my-bucket', $this->builder->build($bc)['s3']['bucket']);
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->s3);
+        self::assertSame('my-bucket', $entry->s3->bucket);
     }
 
     public function testBucketNullWhenRemotePathMissing(): void
@@ -107,8 +109,12 @@ final class S3InventoryBuilderTest extends TestCase
             ->setType(BackupConfiguration::TYPE_RCLONE)
             ->setRcloneConfiguration(self::S3_CONFIG)
             ->setRemotePath(null);
+        $entry = $this->makeEntry();
 
-        self::assertNull($this->builder->build($bc)['s3']['bucket']);
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->s3);
+        self::assertNull($entry->s3->bucket);
     }
 
     public function testMissingS3FieldsReturnNull(): void
@@ -122,17 +128,19 @@ final class S3InventoryBuilderTest extends TestCase
             ->setType(BackupConfiguration::TYPE_RCLONE)
             ->setRcloneConfiguration($minimalConfig)
             ->setRemotePath('source:/bkt');
+        $entry = $this->makeEntry();
 
-        self::assertSame(
-            [
-                's3' => [
-                    'bucket' => 'bkt',
-                    'access_key_id' => null,
-                    'region' => null,
-                    'endpoint' => null,
-                ],
-            ],
-            $this->builder->build($bc),
-        );
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->s3);
+        self::assertSame('bkt', $entry->s3->bucket);
+        self::assertNull($entry->s3->accessKeyId);
+        self::assertNull($entry->s3->region);
+        self::assertNull($entry->s3->endpoint);
+    }
+
+    private function makeEntry(): InventoryEntry
+    {
+        return new InventoryEntry(id: 1, name: 'foo', type: BackupConfiguration::TYPE_RCLONE);
     }
 }

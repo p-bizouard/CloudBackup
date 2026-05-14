@@ -2,6 +2,8 @@
 
 namespace App\Service\Inventory\Builder;
 
+use App\ApiModel\DbConnectionEntry;
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use App\Service\Inventory\DumpFragmentInventoryBuilderInterface;
 
@@ -46,29 +48,23 @@ final class PostgresqlInventoryBuilder implements DumpFragmentInventoryBuilderIn
         return BackupConfiguration::TYPE_POSTGRESQL === $backupConfiguration->getType();
     }
 
-    public function build(BackupConfiguration $backupConfiguration): array
+    public function apply(BackupConfiguration $backupConfiguration, InventoryEntry $inventoryEntry): void
     {
         $command = $backupConfiguration->getDumpCommand();
-        $result = ['host' => null, 'port' => null, 'user' => null, 'database' => null];
 
         if (null === $command || '' === trim($command)) {
-            $result['host'] = 'localhost';
+            $inventoryEntry->postgresql = new DbConnectionEntry(host: 'localhost', port: null, user: null, database: null);
 
-            return ['postgresql' => $result];
+            return;
         }
 
-        $result['host'] = $this->matchFirst($command, self::HOST_PATTERNS);
-        $result['user'] = $this->matchFirst($command, self::USER_PATTERNS);
         $port = $this->matchFirst($command, self::PORT_PATTERNS);
-        $result['port'] = null !== $port ? (int) $port : null;
-        $result['database'] = $this->matchFirst($command, self::DATABASE_PATTERNS)
-            ?? $this->extractPositionalDatabase($command);
-
-        if (null === $result['host']) {
-            $result['host'] = 'localhost';
-        }
-
-        return ['postgresql' => $result];
+        $inventoryEntry->postgresql = new DbConnectionEntry(
+            host: $this->matchFirst($command, self::HOST_PATTERNS) ?? 'localhost',
+            port: null !== $port ? (int) $port : null,
+            user: $this->matchFirst($command, self::USER_PATTERNS),
+            database: $this->matchFirst($command, self::DATABASE_PATTERNS) ?? $this->extractPositionalDatabase($command),
+        );
     }
 
     /**

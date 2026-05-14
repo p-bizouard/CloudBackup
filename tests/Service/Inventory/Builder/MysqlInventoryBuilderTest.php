@@ -2,6 +2,7 @@
 
 namespace App\Tests\Service\Inventory\Builder;
 
+use App\ApiModel\InventoryEntry;
 use App\Entity\BackupConfiguration;
 use App\Service\Inventory\Builder\MysqlInventoryBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -30,11 +31,15 @@ final class MysqlInventoryBuilderTest extends TestCase
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_MYSQL)
             ->setDumpCommand(null);
+        $entry = $this->makeEntry();
 
-        self::assertSame(
-            ['mysql' => ['host' => 'localhost', 'port' => null, 'user' => null, 'database' => null]],
-            $this->builder->build($bc),
-        );
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->mysql);
+        self::assertSame('localhost', $entry->mysql->host);
+        self::assertNull($entry->mysql->port);
+        self::assertNull($entry->mysql->user);
+        self::assertNull($entry->mysql->database);
     }
 
     /**
@@ -87,12 +92,24 @@ final class MysqlInventoryBuilderTest extends TestCase
      * @param array{host: string, port: int|null, user: string|null, database: string|null} $expected
      */
     #[DataProvider('commandProvider')]
-    public function testBuildExtractsConnectionInfo(string $command, array $expected): void
+    public function testApplyExtractsConnectionInfo(string $command, array $expected): void
     {
         $bc = (new BackupConfiguration())
             ->setType(BackupConfiguration::TYPE_MYSQL)
             ->setDumpCommand($command);
+        $entry = $this->makeEntry();
 
-        self::assertSame(['mysql' => $expected], $this->builder->build($bc));
+        $this->builder->apply($bc, $entry);
+
+        self::assertNotNull($entry->mysql);
+        self::assertSame($expected['host'], $entry->mysql->host);
+        self::assertSame($expected['port'], $entry->mysql->port);
+        self::assertSame($expected['user'], $entry->mysql->user);
+        self::assertSame($expected['database'], $entry->mysql->database);
+    }
+
+    private function makeEntry(): InventoryEntry
+    {
+        return new InventoryEntry(id: 1, name: 'foo', type: BackupConfiguration::TYPE_MYSQL);
     }
 }

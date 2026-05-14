@@ -2,6 +2,8 @@
 
 namespace App\Service\Inventory\Builder;
 
+use App\ApiModel\InventoryEntry;
+use App\ApiModel\S3Entry;
 use App\Entity\BackupConfiguration;
 use App\Service\Inventory\DumpFragmentInventoryBuilderInterface;
 
@@ -26,26 +28,24 @@ final class S3InventoryBuilder implements DumpFragmentInventoryBuilderInterface
         return 1 === preg_match('/^\s*type\s*=\s*s3\s*$/m', $config);
     }
 
-    public function build(BackupConfiguration $backupConfiguration): array
+    public function apply(BackupConfiguration $backupConfiguration, InventoryEntry $inventoryEntry): void
     {
         $config = $backupConfiguration->getRcloneConfiguration();
         if (null === $config || '' === trim($config)) {
-            return [];
+            return;
         }
 
         $section = $this->findS3Section($config);
         if (null === $section) {
-            return [];
+            return;
         }
 
-        return [
-            's3' => [
-                'bucket' => $this->extractBucket($backupConfiguration->getRemotePath()),
-                'access_key_id' => $section['access_key_id'] ?? null,
-                'region' => $section['region'] ?? null,
-                'endpoint' => $section['endpoint'] ?? null,
-            ],
-        ];
+        $inventoryEntry->s3 = new S3Entry(
+            bucket: $this->extractBucket($backupConfiguration->getRemotePath()),
+            accessKeyId: $section['access_key_id'] ?? null,
+            region: $section['region'] ?? null,
+            endpoint: $section['endpoint'] ?? null,
+        );
     }
 
     /**
