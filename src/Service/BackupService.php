@@ -1266,9 +1266,10 @@ class BackupService
                 }
 
                 if ($minimumBackupSize > 0 && $resticSize > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
-                    $message = \sprintf('Restic failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($resticSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
+                    $newMinimumBackupSize = (int) ($minimumBackupSize * (1 + (self::BACKUP_SIZE_MAX_RATIO - 1) / 2));
+                    $message = \sprintf('Restic backup size %s exceeds %dx the expected size %s. Updating expected size to %s.', StringUtils::humanizeFileSize($resticSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize), StringUtils::humanizeFileSize($newMinimumBackupSize));
                     $this->log($backup, Log::LOG_NOTICE, $message);
-                    throw new Exception($message);
+                    $backup->getBackupConfiguration()->setMinimumBackupSize((string) $newMinimumBackupSize);
                 }
 
                 break;
@@ -1340,9 +1341,10 @@ class BackupService
                 }
 
                 if ($minimumBackupSize > 0 && $output['bytes'] > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
-                    $message = \sprintf('Rclone failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($output['bytes']), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
+                    $newMinimumBackupSize = (int) ($minimumBackupSize * (1 + (self::BACKUP_SIZE_MAX_RATIO - 1) / 2));
+                    $message = \sprintf('Rclone backup size %s exceeds %dx the expected size %s. Updating expected size to %s.', StringUtils::humanizeFileSize($output['bytes']), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize), StringUtils::humanizeFileSize($newMinimumBackupSize));
                     $this->log($backup, Log::LOG_NOTICE, $message);
-                    throw new Exception($message);
+                    $backup->getBackupConfiguration()->setMinimumBackupSize((string) $newMinimumBackupSize);
                 }
                 break;
             case Storage::TYPE_KOPIA:
@@ -1476,7 +1478,7 @@ class BackupService
                         $backup->setSize($backup->getKopiaSize());
                     }
 
-                    // 6. Min / 2x-max size guards (mirror Restic and Rclone).
+                    // 6. Min / max-ratio size guards (mirror Restic and Rclone).
                     $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
                     $kopiaSize = (int) $backup->getKopiaSize();
 
@@ -1487,9 +1489,10 @@ class BackupService
                     }
 
                     if ($minimumBackupSize > 0 && $kopiaSize > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
-                        $message = \sprintf('Kopia failed. Backup size %s exceeds %dx the expected size %s. Please update the expected size to a more appropriate value.', StringUtils::humanizeFileSize($kopiaSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize));
+                        $newMinimumBackupSize = (int) ($minimumBackupSize * (1 + (self::BACKUP_SIZE_MAX_RATIO - 1) / 2));
+                        $message = \sprintf('Kopia backup size %s exceeds %dx the expected size %s. Updating expected size to %s.', StringUtils::humanizeFileSize($kopiaSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize), StringUtils::humanizeFileSize($newMinimumBackupSize));
                         $this->log($backup, Log::LOG_NOTICE, $message);
-                        throw new Exception($message);
+                        $backup->getBackupConfiguration()->setMinimumBackupSize((string) $newMinimumBackupSize);
                     }
                 } finally {
                     @unlink($configFile);
