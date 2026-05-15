@@ -44,11 +44,22 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         wget gnupg lsb-release ca-certificates curl unzip bzip2 \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        | gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg \
+    && echo "deb [signed-by=/etc/apt/trusted.gpg.d/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         libcurl4-gnutls-dev zlib1g-dev libicu-dev g++ libxml2-dev libpq-dev libonig-dev libzip-dev libldb-dev libpng-dev \
         git \
         locales \
         sshfs sshpass \
-        postgresql-client \
+        postgresql-client-13 \
+        postgresql-client-14 \
+        postgresql-client-15 \
+        postgresql-client-16 \
+        postgresql-client-17 \
+        postgresql-client-18 \
         mariadb-client \
         python3-keystoneclient \
         python3-swiftclient \
