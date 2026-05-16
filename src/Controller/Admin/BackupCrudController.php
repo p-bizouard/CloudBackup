@@ -13,6 +13,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use Override;
 use Symfony\Component\Workflow\Registry;
 
@@ -63,8 +64,14 @@ class BackupCrudController extends AbstractCrudController
     #[Override]
     public function configureFilters(Filters $filters): Filters
     {
+        $places = array_keys($this->workflowRegistry->get(new Backup())->getDefinition()->getPlaces());
+
         return $filters
             ->add('backupConfiguration')
+            ->add(
+                ChoiceFilter::new('currentPlace', 'Status')
+                    ->setChoices(array_combine($places, $places))
+            )
         ;
     }
 
