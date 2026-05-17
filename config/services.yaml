@@ -49,9 +49,9 @@ services:
         arguments:
             - "ticket"
 
-    App\Service\BackupService:
+    App\Backup\Path\TemporaryPathResolver:
         arguments:
-            - "%env(TEMPORARY_DOWNLOAD_DIRECTORY)%"
+            $temporaryDownloadDirectory: "%env(TEMPORARY_DOWNLOAD_DIRECTORY)%"
 
     App\Service\MailerService:
         arguments:
