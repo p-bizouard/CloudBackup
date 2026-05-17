@@ -1,83 +1,151 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
+use App\Backup\Logging\BackupLogger;
 use App\Entity\Backup;
 use App\Entity\BackupConfiguration;
-use App\Entity\Host;
 use App\Entity\Log;
-use App\Entity\Storage;
 use App\Repository\BackupRepository;
-use App\Utils\StringUtils;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
-use InvalidArgumentException;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-use Symfony\Component\Process\Process;
-use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Workflow\Registry;
+use Symfony\Component\Workflow\WorkflowInterface;
 
-class BackupService
+final class BackupService
 {
-    final public const int RESTIC_INIT_TIMEOUT = 60;
-    final public const string RESTIC_INIT_REGEX = '/Fatal\: create key in repository.*repository master key and config already initialized|failed\: config file already exists/';
-    final public const RESTIC_UPLOAD_TIMEOUT = 3600 * 4;
-    final public const int RESTIC_CHECK_TIMEOUT = 3600;
-    final public const int RESTIC_REPAIR_TIMEOUT = 3600;
-    final public const int RESTIC_LOCK_MAX_AGE_SECONDS = 3600 * 20;
-
-    final public const int OS_INSTANCE_SNAPSHOT_TIMEOUT = 60;
-    final public const int OS_IMAGE_LIST_TIMEOUT = 60;
-    final public const OS_DOWNLOAD_TIMEOUT = 3600 * 4;
-
-    final public const int SSHFS_MOUNT_TIMEOUT = 60;
-    final public const int SSHFS_UMOUNT_TIMEOUT = 60;
-
-    final public const DOWNLOAD_SIZE_TIMEOUT = 60 * 10;
-
-    final public const RCLONE_UPLOAD_TIMEOUT = 3600 * 4;
-    final public const int RCLONE_CHECK_TIMEOUT = 3600;
-
-    final public const int KOPIA_CHECK_TIMEOUT = 3600;
-
-    final public const int BACKUP_SIZE_MAX_RATIO = 2;
-
     public function __construct(
-        private readonly string $temporaryDownloadDirectory,
-        private readonly LoggerInterface $logger,
         private readonly EntityManagerInterface $entityManager,
         private readonly Registry $workflowRegistry,
         private readonly BackupRepository $backupRepository,
+        private readonly BackupLogger $backupLogger,
     ) {
     }
 
-    public function log(Backup $backup, string $level, string $message): void
+    public function initBackup(BackupConfiguration $backupConfiguration): void
     {
-        match ($level) {
-            Log::LOG_ERROR => $this->logger->error($message),
-            Log::LOG_WARNING => $this->logger->warning($message),
-            Log::LOG_INFO => $this->logger->info($message),
-            Log::LOG_NOTICE => $this->logger->notice($message),
-            default => throw new Exception('Log level not found'),
-        };
+        $now = new DateTime();
+        $backup = $this->findOrCreateBackup($backupConfiguration);
 
-        $log = new Log();
-        $log->setLevel($level);
-        $log->setMessage($message);
+        if ($this->isTerminalForToday($backup, $backupConfiguration, $now)) {
+            return;
+        }
 
-        $backup->addLog($log);
+        $workflow = $this->workflowRegistry->get($backup);
 
-        $this->entityManager->persist($log);
+        $this->backupLogger->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
+
+        if ('backuped' === $backup->getCurrentPlace()) {
+            $backup = new Backup();
+            $backup->setBackupConfiguration($backupConfiguration);
+        } elseif ('initialized' !== $backup->getCurrentPlace()) {
+            $this->backupLogger->log($backup, Log::LOG_NOTICE, \sprintf('Resume backup with current state %s', $backup->getCurrentPlace()));
+
+            $isStale = $backup->getCreatedAt()->format('Y-m-d') !== $now->format('Y-m-d')
+                && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity();
+
+            if ($isStale) {
+                $this->backupLogger->log($backup, Log::LOG_NOTICE, 'Backup is not from today, force fail it');
+                if ('failed' !== $backup->getCurrentPlace()) {
+                    $workflow->apply($backup, 'failed');
+                    $this->entityManager->persist($backup);
+                    $this->entityManager->flush();
+                }
+
+                $backup = new Backup();
+                $backup->setBackupConfiguration($backupConfiguration);
+            }
+        }
+
+        try {
+            if ($workflow->can($backup, 'start')) {
+                $workflow->apply($backup, 'start');
+            }
+
+            if ($workflow->can($backup, 'upload')) {
+                $workflow->apply($backup, 'upload');
+            } elseif ($workflow->can($backup, 'dump')) {
+                $workflow->apply($backup, 'dump');
+            }
+        } catch (Exception $e) {
+            $this->failWorkflow($backup, $workflow, $e);
+        }
+
         $this->entityManager->persist($backup);
         $this->entityManager->flush();
     }
 
-    public function logParameters(mixed $parameters): string
+    public function performBackup(BackupConfiguration $backupConfiguration): void
     {
-        return strip_tags(json_encode($parameters, \JSON_PRETTY_PRINT));
+        $backup = $this->findLatestBackupOrFail($backupConfiguration);
+
+        if ($this->isTerminalForToday($backup, $backupConfiguration, new DateTime())) {
+            return;
+        }
+
+        $workflow = $this->workflowRegistry->get($backup);
+
+        $this->backupLogger->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
+
+        try {
+            foreach (['download', 'upload', 'cleanup'] as $transition) {
+                if ($workflow->can($backup, $transition)) {
+                    $workflow->apply($backup, $transition);
+                }
+            }
+        } catch (Exception $e) {
+            $this->failWorkflow($backup, $workflow, $e);
+        }
+
+        $this->entityManager->persist($backup);
+        $this->entityManager->flush();
+    }
+
+    public function completeBackup(BackupConfiguration $backupConfiguration): void
+    {
+        $backup = $this->findLatestBackupOrFail($backupConfiguration);
+
+        if ($this->isTerminalForToday($backup, $backupConfiguration, new DateTime())) {
+            return;
+        }
+
+        $workflow = $this->workflowRegistry->get($backup);
+
+        $this->backupLogger->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
+
+        try {
+            foreach (['health_check', 'forget', 'backuped'] as $transition) {
+                if ($workflow->can($backup, $transition)) {
+                    $workflow->apply($backup, $transition);
+                }
+            }
+        } catch (Exception $e) {
+            $this->failWorkflow($backup, $workflow, $e);
+        }
+
+        $this->entityManager->persist($backup);
+        $this->entityManager->flush();
+    }
+
+    /**
+     * A backup in a terminal place (failed/backuped) for today's daily run is "done":
+     * the hourly poller should skip it silently rather than re-entering the workflow
+     * and emitting a NOTICE log line each pass.
+     */
+    private function isTerminalForToday(Backup $backup, BackupConfiguration $backupConfiguration, DateTime $now): bool
+    {
+        if (BackupConfiguration::PERIODICITY_DAILY !== $backupConfiguration->getPeriodicity()) {
+            return false;
+        }
+
+        if (!\in_array($backup->getCurrentPlace(), ['failed', 'backuped'], true)) {
+            return false;
+        }
+
+        return $backup->getCreatedAt()?->format('Y-m-d') === $now->format('Y-m-d');
     }
 
     public function applyWorkflow(Backup $backup, string $transition): void
@@ -89,1655 +157,41 @@ class BackupService
         $this->entityManager->flush();
     }
 
-    public function snapshotOSInstance(Backup $backup): void
+    private function findOrCreateBackup(BackupConfiguration $backupConfiguration): Backup
     {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $status = $this->getSnapshotOsInstanceStatus($backup);
-        if (null !== $status) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('Snapshot already found with %s', $status));
-
-            return;
-        }
-
-        $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
-
-        $command = 'openstack server image create --name ${BACKUP_NAME} ${OS_INSTANCE_ID}';
-        $parameters = [
-            'BACKUP_NAME' => $backup->getName(),
-            'OS_INSTANCE_ID' => $backup->getBackupConfiguration()->getOsInstance()->getId(),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $env + $parameters);
-        $process->setTimeout(self::OS_INSTANCE_SNAPSHOT_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - openstack server image create - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-    }
-
-    public function getSnapshotOsInstanceStatus(Backup $backup): ?string
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
-
-        $command = 'openstack image list --private --name ${BACKUP_NAME} --long -f json';
-        $parameters = [
-            'BACKUP_NAME' => $backup->getName(),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $env + $parameters);
-        $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing snapshot - openstack image list - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        $output = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
-        if (null === $output) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing snapshot - openstack image list - %s - %s', $process->getOutput(), $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        }
-
-        if ((is_countable($output) ? \count($output) : 0) === 0) {
-            return null;
-        }
-
-        if (null === $backup->getOsImageId() || null === $backup->getSize()) {
-            $backup->setOsImageId($output[0]['ID']);
-            $backup->setChecksum($output[0]['Checksum']);
-            $backup->setSize($output[0]['Size']);
-        }
-
-        $this->entityManager->persist($backup);
-        $this->entityManager->flush();
-
-        return $output[0]['Status'];
-    }
-
-    private function getSftpDownloadSize(Backup $backup): int
-    {
-        $command = 'du -sb "${BACKUP_DESTINATION}" | cut -f1';
-        $parameters = [
-            'BACKUP_DESTINATION' => $this->getTemporaryBackupDestination($backup),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::DOWNLOAD_SIZE_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error getting download size - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        return (int) $process->getOutput();
-    }
-
-    private function downloadOSSnapshot(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $env = $backup->getBackupConfiguration()->getOsInstance()->getOSEnv();
-
-        if (!$backup->getOsImageId()) {
-            $command = 'openstack image list --private --name ${BACKUP_NAME} --long -f json';
-            $parameters = [
-                'BACKUP_NAME' => $backup->getName(),
-            ];
-
-            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-            $process = Process::fromShellCommandline($command, null, $env + $parameters);
-            $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - openstack image list - %s', $process->getErrorOutput()));
-                throw new ProcessFailedException($process);
-            } else {
-                $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            }
-
-            $output = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
-            if (null === $output) {
-                $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - openstack image list - %s - %s', $process->getOutput(), $process->getErrorOutput()));
-                throw new ProcessFailedException($process);
-            }
-
-            if ((is_countable($output) ? \count($output) : 0) === 0) {
-                return;
-            }
-
-            $backup->setOsImageId($output[0]['ID']);
-            $backup->setChecksum($output[0]['Checksum']);
-            $backup->setSize($output[0]['Size']);
-
-            $this->entityManager->persist($backup);
-            $this->entityManager->flush();
-        }
-
-        $imageDestination = $this->getTemporaryBackupDestination($backup);
-
-        if (file_exists($imageDestination) && filesize($imageDestination) === $backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, 'Openstack image already downloaded');
-
-            return;
-        }
-
-        $command = 'openstack image save --file ${IMAGE_DESTINATION} ${IMAGE_ID}';
-        $parameters = [
-            'IMAGE_DESTINATION' => $imageDestination,
-            'IMAGE_ID' => $backup->getOsImageId(),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $env + $parameters);
-        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - openstack image save - %s', $process->getErrorOutput()));
-            $this->cleanBackupOsInstance($backup);
-            @unlink($imageDestination);
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        $this->log($backup, Log::LOG_NOTICE, 'Openstack image downloaded');
-    }
-
-    private function downloadCommandResult(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $filesystem = new Filesystem();
-        $backupDestination = $this->getTemporaryBackupDestination($backup);
-
-        if (null !== $backup->getBackupConfiguration()->getHost()) {
-            if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
-                $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-                $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-                $privateKeyString = '-i ${PRIVATE_KEY_PATH}';
-            }
-
-            if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-                $sshpass = 'sshpass -p ${SSHPASS}';
-            }
-
-            $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
-
-            $command = \sprintf(
-                '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s %s "${DUMP_COMMAND} | gzip -9" | gunzip > "${DESTINATION}"',
-                $sshpass ?? null,
-                $sshOptions,
-                $privateKeyString ?? null
-            );
-            $parameters = [
-                'SSHPASS' => $backup->getBackupConfiguration()->getHost()->getPassword(),
-                'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
-                'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
-                'PORT' => $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-                'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
-                'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
-                'DESTINATION' => $backupDestination,
-            ];
-        } else {
-            $command = 'sh -c "${DUMP_COMMAND}" > "${DESTINATION}"';
-            $parameters = [
-                'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
-                'DESTINATION' => $backupDestination,
-            ];
-        }
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        $backup->setSize(filesize($backupDestination));
-        $this->log($backup, Log::LOG_INFO, \sprintf('Backup size : %s', StringUtils::humanizeFileSize($backup->getSize())));
-
-        $this->log($backup, Log::LOG_NOTICE, 'Dump done');
-    }
-
-    private function downloadKubeCommandResult(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $filesystem = new Filesystem();
-        $backupDestination = $this->getTemporaryBackupDestination($backup);
-
-        $kubeconfigPath = $filesystem->tempnam('/tmp', 'kubeconfig_');
-        $filesystem->appendToFile($kubeconfigPath, str_replace("\r", '', $backup->getBackupConfiguration()->getKubeconfig()->getKubeconfig()."\n"));
-
-        $command = 'kubectl --kubeconfig ${KUBECONFIG_PATH} --namespace ${KUBE_NAMESPACE} exec --tty=false ${KUBE_RESOURCE} -- ${DUMP_COMMAND} > "${DESTINATION}"';
-        $parameters = [
-            'KUBECONFIG_PATH' => $kubeconfigPath,
-            'KUBE_NAMESPACE' => $backup->getBackupConfiguration()->getKubeNamespace(),
-            'KUBE_RESOURCE' => $backup->getBackupConfiguration()->getKubeResource(),
-            'DUMP_COMMAND' => $backup->getBackupConfiguration()->getDumpCommand(),
-            'DESTINATION' => $backupDestination,
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        $backup->setSize(filesize($backupDestination));
-        $this->log($backup, Log::LOG_INFO, \sprintf('Backup size : %s', StringUtils::humanizeFileSize($backup->getSize())));
-
-        $this->log($backup, Log::LOG_NOTICE, 'Dump done');
-    }
-
-    private function downloadSSHFS(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        if (!$this->checkDownloadedFUSE($backup)) {
-            $filesystem = new Filesystem();
-
-            $backupDestination = $this->getTemporaryBackupDestination($backup);
-            $filesystem->mkdir($backupDestination);
-
-            if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
-                $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-                $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-                $privateKeyString = '-o IdentityFile="${PRIVATE_KEY_PATH}"';
-            }
-
-            if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-                $sshpass = 'echo "${SSHPASS}" | ';
-            }
-
-            $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
-
-            $command = \sprintf(
-                '%s sshfs "${LOGIN}@${IP}:${REMOTE_PATH}" "${DESTINATION}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s %s -o "uid=%d,gid=%d" -o ro %s',
-                $sshpass ?? null,
-                $sshOptions,
-                $privateKeyString ?? null,
-                posix_getuid(),
-                posix_getgid(),
-                $backup->getBackupConfiguration()->getDumpCommand() // Unsafe use of shell command - allow to add options to sshfs
-            );
-            $parameters = [
-                'SSHPASS' => $backup->getBackupConfiguration()->getHost()->getPassword(),
-                'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
-                'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
-                'REMOTE_PATH' => $backup->getBackupConfiguration()->getRemotePath(),
-                'DESTINATION' => $backupDestination,
-                'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
-            ];
-
-            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-            $process = Process::fromShellCommandline($command, null, $parameters);
-            $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
-                throw new ProcessFailedException($process);
-            } else {
-                $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            }
-
-            $this->log($backup, Log::LOG_NOTICE, 'Mount done');
-        } else {
-            $this->log($backup, Log::LOG_NOTICE, 'Already mounted');
-        }
-    }
-
-    private function downloadSftp(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $filesystem = new Filesystem();
-
-        if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
-            $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-            $privateKeyString = '-i ${PRIVATE_KEY_PATH}';
-        }
-
-        $command = \sprintf(
-            'sftp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s "${LOGIN}@${IP}:${REMOTE_DIRECTORY}" "${BACKUP_DESTINATION}"',
-            $privateKeyString ?? null
+        $backup = $this->backupRepository->findOneBy(
+            ['backupConfiguration' => $backupConfiguration],
+            ['id' => 'DESC'],
         );
-        $parameters = [
-            'PORT' => $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-            'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
-            'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
-            'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
-            'REMOTE_DIRECTORY' => $backup->getBackupConfiguration()->getRemotePath(),
-            'BACKUP_DESTINATION' => $this->getTemporaryBackupDestination($backup),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::SSHFS_MOUNT_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - exec dump command - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        $this->log($backup, Log::LOG_NOTICE, 'Download done');
-
-        $backup->setSize($this->getSftpDownloadSize($backup));
-    }
-
-    public function downloadBackup(Backup $backup): void
-    {
-        match ($backup->getBackupConfiguration()->getType()) {
-            BackupConfiguration::TYPE_OS_INSTANCE => $this->downloadOSSnapshot($backup),
-            BackupConfiguration::TYPE_MYSQL, BackupConfiguration::TYPE_POSTGRESQL, BackupConfiguration::TYPE_SQL_SERVER, BackupConfiguration::TYPE_SSH_CMD => $this->downloadCommandResult($backup),
-            BackupConfiguration::TYPE_KUBECONFIG => $this->downloadKubeCommandResult($backup),
-            BackupConfiguration::TYPE_SFTP => $this->downloadSftp($backup),
-            BackupConfiguration::TYPE_SSHFS => $this->downloadSSHFS($backup),
-            default => $this->log($backup, Log::LOG_INFO, \sprintf('%s : Nothing to do', $backup->getCurrentPlace())),
-        };
-    }
-
-    public function checkDownloadedFUSE(Backup $backup): bool
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $command = 'grep -qs "${DIRECTORY}" /proc/mounts';
-        $parameters = [
-            'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, 'checkDownloadedFUSE : not mounted');
-
-            return false;
-        } else {
-            $this->log($backup, Log::LOG_NOTICE, 'checkDownloadedFUSE : mounted');
-
-            return true;
-        }
-    }
-
-    public function checkDownloadedDump(Backup $backup): bool
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $dumpDestination = $this->getTemporaryBackupDestination($backup);
-
-        if ($backup->getSize() >= $backup->getBackupConfiguration()->getMinimumBackupSize()) {
-            $this->log($backup, Log::LOG_NOTICE, 'Backup downloaded');
-
-            return true;
-        } else {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('Backup not downloaded : %s < %s', StringUtils::humanizeFileSize(filesize($dumpDestination)), StringUtils::humanizeFileSize($backup->getBackupConfiguration()->getMinimumBackupSize())));
-
-            return false;
-        }
-    }
-
-    public function checkDownloadedOSSnapshot(Backup $backup): bool
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $imageDestination = $this->getTemporaryBackupDestination($backup);
-
-        if (!$backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, 'Openstack image not backuped');
-
-            return false;
-        }
-
-        if (!file_exists($imageDestination) || filesize($imageDestination) !== $backup->getSize()) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('Openstack image not downloaded : %s != %s', StringUtils::humanizeFileSize(filesize($imageDestination)), StringUtils::humanizeFileSize($backup->getSize())));
-
-            return false;
-        }
-
-        return true;
-    }
-
-    private function uploadBackupSSHResticRmScript(Backup $backup, string $privateKeypath, string $scriptFilePath): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
-
-        $command = \sprintf(
-            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s -o IdentityFile=%s "sudo rm -f %s"',
-            $backup->getBackupConfiguration()->getHost()->getLogin(),
-            $backup->getBackupConfiguration()->getHost()->getIp(),
-            $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-            $sshOptions,
-            $privateKeypath,
-            $scriptFilePath,
-        );
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - ssh restic remove script - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-    }
-
-    private function uploadBackupSSHRestic(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-        $filesystem = new Filesystem();
-        $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-        $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-
-        $scriptFilePath = $filesystem->tempnam('/tmp', 'env_');
-        $filesystem->appendToFile($scriptFilePath, \sprintf('#!/bin/bash%s', \PHP_EOL));
-        foreach ($env as $k => $v) {
-            $filesystem->appendToFile($scriptFilePath, \sprintf('export %s="%s"%s', $k, str_replace('"', '\\"', (string) $v), \PHP_EOL));
-        }
-        $filesystem->appendToFile($scriptFilePath, \sprintf(
-            'restic backup --tag host=%s --tag configuration=%s --host cloudbackup %s || exit 1%s',
-            $backup->getBackupConfiguration()->getHost()->getSlug(),
-            $backup->getBackupConfiguration()->getSlug(),
-            $backup->getBackupConfiguration()->getRemotePath(),
-            \PHP_EOL
-        ));
-
-        $command = \sprintf(
-            'scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentityFile=%s %s %s@%s:%s',
-            $privateKeypath,
-            $scriptFilePath,
-            $backup->getBackupConfiguration()->getHost()->getLogin(),
-            $backup->getBackupConfiguration()->getHost()->getIp(),
-            $scriptFilePath,
-        );
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - ssh restic scp - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        }
-
-        $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
-
-        $command = \sprintf(
-            'ssh %s@%s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s -o IdentityFile=%s "%s"',
-            $backup->getBackupConfiguration()->getHost()->getLogin(),
-            $backup->getBackupConfiguration()->getHost()->getIp(),
-            $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-            $sshOptions,
-            $privateKeypath,
-            \sprintf(
-                'sudo chmod 700 %s && sudo chown root:root %s && sudo %s',
-                $scriptFilePath,
-                $scriptFilePath,
-                $scriptFilePath,
-            )
-        );
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-
-        $process = Process::fromShellCommandline($command);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        $this->uploadBackupSSHResticRmScript($backup, $privateKeypath, $scriptFilePath);
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - ssh restic upload - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-    }
-
-    public function uploadBackup(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-        switch ($backup->getBackupConfiguration()->getType()) {
-            case BackupConfiguration::TYPE_OS_INSTANCE:
-                $command = 'restic backup --tag project="${PROJECT}" --tag instance="${INSTANCE}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
-                $parameters = [
-                    'PROJECT' => $backup->getBackupConfiguration()->getOsInstance()->getOSProject()->getSlug(),
-                    'INSTANCE' => $backup->getBackupConfiguration()->getOsInstance()->getSlug(),
-                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
-                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - restic upload - %s', $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-                break;
-            case BackupConfiguration::TYPE_MYSQL:
-            case BackupConfiguration::TYPE_POSTGRESQL:
-            case BackupConfiguration::TYPE_SQL_SERVER:
-            case BackupConfiguration::TYPE_SSH_CMD:
-                $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
-                $parameters = [
-                    'HOST' => null !== $backup->getBackupConfiguration()->getHost() ? $backup->getBackupConfiguration()->getHost()->getSlug() : 'direct',
-                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
-                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - restic upload - %s', $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-                break;
-            case BackupConfiguration::TYPE_KUBECONFIG:
-                $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
-                $parameters = [
-                    'HOST' => null !== $backup->getBackupConfiguration()->getKubeconfig() ? $backup->getBackupConfiguration()->getKubeconfig()->getName() : 'direct',
-                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
-                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - restic upload - %s', $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-                break;
-            case BackupConfiguration::TYPE_SSHFS:
-            case BackupConfiguration::TYPE_SFTP:
-                $command = 'restic backup --tag host="${HOST}" --tag configuration="${CONFIGURATION}" --host cloudbackup "${DIRECTORY}"';
-                $parameters = [
-                    'HOST' => $backup->getBackupConfiguration()->getHost()->getSlug(),
-                    'CONFIGURATION' => $backup->getBackupConfiguration()->getName(),
-                    'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - restic upload - %s', $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-                break;
-            case BackupConfiguration::TYPE_RCLONE:
-                $filesystem = new Filesystem();
-                $configFile = $filesystem->tempnam('/tmp', 'key_');
-                $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
-
-                $daily_backup_dir = \sprintf('%s/%s', $backup->getBackupConfiguration()->getRcloneBackupDir(), date('Y-m-d'));
-                $command = 'rclone sync "${SOURCE_LOCATION}" "${REMOTE_STORAGE_LOCATION}" --backup-dir "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}" ${RCLONE_FLAGS}';
-                $parameters = [
-                    'SOURCE_LOCATION' => $backup->getBackupConfiguration()->getRemotePath(),
-                    'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
-                    'REMOTE_STORAGE_BACKUP' => $daily_backup_dir,
-                    'RCLONE_CONFIG' => $configFile,
-                    'RCLONE_FLAGS' => $backup->getBackupConfiguration()->getRcloneFlags(),
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
-                $process = Process::fromShellCommandline($command, null, $parameters);
-                $process->setTimeout(self::RCLONE_UPLOAD_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    if ($backup->getBackupConfiguration()->getStdErrIgnore() && '' === preg_replace('/^\s+/m', '', (string) preg_replace($backup->getBackupConfiguration()->getStdErrIgnore(), '', $process->getErrorOutput()))) {
-                        $this->log($backup, Log::LOG_WARNING, \sprintf('Warning executing backup - rclone sync - %s', $process->getErrorOutput()));
-                        break;
-                    }
-
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - rclone sync - %s', $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-                break;
-            case BackupConfiguration::TYPE_SSH_RESTIC:
-                $this->uploadBackupSSHRestic($backup);
-                break;
-            default:
-                $this->log($backup, Log::LOG_INFO, \sprintf('%s : Nothing to do', $backup->getCurrentPlace()));
-                break;
-        }
-    }
-
-    public function cleanBackupRestic(Backup $backup): void
-    {
-        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-        $command = \sprintf(
-            'restic forget --prune %s',
-            $backup->getBackupConfiguration()->getResticForgetArgs()
-        );
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null, $env);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing cleanup - restic forget - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-    }
-
-    public function cleanBackupRclone(Backup $backup): void
-    {
-        if (null === $backup->getBackupConfiguration()->getRcloneBackupDir() || '' === $backup->getBackupConfiguration()->getRcloneBackupDir()) {
-            return;
-        }
-
-        $filesystem = new Filesystem();
-        $configFile = $filesystem->tempnam('/tmp', 'key_');
-        $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getStorage()->getRcloneConfiguration());
-
-        $backup_parent_directory = \dirname($backup->getBackupConfiguration()->getRcloneBackupDir());
-        $backup_direcory = str_replace($backup_parent_directory.'/', '', $backup->getBackupConfiguration()->getRcloneBackupDir());
-
-        $command = 'rclone lsd "${REMOTE_STORAGE_DIRECTORY}" --config "${RCLONE_CONFIG}"';
-        $parameters = [
-            'REMOTE_STORAGE_DIRECTORY' => $backup_parent_directory,
-            'RCLONE_CONFIG' => $configFile,
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - rclone lsd  - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            if (!preg_match('/\s'.$backup_direcory.'\n/', $process->getOutput())) {
-                $this->log($backup, Log::LOG_INFO, \sprintf('INFO executing backup %s does not seems to exists', $backup->getBackupConfiguration()->getRcloneBackupDir()));
-
-                return;
-            }
-        }
-
-        // Calculate retention period as max of keepDaily and keepWeekly
-        $keepDaily = $backup->getBackupConfiguration()->getKeepDaily();
-        $keepWeekly = $backup->getBackupConfiguration()->getKeepWeekly();
-
-        // Ensure both values are non-negative
-        if ($keepDaily < 0) {
-            $keepDaily = 0;
-        }
-        if ($keepWeekly < 0) {
-            $keepWeekly = 0;
-        }
-
-        $keepDays = max($keepDaily, $keepWeekly * 7);
-
-        // If both are 0, use a default of 7 days to prevent immediate deletion
-        if (0 === $keepDays) {
-            $keepDays = 7;
-            $this->log($backup, Log::LOG_WARNING, 'Both keepDaily and keepWeekly are 0. Using default retention of 7 days.');
-        }
-
-        $command = 'rclone delete --min-age "${KEEP_DAYS}d" "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
-        $parameters = [
-            'KEEP_DAYS' => $keepDays,
-            'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
-            'RCLONE_CONFIG' => $configFile,
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - rclone delete  - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        // Clean up old archive directories (YYYY-MM-DD folders)
-        $command = 'rclone lsf "${REMOTE_STORAGE_BACKUP}" --dirs-only --config "${RCLONE_CONFIG}"';
-        $parameters = [
-            'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
-            'RCLONE_CONFIG' => $configFile,
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::RCLONE_CHECK_TIMEOUT);
-        $process->run();
-
-        if ($process->isSuccessful()) {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            $directories = array_filter(explode("\n", trim($process->getOutput())), fn ($dir) => '' !== $dir);
-
-            $cutoffDate = new DateTime()->modify(\sprintf('-%d days', $keepDays));
-            // Set time to midnight for accurate day-level comparison
-            $cutoffDate->setTime(0, 0, 0);
-
-            foreach ($directories as $directory) {
-                $directory = rtrim($directory, '/');
-                // Check if directory matches YYYY-MM-DD format
-                if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $directory, $matches)) {
-                    try {
-                        // Use createFromFormat with strict validation to ensure valid dates
-                        // The '!' prefix resets time components to prevent date overflow
-                        $dirDate = DateTime::createFromFormat('!Y-m-d', $matches[1]);
-                        $errors = DateTime::getLastErrors();
-
-                        // Validate date is valid and matches expected format
-                        $hasErrors = $errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0);
-                        $isValidFormat = false !== $dirDate && $dirDate->format('Y-m-d') === $matches[1];
-
-                        if (!$isValidFormat || $hasErrors) {
-                            $this->log($backup, Log::LOG_WARNING, \sprintf('Invalid date in directory name: %s', $directory));
-                            continue;
-                        }
-
-                        if ($dirDate < $cutoffDate) {
-                            // Delete old archive directory
-                            $archiveDir = rtrim($backup->getBackupConfiguration()->getRcloneBackupDir(), '/').'/'.$directory;
-                            $command = 'rclone purge "${ARCHIVE_DIR}" --config "${RCLONE_CONFIG}"';
-                            $parameters = [
-                                'ARCHIVE_DIR' => $archiveDir,
-                                'RCLONE_CONFIG' => $configFile,
-                            ];
-
-                            $this->log($backup, Log::LOG_INFO, \sprintf('Attempting to delete old archive directory: %s (older than %d days retention period)', $directory, $keepDays));
-                            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-
-                            $deleteProcess = Process::fromShellCommandline($command, null, $parameters);
-                            $deleteProcess->setTimeout(self::RCLONE_CHECK_TIMEOUT);
-                            $deleteProcess->run();
-
-                            if (!$deleteProcess->isSuccessful()) {
-                                $this->log($backup, Log::LOG_WARNING, \sprintf('Failed to delete archive directory %s: %s', $directory, $deleteProcess->getErrorOutput()));
-                            } else {
-                                $this->log($backup, Log::LOG_INFO, \sprintf('Successfully deleted archive directory: %s', $directory));
-                            }
-                        }
-                    } catch (Exception $e) {
-                        $this->log($backup, Log::LOG_WARNING, \sprintf('Error parsing date for directory %s: %s', $directory, $e->getMessage()));
-                    }
-                }
-            }
-        } else {
-            $this->log($backup, Log::LOG_WARNING, \sprintf('Failed to list archive directories: %s', $process->getErrorOutput()));
-        }
-
-        $command = 'rclone rmdirs "${REMOTE_STORAGE_BACKUP}" --config "${RCLONE_CONFIG}"';
-        $parameters = [
-            'REMOTE_STORAGE_BACKUP' => $backup->getBackupConfiguration()->getRcloneBackupDir(),
-            'RCLONE_CONFIG' => $configFile,
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::RESTIC_UPLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - rclone rmdirs  - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-    }
-
-    private function cleanBackupFUSE(Backup $backup): void
-    {
-        if ($this->checkDownloadedFUSE($backup)) {
-            $command = 'fusermount -u "${DIRECTORY}"';
-            $parameters = [
-                'DIRECTORY' => $this->getTemporaryBackupDestination($backup),
-            ];
-
-            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-            $process = Process::fromShellCommandline($command, null, $parameters);
-            $process->setTimeout(self::SSHFS_UMOUNT_TIMEOUT);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing cleanup - exec umount command - %s', $process->getErrorOutput()));
-                throw new ProcessFailedException($process);
-            } else {
-                $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            }
-        }
-
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
-        if (2 !== (is_countable(scandir($this->getTemporaryBackupDestination($backup))) ? \count(scandir($this->getTemporaryBackupDestination($backup))) : 0)) {
-            $message = \sprintf('Error executing cleanup - %s directory is not empty', $this->getTemporaryBackupDestination($backup));
-            $this->log($backup, Log::LOG_ERROR, $message);
-            throw new Exception($message);
-        } else {
-            // php's rmdir function only remove empty directories
-            rmdir($this->getTemporaryBackupDestination($backup));
-        }
-    }
-
-    private function cleanBackupSftp(Backup $backup): void
-    {
-        if ($this->checkDownloadedDump($backup)) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('Remove local directory - %s', $this->getTemporaryBackupDestination($backup)));
-
-            $filesystem = new Filesystem();
-            $filesystem->remove($this->getTemporaryBackupDestination($backup));
-        }
-    }
-
-    private function cleanBackupOsInstance(Backup $backup): void
-    {
-        if (null !== $this->getSnapshotOsInstanceStatus($backup)) {
-            $command = 'openstack image delete ${OS_IMAGE_ID}';
-            $parameters = [
-                'OS_IMAGE_ID' => $backup->getOsImageId(),
-            ];
-
-            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-            $process = Process::fromShellCommandline($command, null, $parameters + $backup->getBackupConfiguration()->getOsInstance()->getOSEnv());
-            $process->setTimeout(self::OS_IMAGE_LIST_TIMEOUT);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing cleanup - openstack image image - %s', $process->getErrorOutput()));
-                throw new ProcessFailedException($process);
-            } else {
-                $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            }
-        }
-    }
-
-    private function cleanRemoteByCommand(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $filesystem = new Filesystem();
-
-        if (null !== $backup->getBackupConfiguration()->getHost()->getPrivateKey()) {
-            $privateKeypath = $filesystem->tempnam('/tmp', 'key_');
-            $filesystem->appendToFile($privateKeypath, str_replace("\r", '', $backup->getBackupConfiguration()->getHost()->getPrivateKey()."\n"));
-            $privateKeyString = '-i ${PRIVATE_KEY_PATH}';
-        }
-
-        if (null !== $backup->getBackupConfiguration()->getHost()->getPassword()) {
-            $sshpass = 'sshpass -p ${SSHPASS}';
-        }
-
-        $sshOptions = $this->buildSshOptionsString($backup->getBackupConfiguration()->getHost());
-
-        $command = \sprintf(
-            '%s ssh "${LOGIN}@${IP}" -p "${PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null%s %s "${REMOTE_CLEAN_COMMAND}"',
-            $sshpass ?? null,
-            $sshOptions,
-            $privateKeyString ?? null
-        );
-        $parameters = [
-            'SSHPASS' => $backup->getBackupConfiguration()->getHost()->getPassword(),
-            'LOGIN' => $backup->getBackupConfiguration()->getHost()->getLogin(),
-            'IP' => $backup->getBackupConfiguration()->getHost()->getIp(),
-            'PORT' => $backup->getBackupConfiguration()->getHost()->getPort() ?? 22,
-            'PRIVATE_KEY_PATH' => $privateKeypath ?? null,
-            'REMOTE_CLEAN_COMMAND' => $backup->getBackupConfiguration()->getRemoteCleanCommand(),
-        ];
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-        $process = Process::fromShellCommandline($command, null, $parameters);
-        $process->setTimeout(self::OS_DOWNLOAD_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing download - exec remote cleanup command - %s', $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-
-        $this->log($backup, Log::LOG_NOTICE, 'Remote cleanup done');
-    }
-
-    public function cleanBackup(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        // Remove local temporary file / directory
-        if (file_exists($this->getTemporaryBackupDestination($backup))) {
-            switch ($backup->getBackupConfiguration()->getType()) {
-                case BackupConfiguration::TYPE_MYSQL:
-                case BackupConfiguration::TYPE_POSTGRESQL:
-                case BackupConfiguration::TYPE_SQL_SERVER:
-                case BackupConfiguration::TYPE_OS_INSTANCE:
-                case BackupConfiguration::TYPE_SSH_CMD:
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Remove local file - %s', $this->getTemporaryBackupDestination($backup)));
-                    unlink($this->getTemporaryBackupDestination($backup));
-                    break;
-                case BackupConfiguration::TYPE_SFTP:
-                    $this->cleanBackupSftp($backup);
-                    break;
-                case BackupConfiguration::TYPE_SSHFS:
-                    $this->cleanBackupFUSE($backup);
-                    break;
-            }
-        }
-
-        // Remove OS image
-        if (BackupConfiguration::TYPE_OS_INSTANCE === $backup->getBackupConfiguration()->getType()) {
-            $this->cleanBackupOsInstance($backup);
-        }
-
-        // Execute remote clean command
-        if (BackupConfiguration::TYPE_SSH_CMD === $backup->getBackupConfiguration()->getType() && (null !== $backup->getBackupConfiguration()->getRemoteCleanCommand() && '' !== $backup->getBackupConfiguration()->getRemoteCleanCommand())) {
-            $this->cleanRemoteByCommand($backup);
-        }
-    }
-
-    public function isBackupCleaned(Backup $backup): bool
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        switch ($backup->getBackupConfiguration()->getType()) {
-            case BackupConfiguration::TYPE_OS_INSTANCE:
-                if (null !== $this->getSnapshotOsInstanceStatus($backup)) {
-                    return false;
-                }
-
-                if (file_exists($this->getTemporaryBackupDestination($backup))) {
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Backup location does exists - %s', $this->getTemporaryBackupDestination($backup)));
-
-                    return false;
-                }
-                break;
-            case BackupConfiguration::TYPE_MYSQL:
-            case BackupConfiguration::TYPE_POSTGRESQL:
-            case BackupConfiguration::TYPE_SQL_SERVER:
-            case BackupConfiguration::TYPE_SSH_CMD:
-            case BackupConfiguration::TYPE_SSHFS:
-            case BackupConfiguration::TYPE_SFTP:
-                if (file_exists($this->getTemporaryBackupDestination($backup))) {
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Backup location does exists - %s', $this->getTemporaryBackupDestination($backup)));
-
-                    return false;
-                }
-                break;
-        }
-
-        return true;
-    }
-
-    public function healhCheckBackup(Backup $backup, bool $tryRepair = true): void
-    {
-        switch ($backup->getBackupConfiguration()->getStorage()->getType()) {
-            case Storage::TYPE_RESTIC:
-                $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-                $command = 'restic check';
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-                $process = Process::fromShellCommandline($command, null, $env);
-                $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-
-                    if ($tryRepair) {
-                        $this->repairBackup($backup, $process->getErrorOutput());
-                        $this->healhCheckBackup($backup, false);
-                    } else {
-                        throw new ProcessFailedException($process);
-                    }
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-
-                $command = \sprintf('restic snapshots --json --latest 1 -q %s',
-                    $backup->getBackupConfiguration()->getResticCheckTags() ? '--tag "${RESTIC_CHECK_TAG}"' : ''
-                );
-
-                $parameters = [
-                    'RESTIC_CHECK_TAG' => $backup->getBackupConfiguration()->getResticCheckTags(),
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
-
-                $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    if (($json = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR)) === null || !(is_countable($json) ? \count($json) : 0)) {
-                        $message = \sprintf('Cannot decode json : %s', $process->getOutput());
-                        $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
-                    }
-
-                    usort($json, function ($a, $b) {
-                        // Sort latest in first
-                        return new DateTime($b['time']) <=> new DateTime($a['time']);
-                    });
-
-                    $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
-                    $this->log($backup, Log::LOG_INFO, $prettyJson);
-
-                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) $json[0]['time']));
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
-
-                    $yesterday = new DateTime('yesterday');
-                    if ($lastBackup < $yesterday) {
-                        $message = 'Last backup older than 24h';
-                        $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
-                    }
-                }
-
-                $sizes = [
-                    '--mode restore-size latest' => 'resticSize',
-                    '--mode raw-data latest' => 'resticDedupSize',
-                    '--mode restore-size' => 'resticTotalSize',
-                    '--mode raw-data' => 'resticTotalDedupSize',
-                ];
-
-                foreach ($sizes as $resticCommandSuffix => $backupAttribute) {
-                    $command = \sprintf('restic stats --json %s %s', $resticCommandSuffix,
-                        $backup->getBackupConfiguration()->getResticCheckTags() ? '--tag "${RESTIC_CHECK_TAG}"' : ''
-                    );
-
-                    $parameters = [
-                        'RESTIC_CHECK_TAG' => $backup->getBackupConfiguration()->getResticCheckTags(),
-                    ];
-
-                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
-
-                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                    $process->setTimeout(self::RESTIC_CHECK_TIMEOUT);
-                    $process->run();
-
-                    if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                        throw new ProcessFailedException($process);
-                    } else {
-                        if (($json = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR)) === null) {
-                            $message = \sprintf('Cannot decode json : %s', $process->getOutput());
-                            $this->log($backup, Log::LOG_ERROR, $message);
-                            throw new Exception($message);
-                        }
-
-                        $prettyJson = json_encode($json, \JSON_PRETTY_PRINT);
-                        $this->log($backup, Log::LOG_INFO, $prettyJson);
-
-                        $accessor = PropertyAccess::createPropertyAccessor();
-                        $accessor->setValue($backup, $backupAttribute, $json['total_size']);
-
-                        $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat %s : %s', $backupAttribute, StringUtils::humanizeFileSize($json['total_size'])));
-                    }
-                }
-
-                if (null === $backup->getSize()) {
-                    $backup->setSize($backup->getResticSize());
-                }
-
-                $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
-                $resticSize = (int) $backup->getResticSize();
-
-                if ($resticSize <= $minimumBackupSize) {
-                    $message = \sprintf('Restic failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($resticSize), StringUtils::humanizeFileSize($minimumBackupSize));
-                    $this->log($backup, Log::LOG_NOTICE, $message);
-                    throw new Exception($message);
-                }
-
-                if ($minimumBackupSize > 0 && $resticSize > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
-                    $newMinimumBackupSize = (int) ($minimumBackupSize * (1 + (self::BACKUP_SIZE_MAX_RATIO - 1) / 2));
-                    $message = \sprintf('Restic backup size %s exceeds %dx the expected size %s. Updating expected size to %s.', StringUtils::humanizeFileSize($resticSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize), StringUtils::humanizeFileSize($newMinimumBackupSize));
-                    $this->log($backup, Log::LOG_NOTICE, $message);
-                    $backup->getBackupConfiguration()->setMinimumBackupSize((string) $newMinimumBackupSize);
-                }
-
-                break;
-            case Storage::TYPE_RCLONE:
-                $filesystem = new Filesystem();
-                $configFile = $filesystem->tempnam('/tmp', 'key_');
-                $filesystem->appendToFile($configFile, $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
-                $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-                if ($backup->getBackupConfiguration()->isSkipRcloneCheck()) {
-                    $this->log($backup, Log::LOG_NOTICE, 'Skipping rclone check (skipRcloneCheck enabled on configuration)');
-                } else {
-                    $isCrypt = preg_match('/^\s*type\s*=\s*crypt\s*$/m', (string) $backup->getBackupConfiguration()->getCompleteRcloneConfiguration());
-
-                    $command = 'rclone "${CHECK}" "${SOURCE_LOCATION}" "${REMOTE_STORAGE_LOCATION}" --config "${RCLONE_CONFIG}"';
-                    $parameters = [
-                        'CHECK' => $isCrypt ? 'cryptcheck' : 'check',
-                        'SOURCE_LOCATION' => $backup->getBackupConfiguration()->getRemotePath(),
-                        'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
-                        'RCLONE_CONFIG' => $configFile,
-                    ];
-
-                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, nl2br($this->logParameters($parameters))));
-                    $process = Process::fromShellCommandline($command, null, $parameters);
-
-                    $process->setTimeout(self::RCLONE_CHECK_TIMEOUT);
-                    $process->run();
-
-                    if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                        throw new ProcessFailedException($process);
-                    } else {
-                        $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                    }
-                }
-
-                $command = 'rclone size "${REMOTE_STORAGE_LOCATION}" --config "${RCLONE_CONFIG}" --json';
-                $parameters = [
-                    'REMOTE_STORAGE_LOCATION' => $backup->getBackupConfiguration()->getStorageSubPath(),
-                    'RCLONE_CONFIG' => $configFile,
-                ];
-
-                $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                $process = Process::fromShellCommandline($command, null, $parameters);
-                $process->setTimeout(self::RCLONE_CHECK_TIMEOUT);
-                $process->run();
-
-                if (!$process->isSuccessful()) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing backup - rclone size - %s', $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                } else {
-                    $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                }
-
-                $output = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
-                if (null === $output) {
-                    $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing rclone size - %s - %s', $process->getOutput(), $process->getErrorOutput()));
-                    throw new ProcessFailedException($process);
-                }
-
-                $backup->setSize($output['bytes']);
-
-                $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
-
-                if ($output['bytes'] <= $minimumBackupSize) {
-                    $message = \sprintf('Rclone failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($output['bytes']), StringUtils::humanizeFileSize($minimumBackupSize));
-                    $this->log($backup, Log::LOG_NOTICE, $message);
-                    throw new Exception($message);
-                }
-
-                if ($minimumBackupSize > 0 && $output['bytes'] > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
-                    $newMinimumBackupSize = (int) ($minimumBackupSize * (1 + (self::BACKUP_SIZE_MAX_RATIO - 1) / 2));
-                    $message = \sprintf('Rclone backup size %s exceeds %dx the expected size %s. Updating expected size to %s.', StringUtils::humanizeFileSize($output['bytes']), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize), StringUtils::humanizeFileSize($newMinimumBackupSize));
-                    $this->log($backup, Log::LOG_NOTICE, $message);
-                    $backup->getBackupConfiguration()->setMinimumBackupSize((string) $newMinimumBackupSize);
-                }
-                break;
-            case Storage::TYPE_KOPIA:
-                $storage = $backup->getBackupConfiguration()->getStorage();
-                $env = $storage->getEnv() + $backup->getBackupConfiguration()->getKopiaEnv();
-
-                $filesystem = new Filesystem();
-                $configFile = $filesystem->tempnam('/tmp', 'kopia_');
-
-                try {
-                    // 1. Connect to the repository (per-call, ephemeral config file).
-                    // storageSubPath, when set, is passed as `--prefix` so several configurations
-                    // can share one Kopia repository on the same backend bucket.
-                    $parameters = ['KOPIA_CONFIG' => $configFile];
-                    $prefixClause = '';
-                    $storageSubPath = trim((string) $backup->getBackupConfiguration()->getStorageSubPath());
-                    if ('' !== $storageSubPath) {
-                        $prefixClause = ' --prefix="${KOPIA_PREFIX}"';
-                        $parameters['KOPIA_PREFIX'] = $storageSubPath;
-                    }
-                    $command = \sprintf(
-                        'kopia repository connect %s %s%s --config-file="${KOPIA_CONFIG}"',
-                        escapeshellarg((string) $storage->getKopiaBackend()),
-                        (string) $storage->getKopiaConnectArgs(),
-                        $prefixClause,
-                    );
-
-                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
-                    $process->run();
-
-                    if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                        throw new ProcessFailedException($process);
-                    }
-
-                    // 2. Integrity verification (manifests + content metadata, no blob fetch).
-                    $command = 'kopia --config-file="${KOPIA_CONFIG}" snapshot verify --verify-files-percent=0';
-                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
-                    $process->run();
-
-                    if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                        throw new ProcessFailedException($process);
-                    } else {
-                        $this->log($backup, Log::LOG_INFO, $process->getOutput());
-                    }
-
-                    // 3. Snapshot listing and freshness check.
-                    // Kopia's --tags flag is repeatable (one tag per flag, not CSV), so split the
-                    // whitespace-separated config value into one --tags invocation per token.
-                    $tagsClause = '';
-                    $listParameters = $parameters;
-                    $rawTags = trim((string) $backup->getBackupConfiguration()->getKopiaCheckTags());
-                    if ('' !== $rawTags) {
-                        foreach (preg_split('/\s+/', $rawTags) as $idx => $token) {
-                            $key = \sprintf('KOPIA_CHECK_TAG_%d', $idx);
-                            $tagsClause .= \sprintf(' --tags "${%s}"', $key);
-                            $listParameters[$key] = $token;
-                        }
-                    }
-                    $command = 'kopia --config-file="${KOPIA_CONFIG}" snapshot list --json'.$tagsClause;
-
-                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($listParameters)));
-                    $process = Process::fromShellCommandline($command, null, $env + $listParameters);
-                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
-                    $process->run();
-
-                    if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                        throw new ProcessFailedException($process);
-                    }
-
-                    $snapshots = json_decode($process->getOutput(), true, 512, \JSON_THROW_ON_ERROR);
-                    if (!\is_array($snapshots) || [] === $snapshots) {
-                        $message = \sprintf('Cannot decode json or empty snapshot list : %s', $process->getOutput());
-                        $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
-                    }
-
-                    usort($snapshots, static function ($a, $b) {
-                        return new DateTime($b['endTime']) <=> new DateTime($a['endTime']);
-                    });
-
-                    $this->log($backup, Log::LOG_INFO, json_encode($snapshots, \JSON_PRETTY_PRINT));
-
-                    $lastBackup = new DateTime(preg_replace('/(\d+\-\d+\-\d+T\d+:\d+:\d+)\..*/', '$1', (string) $snapshots[0]['endTime']));
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Last backup : %s', $lastBackup->format('d/m/Y H:i')));
-
-                    if ($lastBackup < new DateTime('yesterday')) {
-                        $message = 'Last backup older than 24h';
-                        $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
-                    }
-
-                    $backup->setKopiaSize((int) ($snapshots[0]['stats']['totalSize'] ?? 0));
-                    $backup->setKopiaTotalSize(array_sum(array_map(
-                        static fn (array $snapshot): int => (int) ($snapshot['stats']['totalSize'] ?? 0),
-                        $snapshots,
-                    )));
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaSize : %s', StringUtils::humanizeFileSize($backup->getKopiaSize())));
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaTotalSize : %s', StringUtils::humanizeFileSize($backup->getKopiaTotalSize())));
-
-                    // 4. Repository on-disk bytes — `blob stats --raw` walks backend blob listing.
-                    $command = 'kopia --config-file="${KOPIA_CONFIG}" blob stats --raw';
-                    $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s` with %s', $command, $this->logParameters($parameters)));
-                    $process = Process::fromShellCommandline($command, null, $env + $parameters);
-                    $process->setTimeout(self::KOPIA_CHECK_TIMEOUT);
-                    $process->run();
-
-                    if (!$process->isSuccessful()) {
-                        $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                        throw new ProcessFailedException($process);
-                    }
-
-                    // Output is plain text; parse the "Total: <bytes>" line emitted by Kopia.
-                    if (1 !== preg_match('/^Total:\s+(\d+)\s*$/m', $process->getOutput(), $matches)) {
-                        $message = \sprintf('Cannot read total dedup size from blob stats output : %s', $process->getOutput());
-                        $this->log($backup, Log::LOG_ERROR, $message);
-                        throw new Exception($message);
-                    }
-
-                    $backup->setKopiaTotalDedupSize((int) $matches[1]);
-                    $this->log($backup, Log::LOG_NOTICE, \sprintf('Stat kopiaTotalDedupSize : %s', StringUtils::humanizeFileSize($backup->getKopiaTotalDedupSize())));
-
-                    // 5. Default Backup::size to kopiaSize when not already set.
-                    if (null === $backup->getSize()) {
-                        $backup->setSize($backup->getKopiaSize());
-                    }
-
-                    // 6. Min / max-ratio size guards (mirror Restic and Rclone).
-                    $minimumBackupSize = (int) $backup->getBackupConfiguration()->getMinimumBackupSize();
-                    $kopiaSize = (int) $backup->getKopiaSize();
-
-                    if ($kopiaSize <= $minimumBackupSize) {
-                        $message = \sprintf('Kopia failed. Minimum backup size not met : %s < %s', StringUtils::humanizeFileSize($kopiaSize), StringUtils::humanizeFileSize($minimumBackupSize));
-                        $this->log($backup, Log::LOG_NOTICE, $message);
-                        throw new Exception($message);
-                    }
-
-                    if ($minimumBackupSize > 0 && $kopiaSize > self::BACKUP_SIZE_MAX_RATIO * $minimumBackupSize) {
-                        $newMinimumBackupSize = (int) ($minimumBackupSize * (1 + (self::BACKUP_SIZE_MAX_RATIO - 1) / 2));
-                        $message = \sprintf('Kopia backup size %s exceeds %dx the expected size %s. Updating expected size to %s.', StringUtils::humanizeFileSize($kopiaSize), self::BACKUP_SIZE_MAX_RATIO, StringUtils::humanizeFileSize($minimumBackupSize), StringUtils::humanizeFileSize($newMinimumBackupSize));
-                        $this->log($backup, Log::LOG_NOTICE, $message);
-                        $backup->getBackupConfiguration()->setMinimumBackupSize((string) $newMinimumBackupSize);
-                    }
-                } finally {
-                    @unlink($configFile);
-                }
-                break;
-        }
-    }
-
-    public function repairBackup(Backup $backup, ?string $errorOutput = null): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-        $commands = [
-            'restic repair index',
-            'restic prune',
-            'restic check',
-        ];
-
-        // If the repository is locked for more than RESTIC_LOCK_MAX_AGE_SECONDS, try to unlock it
-        if (null !== $errorOutput && preg_match('/repository is already locked/m', $errorOutput) && preg_match('/lock was created at .* \((\d+)h(\d+)m(\d+)\.(\d+)s ago/m', $errorOutput, $matches)) {
-            $hours = (int) $matches[1];
-            $minutes = (int) $matches[2];
-            $seconds = (int) $matches[3];
-            $totalSeconds = ($hours * 3600) + ($minutes * 60) + $seconds;
-
-            $message = \sprintf('Repository is locked since %dh%dm%ds', $hours, $minutes, $seconds);
-            $this->log($backup, Log::LOG_ERROR, $message);
-
-            if ($totalSeconds > self::RESTIC_LOCK_MAX_AGE_SECONDS) {
-                $message = \sprintf('Repository is locked since %dh%dm%ds which is more than the max allowed lock age of %ds', $hours, $minutes, $seconds, self::RESTIC_LOCK_MAX_AGE_SECONDS);
-                $this->log($backup, Log::LOG_ERROR, $message);
-
-                array_unshift($commands, 'restic unlock');
-            }
-        }
-
-        foreach ($commands as $command) {
-            $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-            $process = Process::fromShellCommandline($command, null, $env);
-            $process->setTimeout(self::RESTIC_REPAIR_TIMEOUT);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-                throw new ProcessFailedException($process);
-            } else {
-                $this->log($backup, Log::LOG_INFO, $process->getOutput());
-            }
-        }
-    }
-
-    public function resticInitRepo(Backup $backup): void
-    {
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-        $env = $backup->getBackupConfiguration()->getStorage()->getEnv() + $backup->getBackupConfiguration()->getResticEnv();
-
-        $command = '(restic snapshots > /dev/null 2>&1) || restic init';
-
-        $this->log($backup, Log::LOG_INFO, \sprintf('Run `%s`', $command));
-        $process = Process::fromShellCommandline($command, null, $env);
-        $process->setTimeout(self::RESTIC_INIT_TIMEOUT);
-        $process->run();
-
-        if (!$process->isSuccessful() && !preg_match(self::RESTIC_INIT_REGEX, $process->getErrorOutput())) {
-            $this->log($backup, Log::LOG_ERROR, \sprintf('Error executing %s::%s - %s - %s', self::class, __FUNCTION__, $command, $process->getErrorOutput()));
-            throw new ProcessFailedException($process);
-        } else {
-            $this->log($backup, Log::LOG_INFO, $process->getOutput());
-        }
-    }
-
-    public function getTemporaryBackupDestination(Backup $backup): string
-    {
-        switch ($backup->getBackupConfiguration()->getType()) {
-            case BackupConfiguration::TYPE_SSHFS:
-                return \sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
-            default:
-                if (null !== $backup->getBackupConfiguration()->getExtension()) {
-                    return \sprintf('%s/%s.%s', $this->temporaryDownloadDirectory, $backup->getName(false), $backup->getBackupConfiguration()->getExtension());
-                }
-
-                return \sprintf('%s/%s', $this->temporaryDownloadDirectory, $backup->getName(false));
-        }
-    }
-
-    public function initBackup(BackupConfiguration $backupConfiguration): void
-    {
-        $dateTime = new DateTime();
-
-        $backup = $this->backupRepository->findOneBy([
-            'backupConfiguration' => $backupConfiguration,
-        ], ['id' => 'DESC']);
 
         if (null === $backup) {
             $backup = new Backup();
             $backup->setBackupConfiguration($backupConfiguration);
         }
 
-        $backupWorkflow = $this->workflowRegistry->get($backup);
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
-        if ('backuped' === $backup->getCurrentPlace()) {
-            if ($backup->getCreatedAt()->format('Y-m-d') === $dateTime->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
-                return;
-            } else {
-                $backup = new Backup();
-                $backup->setBackupConfiguration($backupConfiguration);
-            }
-        } elseif ('initialized' !== $backup->getCurrentPlace()) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('Resume backup with current state %s', $backup->getCurrentPlace()));
-            if ($backup->getCreatedAt()->format('Y-m-d') !== $dateTime->format('Y-m-d') && BackupConfiguration::PERIODICITY_DAILY === $backupConfiguration->getPeriodicity()) {
-                $this->log($backup, Log::LOG_NOTICE, 'Backup is not from today, force fail it');
-                if ('failed' !== $backup->getCurrentPlace()) {
-                    $backupWorkflow->apply($backup, 'failed');
-
-                    $this->entityManager->persist($backup);
-                    $this->entityManager->flush();
-                }
-
-                $backup = new Backup();
-                $backup->setBackupConfiguration($backupConfiguration);
-            } else {
-                $this->log($backup, Log::LOG_INFO, \sprintf('Resume backup with current state %s', $backup->getCurrentPlace()));
-            }
-        }
-
-        try {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s', self::class, __FUNCTION__));
-
-            if ($backupWorkflow->can($backup, 'start')) {
-                $backupWorkflow->apply($backup, 'start');
-            }
-
-            // Some backup types can go through start to upload without dump and download
-            if ($backupWorkflow->can($backup, 'upload')) {
-                $backupWorkflow->apply($backup, 'upload');
-            } elseif ($backupWorkflow->can($backup, 'dump')) {
-                $backupWorkflow->apply($backup, 'dump');
-            }
-        } catch (Exception $e) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('An error occured : %s', $e->getMessage()));
-
-            if ($backupWorkflow->can($backup, 'failed')) {
-                $backupWorkflow->apply($backup, 'failed');
-            }
-        }
-
-        $this->entityManager->persist($backup);
-        $this->entityManager->flush();
+        return $backup;
     }
 
-    public function performBackup(BackupConfiguration $backupConfiguration): void
+    private function findLatestBackupOrFail(BackupConfiguration $backupConfiguration): Backup
     {
-        $backup = $this->backupRepository->findOneBy([
-            'backupConfiguration' => $backupConfiguration,
-        ], ['id' => 'DESC']);
+        $backup = $this->backupRepository->findOneBy(
+            ['backupConfiguration' => $backupConfiguration],
+            ['id' => 'DESC'],
+        );
 
         if (null === $backup) {
             throw new Exception(\sprintf('No backup found: %s', $backupConfiguration->getName()));
         }
 
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
-
-        try {
-            $backupWorkflow = $this->workflowRegistry->get($backup);
-
-            if ($backupWorkflow->can($backup, 'download')) {
-                $backupWorkflow->apply($backup, 'download');
-            }
-
-            if ($backupWorkflow->can($backup, 'upload')) {
-                $backupWorkflow->apply($backup, 'upload');
-            }
-
-            if ($backupWorkflow->can($backup, 'cleanup')) {
-                $backupWorkflow->apply($backup, 'cleanup');
-            }
-        } catch (Exception $e) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('An error occured : %s', $e->getMessage()));
-
-            if ($backupWorkflow->can($backup, 'failed')) {
-                $backupWorkflow->apply($backup, 'failed');
-            }
-        }
-
-        $this->entityManager->persist($backup);
-        $this->entityManager->flush();
+        return $backup;
     }
 
-    public function completeBackup(BackupConfiguration $backupConfiguration): void
+    private function failWorkflow(Backup $backup, WorkflowInterface $workflow, Exception $exception): void
     {
-        $backup = $this->backupRepository->findOneBy([
-            'backupConfiguration' => $backupConfiguration,
-        ], ['id' => 'DESC']);
+        $this->backupLogger->log($backup, Log::LOG_NOTICE, \sprintf('An error occured : %s', $exception->getMessage()));
 
-        if (null === $backup) {
-            throw new Exception(\sprintf('No backup found: %s', $backupConfiguration->getName()));
+        if ($workflow->can($backup, 'failed')) {
+            $workflow->apply($backup, 'failed');
         }
-
-        $this->log($backup, Log::LOG_NOTICE, \sprintf('call %s::%s. CurrentState : %s', self::class, __FUNCTION__, $backup->getCurrentPlace()));
-
-        $backupWorkflow = $this->workflowRegistry->get($backup);
-
-        try {
-            if ($backupWorkflow->can($backup, 'health_check')) {
-                $backupWorkflow->apply($backup, 'health_check');
-            }
-
-            if ($backupWorkflow->can($backup, 'forget')) {
-                $backupWorkflow->apply($backup, 'forget');
-            }
-
-            if ($backupWorkflow->can($backup, 'backuped')) {
-                $backupWorkflow->apply($backup, 'backuped');
-            }
-        } catch (Exception $e) {
-            $this->log($backup, Log::LOG_NOTICE, \sprintf('An error occured : %s', $e->getMessage()));
-
-            if ($backupWorkflow->can($backup, 'failed')) {
-                $backupWorkflow->apply($backup, 'failed');
-            }
-        }
-
-        $this->entityManager->persist($backup);
-        $this->entityManager->flush();
-    }
-
-    /**
-     * Build SSH options string from host configuration
-     * Validates SSH options to prevent command injection.
-     */
-    private function buildSshOptionsString(?Host $host): string
-    {
-        if (!$host?->getSshOptions()) {
-            return '';
-        }
-
-        $sshOptions = trim($host->getSshOptions());
-
-        if (!preg_match(Host::SSH_OPTIONS_PATTERN, $sshOptions)) {
-            throw new InvalidArgumentException('SSH options contain invalid characters. Only alphanumeric characters, spaces, and the following special characters are allowed: - = , + . / : _');
-        }
-
-        return ' '.$sshOptions;
     }
 }

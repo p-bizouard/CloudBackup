@@ -142,6 +142,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         procps \
         graphviz
 
+# pcov: code-coverage driver for phpunit (low overhead, dev only).
+# Disabled by default; enable via `php -d pcov.enabled=1 vendor/bin/phpunit --coverage-text`.
+RUN install-php-extensions pcov \
+    && { \
+        echo "pcov.enabled=0"; \
+        echo "pcov.directory=/app/src"; \
+        echo "pcov.exclude=\"~vendor~\""; \
+    } > $PHP_INI_DIR/conf.d/pcov.ini
+
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 
 #
