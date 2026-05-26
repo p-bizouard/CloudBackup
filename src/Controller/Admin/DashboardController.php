@@ -10,6 +10,7 @@ use App\Entity\Kubeconfig;
 use App\Entity\Log;
 use App\Entity\OSInstance;
 use App\Entity\OSProject;
+use App\Entity\RestoreDestination;
 use App\Entity\Storage;
 use App\Entity\User;
 use App\Repository\BackupConfigurationRepository;
@@ -110,5 +111,8 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::section('Backups');
         yield MenuItem::linkToCrud('Schedulings', 'fas fa-cogs', BackupConfiguration::class);
         yield MenuItem::linkToCrud('Backups', 'fas fa-save', Backup::class);
+
+        yield MenuItem::section('Restore');
+        yield MenuItem::linkToCrud('Restore destinations', 'fas fa-undo', RestoreDestination::class);
     }
 }

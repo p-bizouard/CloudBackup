@@ -18,6 +18,32 @@ class BackupConfigurationRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return BackupConfiguration[] enabled configurations that have a RestoreDestination set
+     */
+    public function findEnabledWithRestoreDestination(): array
+    {
+        return $this->createQueryBuilder('bc')
+            ->andWhere('bc.enabled = true')
+            ->andWhere('bc.restoreDestination IS NOT NULL')
+            ->orderBy('bc.type', 'ASC')
+            ->addOrderBy('bc.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOneByIdentifier(string $identifier): ?BackupConfiguration
+    {
+        if (ctype_digit($identifier)) {
+            $byId = $this->find((int) $identifier);
+            if ($byId instanceof BackupConfiguration) {
+                return $byId;
+            }
+        }
+
+        return $this->findOneBy(['slug' => $identifier]);
+    }
+
+    /**
      * @return BackupConfiguration[] Returns an array of BackupConfiguration objects with only their latest backup
      */
     public function findEnabledWithLatestBackupOnly(): array
