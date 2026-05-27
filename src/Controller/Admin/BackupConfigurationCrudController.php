@@ -3,13 +3,16 @@
 namespace App\Controller\Admin;
 
 use App\Entity\BackupConfiguration;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -20,6 +23,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Override;
+use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
@@ -34,6 +40,32 @@ class BackupConfigurationCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return BackupConfiguration::class;
+    }
+
+    /**
+     * @return FormBuilderInterface<BackupConfiguration>
+     */
+    #[Override]
+    public function createEditFormBuilder(EntityDto $entityDto, KeyValueStore $formOptions, AdminContext $context): FormBuilderInterface
+    {
+        $builder = parent::createEditFormBuilder($entityDto, $formOptions, $context);
+        $em = $this->managerRegistry->getManagerForClass(BackupConfiguration::class);
+        if (!$em instanceof EntityManagerInterface) {
+            return $builder;
+        }
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use ($em): void {
+            $entity = $event->getData();
+            if (!$entity instanceof BackupConfiguration) {
+                return;
+            }
+            $original = $em->getUnitOfWork()->getOriginalEntityData($entity);
+            $posted = $entity->getRestoreTargetDbPassword();
+            if ((null === $posted || '' === $posted) && !empty($original['restoreTargetDbPassword'])) {
+                $entity->setRestoreTargetDbPassword($original['restoreTargetDbPassword']);
+            }
+        }, priority: 100);
+
+        return $builder;
     }
 
     #[Override]
@@ -217,6 +249,37 @@ class BackupConfigurationCrudController extends AbstractCrudController
                 ->hideOnIndex()
                 ->addCssClass(\sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getAvailableTypes())))
                 ->setHelp('Minimal size of the backup (in bytes)'),
+
+            FormField::addFieldset('Restore')
+                ->hideOnIndex()
+                ->setIcon('fas fa-undo'),
+
+            AssociationField::new('restoreDestination')
+                ->setRequired(false)
+                ->hideOnIndex()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s', implode(' ', BackupConfiguration::getTypesRequiringRestoreDestination())))
+                ->setHelp('Restore destination used when generating a restore bundle for this scheduling.'),
+
+            TextField::new('restoreTargetDbUser')
+                ->setRequired(false)
+                ->hideOnIndex()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s %s', BackupConfiguration::TYPE_MYSQL, BackupConfiguration::TYPE_POSTGRESQL))
+                ->setHelp('Override the destination DB user for this scheduling. Leave blank to use destination default.'),
+
+            TextField::new('restoreTargetDbPassword')
+                ->setFormType(\Symfony\Component\Form\Extension\Core\Type\PasswordType::class)
+                ->setFormTypeOption('always_empty', false)
+                ->setRequired(false)
+                ->hideOnIndex()
+                ->onlyOnForms()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s %s', BackupConfiguration::TYPE_MYSQL, BackupConfiguration::TYPE_POSTGRESQL))
+                ->setHelp('Override the destination DB password for this scheduling. Leave blank to use destination default.'),
+
+            TextField::new('restoreTargetDatabase')
+                ->setRequired(false)
+                ->hideOnIndex()
+                ->addCssClass(\sprintf('backupConfigurationType-field %s %s', BackupConfiguration::TYPE_MYSQL, BackupConfiguration::TYPE_POSTGRESQL))
+                ->setHelp('Override the destination target database name for this scheduling. Leave blank to use destination default.'),
         ];
     }
 

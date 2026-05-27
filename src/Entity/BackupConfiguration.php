@@ -119,6 +119,19 @@ class BackupConfiguration implements Stringable
     #[ORM\Column(type: Types::SMALLINT, options: ['default' => 1])]
     private int $notifyEvery = 1;
 
+    #[ORM\ManyToOne(targetEntity: RestoreDestination::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?RestoreDestination $restoreDestination = null;
+
+    #[ORM\Column(type: Types::STRING, length: 128, nullable: true)]
+    private ?string $restoreTargetDbUser = null;
+
+    #[ORM\Column(type: Types::STRING, length: 512, nullable: true)]
+    private ?string $restoreTargetDbPassword = null;
+
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $restoreTargetDatabase = null;
+
     final public const string PERIODICITY_DAILY = 'daily';
 
     final public const string TYPE_OS_INSTANCE = 'os-instance';
@@ -636,5 +649,67 @@ class BackupConfiguration implements Stringable
         $this->kubeResource = $kubeResource;
 
         return $this;
+    }
+
+    public function getRestoreDestination(): ?RestoreDestination
+    {
+        return $this->restoreDestination;
+    }
+
+    public function setRestoreDestination(?RestoreDestination $restoreDestination): static
+    {
+        $this->restoreDestination = $restoreDestination;
+
+        return $this;
+    }
+
+    public function getRestoreTargetDbUser(): ?string
+    {
+        return $this->restoreTargetDbUser;
+    }
+
+    public function setRestoreTargetDbUser(?string $restoreTargetDbUser): static
+    {
+        $this->restoreTargetDbUser = $restoreTargetDbUser;
+
+        return $this;
+    }
+
+    public function getRestoreTargetDbPassword(): ?string
+    {
+        return $this->restoreTargetDbPassword;
+    }
+
+    public function setRestoreTargetDbPassword(?string $restoreTargetDbPassword): static
+    {
+        $this->restoreTargetDbPassword = $restoreTargetDbPassword;
+
+        return $this;
+    }
+
+    public function getRestoreTargetDatabase(): ?string
+    {
+        return $this->restoreTargetDatabase;
+    }
+
+    public function setRestoreTargetDatabase(?string $restoreTargetDatabase): static
+    {
+        $this->restoreTargetDatabase = $restoreTargetDatabase;
+
+        return $this;
+    }
+
+    /**
+     * Types that have a restore strategy and therefore require a RestoreDestination.
+     *
+     * @return string[]
+     */
+    public static function getTypesRequiringRestoreDestination(): array
+    {
+        return [
+            self::TYPE_MYSQL,
+            self::TYPE_POSTGRESQL,
+            self::TYPE_RCLONE,
+        ];
     }
 }

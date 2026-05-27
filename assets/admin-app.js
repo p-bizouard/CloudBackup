@@ -62,4 +62,41 @@ jQuery(function($) {
 
         hideShowStorageTypeConfigurations();
     }
+
+    if ($("#RestoreDestination_type").length) {
+        const $typeSelect = $("#RestoreDestination_type");
+        const $modeSelect = $("#RestoreDestination_connectionMode");
+        const $byoCheckbox = $("#RestoreDestination_bringOwnCredentials");
+
+        const matchesCsv = function(csv, value) {
+            if (!csv) return true;
+            return csv.split(",").map(s => s.trim()).includes(value);
+        };
+
+        const applyVisibility = function() {
+            const type = $typeSelect.val();
+            const mode = $modeSelect.length ? $modeSelect.val() : "";
+            const byo = $byoCheckbox.length && $byoCheckbox.is(":checked") ? "true" : "false";
+
+            $(".restore-dest-field").each(function() {
+                const $row = $(this);
+                const showType = $row.attr("data-show-type") || "";
+                const showMode = $row.attr("data-show-mode") || "";
+                const showByo = $row.attr("data-show-byo") || "";
+
+                let visible = true;
+                if (showType && !matchesCsv(showType, type)) visible = false;
+                if (visible && showMode && !matchesCsv(showMode, mode)) visible = false;
+                if (visible && showByo && !matchesCsv(showByo, byo)) visible = false;
+
+                $row.toggle(visible);
+            });
+        };
+
+        $typeSelect.on("change", applyVisibility);
+        $modeSelect.on("change", applyVisibility);
+        $byoCheckbox.on("change", applyVisibility);
+
+        applyVisibility();
+    }
 });
