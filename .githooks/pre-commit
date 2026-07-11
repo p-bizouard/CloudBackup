@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Pre-commit hook: php-cs-fixer fix, phpstan analyse, rector --dry-run
+# Runs inside the project's PHP container (per project convention).
+#   - If executed from inside a container: run tools directly.
+#   - If executed on the host: route through `docker compose exec php`.
+# Skips silently when neither path is usable.
+
+set -euo pipefail
+
+SERVICE=php
+
+STAGED=()
+while IFS= read -r line; do
+    [ -n "${line}" ] && STAGED+=("${line}")
+done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.php')
+
+if [ ${#STAGED[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# Detect "are we already inside a container?" — /.dockerenv exists in every
+# container started by docker/podman.
+if [ -f /.dockerenv ]; then
+    runner=(env)
+else
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "[pre-commit] docker not found, skipping PHP checks" >&2
+        exit 0
+    fi
+    if docker compose ps --services --filter status=running 2>/dev/null | grep -qx "${SERVICE}"; then
+        # Service running — attach (fast, warm caches).
+        runner=(docker compose exec -T "${SERVICE}")
+    else
+        # Service down — spawn ephemeral container, no deps, auto-remove.
+        echo "[pre-commit] '${SERVICE}' service not running, falling back to 'docker compose run'" >&2
+        runner=(docker compose run --rm --no-deps -T "${SERVICE}")
+    fi
+fi
+
+run() { "${runner[@]}" "$@"; }
+
+echo "[pre-commit] php-cs-fixer fix (${#STAGED[@]} file(s))"
+run vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --using-cache=no -- "${STAGED[@]}"
+
+# Re-stage files that php-cs-fixer may have rewritten.
+git add -- "${STAGED[@]}"
+
+echo "[pre-commit] phpstan analyse"
+run vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress --memory-limit=1G -- "${STAGED[@]}"
+
+echo "[pre-commit] rector --dry-run"
+run vendor/bin/rector process --dry-run --no-progress-bar -- "${STAGED[@]}"
+
+echo "[pre-commit] ok"
